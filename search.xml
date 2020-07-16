@@ -37,6 +37,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
@@ -116,6 +117,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
@@ -232,6 +234,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
@@ -308,6 +311,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
@@ -397,6 +401,16 @@
 
 <p>展示：</p>
 <p><img src="http://q9kx2gcuj.bkt.clouddn.com/20200509_001.png" alt="20200509_001"></p>
+<p>扩展：</p>
+<p>多级分类配置：</p>
+<p>打开source/categories/index.md,改为如下</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">title: 文章分类</span><br><span class="line">date: 2020-07-10 13:27:56</span><br><span class="line">type: &quot;categories&quot;</span><br><span class="line">comments: false</span><br></pre></td></tr></table></figure>
+
+<p>然后，修改博文分类属性如下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">title: Hexo环境搭建 </span><br><span class="line">date: 2019-12-10 21:02:06</span><br><span class="line">tags: Hexo</span><br><span class="line">categories:</span><br><span class="line">- 工具</span><br><span class="line">- hexo</span><br></pre></td></tr></table></figure>
+
+<p>多级标签也是这样设置，最后效果如下。</p>
+<p><img src="http://jiali.clouddn.com/20200716_001.png" alt="20200716_001"></p>
 <p><strong>参考</strong>：</p>
 <p><a href="https://rilzob.com/" target="_blank" rel="noopener">Hexo使用攻略：添加分类及标签</a></p>
 <p><a href="https://whx4j8.github.io/" target="_blank" rel="noopener">hexo next 为文章添加分类</a></p>
@@ -404,6 +418,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
@@ -465,6 +480,7 @@
 ]]></content>
       <categories>
         <category>工具</category>
+        <category>Hexo</category>
       </categories>
       <tags>
         <tag>Hexo</tag>
