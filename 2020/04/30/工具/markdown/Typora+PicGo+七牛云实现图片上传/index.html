@@ -20,20 +20,30 @@
     var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="转载Hexo - 记录一次Pages服务部署失败的原因  Hexo - 记录一次Pages服务部署失败的原因问题与分析某天忽然发现，一直运行得好好的Pages服务部署失败了，GitHub Pages报错如下： 12Your site is having problems building: The tag cq on line 3 in source&#x2F;high&#x2F;index.md">
+  <meta name="description" content="1 前言Typora编写markdown，简洁高效。但是会遇到md文件拷贝到另一个电脑或者导入博客，图片失效的问题。解决的方法有很多。比较原始的是，拷贝md文件，连同图片一起拷贝放在一个目录。但是经常拷贝图片太麻烦，最好的办法就是把图片放在图床上。本人使用的是七牛云图床。本文总结Typora+PicGo+七牛云的实现过程。 2 注册七牛云2.1 进入官网注册点击七牛云官网，然后选择“注册有礼”，接">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hexo - 记录一次Pages服务部署失败的原因">
-<meta property="og:url" content="http://yoursite.com/2020/05/07/%E5%B7%A5%E5%85%B7/hexo/Hexo%20-%20%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1Pages%E6%9C%8D%E5%8A%A1%E9%83%A8%E7%BD%B2%E5%A4%B1%E8%B4%A5%E7%9A%84%E5%8E%9F%E5%9B%A0(%E8%BD%AC%E8%BD%BD)/index.html">
+<meta property="og:title" content="Typora+PicGo+七牛云实现图片上传">
+<meta property="og:url" content="http://yoursite.com/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/Typora+PicGo+%E4%B8%83%E7%89%9B%E4%BA%91%E5%AE%9E%E7%8E%B0%E5%9B%BE%E7%89%87%E4%B8%8A%E4%BC%A0/index.html">
 <meta property="og:site_name" content="Tech Blog">
-<meta property="og:description" content="转载Hexo - 记录一次Pages服务部署失败的原因  Hexo - 记录一次Pages服务部署失败的原因问题与分析某天忽然发现，一直运行得好好的Pages服务部署失败了，GitHub Pages报错如下： 12Your site is having problems building: The tag cq on line 3 in source&#x2F;high&#x2F;index.md">
+<meta property="og:description" content="1 前言Typora编写markdown，简洁高效。但是会遇到md文件拷贝到另一个电脑或者导入博客，图片失效的问题。解决的方法有很多。比较原始的是，拷贝md文件，连同图片一起拷贝放在一个目录。但是经常拷贝图片太麻烦，最好的办法就是把图片放在图床上。本人使用的是七牛云图床。本文总结Typora+PicGo+七牛云的实现过程。 2 注册七牛云2.1 进入官网注册点击七牛云官网，然后选择“注册有礼”，接">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2020-05-07T06:18:06.000Z">
-<meta property="article:modified_time" content="2020-07-16T01:23:40.341Z">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/202004301.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/202004302.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043003.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043004.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043005.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043006.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043007.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043008.png">
+<meta property="og:image" content="http://q9kx2gcuj.bkt.clouddn.com/2020043009.png">
+<meta property="article:published_time" content="2020-04-30T05:45:06.000Z">
+<meta property="article:modified_time" content="2020-07-17T01:44:25.542Z">
 <meta property="article:author" content="David Meng">
-<meta property="article:tag" content="Hexo">
+<meta property="article:tag" content="Markdown">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://q9kx2gcuj.bkt.clouddn.com/202004301.png">
 
-<link rel="canonical" href="http://yoursite.com/2020/05/07/%E5%B7%A5%E5%85%B7/hexo/Hexo%20-%20%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1Pages%E6%9C%8D%E5%8A%A1%E9%83%A8%E7%BD%B2%E5%A4%B1%E8%B4%A5%E7%9A%84%E5%8E%9F%E5%9B%A0(%E8%BD%AC%E8%BD%BD)/">
+<link rel="canonical" href="http://yoursite.com/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/Typora+PicGo+%E4%B8%83%E7%89%9B%E4%BA%91%E5%AE%9E%E7%8E%B0%E5%9B%BE%E7%89%87%E4%B8%8A%E4%BC%A0/">
 
 
 <script id="page-configurations">
@@ -46,7 +56,7 @@
   };
 </script>
 
-  <title>Hexo - 记录一次Pages服务部署失败的原因 | Tech Blog</title>
+  <title>Typora+PicGo+七牛云实现图片上传 | Tech Blog</title>
   
 
 
@@ -194,7 +204,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/07/%E5%B7%A5%E5%85%B7/hexo/Hexo%20-%20%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1Pages%E6%9C%8D%E5%8A%A1%E9%83%A8%E7%BD%B2%E5%A4%B1%E8%B4%A5%E7%9A%84%E5%8E%9F%E5%9B%A0(%E8%BD%AC%E8%BD%BD)/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/Typora+PicGo+%E4%B8%83%E7%89%9B%E4%BA%91%E5%AE%9E%E7%8E%B0%E5%9B%BE%E7%89%87%E4%B8%8A%E4%BC%A0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +217,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Hexo - 记录一次Pages服务部署失败的原因
+          Typora+PicGo+七牛云实现图片上传
         </h1>
 
         <div class="post-meta">
@@ -217,14 +227,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2020-05-07 14:18:06" itemprop="dateCreated datePublished" datetime="2020-05-07T14:18:06+08:00">2020-05-07</time>
+              <time title="Created: 2020-04-30 13:45:06" itemprop="dateCreated datePublished" datetime="2020-04-30T13:45:06+08:00">2020-04-30</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-07-16 09:23:40" itemprop="dateModified" datetime="2020-07-16T09:23:40+08:00">2020-07-16</time>
+                <time title="Modified: 2020-07-17 09:44:25" itemprop="dateModified" datetime="2020-07-17T09:44:25+08:00">2020-07-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -236,7 +246,7 @@
                 </span>
                   , 
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7/Hexo/" itemprop="url" rel="index"><span itemprop="name">Hexo</span></a>
+                  <a href="/categories/%E5%B7%A5%E5%85%B7/Markdown/" itemprop="url" rel="index"><span itemprop="name">Markdown</span></a>
                 </span>
             </span>
 
@@ -251,19 +261,40 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p><strong>转载</strong><a href="https://www.cnblogs.com/yulinlewis/p/10777296.html" target="_blank" rel="noopener">Hexo - 记录一次Pages服务部署失败的原因 </a></p>
-<h1 id="Hexo-记录一次Pages服务部署失败的原因"><a href="#Hexo-记录一次Pages服务部署失败的原因" class="headerlink" title="Hexo - 记录一次Pages服务部署失败的原因"></a>Hexo - 记录一次Pages服务部署失败的原因</h1><h2 id="问题与分析"><a href="#问题与分析" class="headerlink" title="问题与分析"></a>问题与分析</h2><p>某天忽然发现，一直运行得好好的Pages服务部署失败了，GitHub Pages报错如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Your site is having problems building: The tag cq on line 3 in source&#x2F;high&#x2F;index.md is not a recognized Liquid tag.</span><br><span class="line">For more information, see https:&#x2F;&#x2F;help.github.com&#x2F;articles&#x2F;page-build-failed-unknown-tag-error&#x2F;.</span><br></pre></td></tr></table></figure>
-
-<p>与此同时，Coding Pages同样也报错了：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Starting jekyll build.</span><br><span class="line">&gt; jekyll build --safe</span><br><span class="line">Configuration file: &#x2F;usr&#x2F;src&#x2F;app&#x2F;_config.yml</span><br><span class="line">jekyll 3.6.2 | Error:  The next theme could not be found.</span><br><span class="line">Jekyll build exit with code 1.</span><br><span class="line">Fail to build jekyll site.</span><br></pre></td></tr></table></figure>
-
-<p>首先我使用的是Hexo的next主题，而根据GitHub Pages的报错信息来看，是说在source/high/index.md里使用到了一个不认识的cq标签。<br>这个标签是next主题自带的，使用该标签快一年了，还是第一次遇到报这个错。接着根据Coding Pages的报错来看，则是说/usr/src/app/_config.yml里找不到jekyll的主题。<br>这就很奇怪了，我使用的明明是hexo，怎么忽然就变成jekyll了？一阵瞎折腾过后，一直部署失败。我忽然想起来一个事情，我之前曾经拿本地的博客仓库的git配置练过手，难道和这个有关？<br>我开始查找本地博客仓库的git配置，我是使用hexo-deployer-git这个插件来将本地生成的静态博客发送到远程仓库的。<br>当我在本地在执行hexo g后，会在博客根目录下生成一个public文件夹，这个文件夹里的文件组合起来就是一个完整的静态博客。<br>接着如果执行hexo d，就会把这个public文件夹的东西完完整整拷贝到.deploy_git文件夹里，然后会把该文件夹里的所有文件全部推送push到远程库。之后会触发Pages服务的钩子去build项目，然后部署到网站上。</p>
-<h2 id="发现线索"><a href="#发现线索" class="headerlink" title="发现线索"></a>发现线索</h2><p>我打开public文件夹，发现生成出来的文件很正常，接着打开.deploy_git文件夹，发现也很正常，接着查看远程库里的文件，终于发现了问题。<br>在远程库的分支里，根本就没有hexo相关的文件，至此算是找到原因了。<br>很显然，我在执行hexo d时出了问题，没能正常将文件push到远程库，于是部署就失败了。之前该命令是没问题的，可之前我曾经动过手脚，修改过博客项目里的git配置，手动修改了.git里的文件，莫非这就是问题的根源？</p>
-<h2 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h2><p>基于以上的猜想，我直接删掉了本地博客项目的.deploy_git文件夹，重新执行命令：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hexo cl</span><br><span class="line">hexo g -d</span><br></pre></td></tr></table></figure>
-
-<p>等待片刻后，我终于看到远程部署成功，我的个人站点再次运转成功！<br>皇天不负有心人啊！原因终于明了，是.deploy_git文件夹出现问题，删掉该文件夹，重新运行hexo d即可。<br>记录下这次的遭遇，遇到问题应该静下心来，仔细分析，才不容易瞎折腾</p>
+        <h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>Typora编写markdown，简洁高效。但是会遇到md文件拷贝到另一个电脑或者导入博客，图片失效的问题。解决的方法有很多。比较原始的是，拷贝md文件，连同图片一起拷贝放在一个目录。但是经常拷贝图片太麻烦，最好的办法就是把图片放在图床上。本人使用的是七牛云图床。本文总结Typora+PicGo+七牛云的实现过程。</p>
+<h2 id="2-注册七牛云"><a href="#2-注册七牛云" class="headerlink" title="2 注册七牛云"></a>2 注册七牛云</h2><h3 id="2-1-进入官网注册"><a href="#2-1-进入官网注册" class="headerlink" title="2.1 进入官网注册"></a>2.1 进入官网注册</h3><p>点击<a href="https://www.qiniu.com/?utm_campaign=SEM&utm_content=pinzhuan&utm_medium=pinzhuan&utm_source=baiduSEM&utm_term=pinzhuan" target="_blank" rel="noopener">七牛云官网</a>，然后选择“注册有礼”，接着输入注册信息，然后下一步，点击个人申请。</p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/202004301.png" alt="202004301"></p>
+<h3 id="2-2-实名认证"><a href="#2-2-实名认证" class="headerlink" title="2.2 实名认证"></a>2.2 实名认证</h3><p>需要实名认证才能申请免费的10G空间</p>
+<h3 id="2-3-建立存储空间"><a href="#2-3-建立存储空间" class="headerlink" title="2.3 建立存储空间"></a>2.3 建立存储空间</h3><p>回到<strong>主页</strong>，点击<strong>添加对象存储</strong>，然后，<strong>新建空间</strong>，填写<strong>空间配置信息</strong></p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/202004302.png" alt="202004302"></p>
+<h3 id="2-4-上传图片"><a href="#2-4-上传图片" class="headerlink" title="2.4 上传图片"></a>2.4 上传图片</h3><p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043003.png" alt="2020043003"></p>
+<p>为了方便编写md过程中，插入图片时候自动上传图片到七牛云图床，这需要用到PicGO工具。</p>
+<h2 id="3-PicGo工具安装与配置"><a href="#3-PicGo工具安装与配置" class="headerlink" title="3 PicGo工具安装与配置"></a>3 PicGo工具安装与配置</h2><h3 id="3-1-下载安装PicGo"><a href="#3-1-下载安装PicGo" class="headerlink" title="3.1 下载安装PicGo"></a>3.1 下载安装PicGo</h3><p><a href="https://github.com/Molunerfinn/PicGo/releases" target="_blank" rel="noopener">PicGo下载地址</a></p>
+<h3 id="3-2打开PicGo并设置七牛云图床"><a href="#3-2打开PicGo并设置七牛云图床" class="headerlink" title="3.2打开PicGo并设置七牛云图床"></a>3.2打开PicGo并设置七牛云图床</h3><p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043004.png" alt="2020043004"></p>
+<ul>
+<li><p>AccessKey和Secretkey到七牛云个人中心的密钥管理获取</p>
+</li>
+<li><p>存储空间名设置为七牛云的存储空间的命令</p>
+</li>
+<li><p>访问地址在空间概况里获取（记得前面加http://）</p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043005.png" alt="2020043005"></p>
+</li>
+</ul>
+<p><strong>七牛云的存储区域对应的简称</strong></p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043006.png" alt="2020043006"></p>
+<h3 id="3-3测试PicGo上传图片"><a href="#3-3测试PicGo上传图片" class="headerlink" title="3.3测试PicGo上传图片"></a>3.3测试PicGo上传图片</h3><p>可以把图片拖拽到PicGo上传区，测试是否可以正常上传图片。链接格式为MarkDown</p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043007.png" alt="2020043007"></p>
+<h2 id="4-Typora-配置-PicGo"><a href="#4-Typora-配置-PicGo" class="headerlink" title="4 Typora 配置 PicGo"></a>4 Typora 配置 PicGo</h2><h3 id="4-1配置图片上传"><a href="#4-1配置图片上传" class="headerlink" title="4.1配置图片上传"></a>4.1配置图片上传</h3><p>在Typora软件，打开<strong>文件</strong>选项，选择<strong>偏好设置</strong>，然后，选择<strong>图像</strong></p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043008.png" alt="2020043008"></p>
+<p><strong>上传服务</strong>选择PicGo，<strong>PicGo路径</strong>为安装路径。<strong>点击验证图片上传选项</strong>，如果验证失败，请检查PicGo的监听接口是否为36677.</p>
+<p><img src="http://q9kx2gcuj.bkt.clouddn.com/2020043009.png" alt="2020043009"></p>
+<h3 id="4-2-上传图片"><a href="#4-2-上传图片" class="headerlink" title="4.2 上传图片"></a>4.2 上传图片</h3><p>上传方式有很多种。</p>
+<p>方式一：在Typora,点击图片右键，选择上传图片</p>
+<p>方式二：点击<strong>格式</strong>，选择<strong>图像</strong>，选中<strong>当插入图片时</strong>，勾选<strong>上传图片</strong></p>
+<p><strong>参考</strong></p>
+<p><a href="https://blog.csdn.net/weimeibuqieryu/article/details/105315807" target="_blank" rel="noopener">typora+picgo+七牛云实现图片上传</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/114520225" target="_blank" rel="noopener">Typora 设置上传图片功能</a></p>
+<p><a href="https://blog.csdn.net/sky0816/article/details/103638287" target="_blank" rel="noopener">Typora等markdown笔记软件图片链接失效的问题解决办法</a></p>
 
     </div>
 
@@ -273,7 +304,7 @@
 
       <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/Hexo/" rel="tag"># Hexo</a>
+              <a href="/tags/Markdown/" rel="tag"># Markdown</a>
           </div>
 
         
@@ -282,12 +313,12 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2020/05/07/%E5%B7%A5%E5%85%B7/hexo/Hexo%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2%E5%8F%8A%E8%AE%BE%E7%BD%AE%E6%96%B0%E4%B8%BB%E9%A2%98/" rel="prev" title="Hexo搭建博客及设置新主题">
-      <i class="fa fa-chevron-left"></i> Hexo搭建博客及设置新主题
+    <a href="/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Markdown%20%E8%AF%AD%E6%B3%95%E6%89%8B%E5%86%8C%20%EF%BC%88%E5%AE%8C%E6%95%B4%E6%95%B4%E7%90%86%E7%89%88%EF%BC%89/" rel="prev" title="【转载】Markdown 语法手册 （完整整理版）">
+      <i class="fa fa-chevron-left"></i> 【转载】Markdown 语法手册 （完整整理版）
     </a></div>
       <div class="post-nav-item">
-    <a href="/2020/05/08/%E5%B7%A5%E5%85%B7/hexo/next%E4%B8%BB%E9%A2%98menu%E8%AE%BE%E7%BD%AE/" rel="next" title="Hexo:next主题menu设置">
-      Hexo:next主题menu设置 <i class="fa fa-chevron-right"></i>
+    <a href="/2020/05/07/%E5%B7%A5%E5%85%B7/hexo/Hexo%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2%E5%8F%8A%E8%AE%BE%E7%BD%AE%E6%96%B0%E4%B8%BB%E9%A2%98/" rel="next" title="Hexo搭建博客及设置新主题">
+      Hexo搭建博客及设置新主题 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -347,7 +378,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Hexo-记录一次Pages服务部署失败的原因"><span class="nav-number">1.</span> <span class="nav-text">Hexo - 记录一次Pages服务部署失败的原因</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#问题与分析"><span class="nav-number">1.1.</span> <span class="nav-text">问题与分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#发现线索"><span class="nav-number">1.2.</span> <span class="nav-text">发现线索</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#解决方法"><span class="nav-number">1.3.</span> <span class="nav-text">解决方法</span></a></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-前言"><span class="nav-number">1.</span> <span class="nav-text">1 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-注册七牛云"><span class="nav-number">2.</span> <span class="nav-text">2 注册七牛云</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-进入官网注册"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 进入官网注册</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-实名认证"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 实名认证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-建立存储空间"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 建立存储空间</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-上传图片"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 上传图片</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-PicGo工具安装与配置"><span class="nav-number">3.</span> <span class="nav-text">3 PicGo工具安装与配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-下载安装PicGo"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 下载安装PicGo</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2打开PicGo并设置七牛云图床"><span class="nav-number">3.2.</span> <span class="nav-text">3.2打开PicGo并设置七牛云图床</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3测试PicGo上传图片"><span class="nav-number">3.3.</span> <span class="nav-text">3.3测试PicGo上传图片</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Typora-配置-PicGo"><span class="nav-number">4.</span> <span class="nav-text">4 Typora 配置 PicGo</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1配置图片上传"><span class="nav-number">4.1.</span> <span class="nav-text">4.1配置图片上传</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-上传图片"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 上传图片</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
