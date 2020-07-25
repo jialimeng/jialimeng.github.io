@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 前言PCI，英文全称：PeripheralComponent Interconnect，外围组件互联，由Intel于1991年提出。随着Intel Pentium处理器诞生而迅速发展，当时几乎所有的外围设备，从硬盘控制器、声卡、显卡和网卡，都使用PCI插槽来连接到计算机的主板上。计算机的PCI总线外设拓扑结构如下图所示。  PCI基础知识PCI是什么？PCI总线是并行、同步、数据地址复">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PCI总线基础知识">
+<meta property="og:url" content="http://yoursite.com/2020/07/20/Linux/Driver/PCIe/PCI%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 前言PCI，英文全称：PeripheralComponent Interconnect，外围组件互联，由Intel于1991年提出。随着Intel Pentium处理器诞生而迅速发展，当时几乎所有的外围设备，从硬盘控制器、声卡、显卡和网卡，都使用PCI插槽来连接到计算机的主板上。计算机的PCI总线外设拓扑结构如下图所示。  PCI基础知识PCI是什么？PCI总线是并行、同步、数据地址复">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20200720_002.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200720_001.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200720_003.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_001.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_003.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_004.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_007.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_005.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200721_006.png">
+<meta property="article:published_time" content="2020-07-20T09:18:42.000Z">
+<meta property="article:modified_time" content="2020-07-25T06:45:12.056Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="PCIe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20200720_002.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/07/20/Linux/Driver/PCIe/PCI%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>PCI总线基础知识 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/20/Linux/Driver/PCIe/PCI%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          PCI总线基础知识
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-07-20 17:18:42" itemprop="dateCreated datePublished" datetime="2020-07-20T17:18:42+08:00">2020-07-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-07-25 14:45:12" itemprop="dateModified" datetime="2020-07-25T14:45:12+08:00">2020-07-25</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/PCIe/" itemprop="url" rel="index"><span itemprop="name">PCIe</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>PCI，英文全称：PeripheralComponent Interconnect，外围组件互联，由Intel于1991年提出。随着Intel Pentium处理器诞生而迅速发展，当时几乎所有的外围设备，从硬盘控制器、声卡、显卡和网卡，都使用PCI插槽来连接到计算机的主板上。计算机的PCI总线外设拓扑结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200720_002.png" alt="20200720_002"></p>
+<h2 id="PCI基础知识"><a href="#PCI基础知识" class="headerlink" title="PCI基础知识"></a>PCI基础知识</h2><h3 id="PCI是什么？"><a href="#PCI是什么？" class="headerlink" title="PCI是什么？"></a>PCI是什么？</h3><p>PCI总线是并行、同步、数据地址复用的总线。在一个时钟周期内32个bit（或者64bit）同时被传输，地址和数据在一个时钟周期内按照协议，分别一次被传输。32bit/33MHz峰值带宽为132MB/s，64bit/66MHz峰值带宽为532MB/s。引脚定义如下：</p>
+<p><img src="http://jiali.clouddn.com/20200720_001.png" alt="20200720_001"></p>
+<p>特点：</p>
+<ul>
+<li>PCI总线地址空间与处理器的地址空间隔离：通过HOST主桥将PCI总线地址空间与CPU存储器域地址空间隔离。处理器访问PCI设备，先通过HOST主桥将处理器域的地址转换为PCI总线地址，同理，PCI设备进行DMA操作来传输数据时，也是先通过主桥将PCI总线地址转换为处理器存储器域地址。PCI总线地址是独立的地址空间，这跟处理器的存储器域地址空间不同。</li>
+<li>可扩展性：同过HOST主桥引出一条PCI总线，然后在通过PCI桥引出一系列PCI总线，这样就构成一颗以HOST主桥为根的PCI总线树。</li>
+<li>动态配置机制：每一个PCI设备都有独立的配置空间，在配置空间中包含了该设备在PCI总线地址空间中使用的物理基地址。这个基地址，可以通过软件动态分配，从而保证了每一个PCI设备使用的PCI总线地址不相同。</li>
+<li>总线带宽：32bit/33MHz的PCI总线可以提供132MB/s的峰值带宽，64bit/66MHz的PCI总线可以提供532MB/s的峰值带宽。</li>
+<li>共享总线机制：多个PCI设备可以共享一条PCI总线，PCI设备通过仲裁获得PCI总线的使用权后，才能进程数据传输。</li>
+<li>中断机制。PCI总线上的设备可以通过四根中断请求信号INTA-D#向处理器提交中断请求。还可以通过MSI机制（该机制使用存储器写总线事务传递中断请求信号）提交中断请求。</li>
+</ul>
+<h3 id="PCI总线架构"><a href="#PCI总线架构" class="headerlink" title="PCI总线架构"></a>PCI总线架构</h3><p>在一个处理器系统中，PCI总线相关模块如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200720_003.png" alt="20200720_003"></p>
+<h4 id="PCI总线相关模块"><a href="#PCI总线相关模块" class="headerlink" title="PCI总线相关模块"></a>PCI总线相关模块</h4><p><strong>HOST主桥</strong></p>
+<p>HOST主桥主要功能是隔离CPU系统的存储器域与CPU系统的PCI总线域，并完成CPU与PCI设备间的数据交换。数据交换主要的类型：处理器访问PCI设备的地址空间和PCI设备使用DMA机制访问DDR内存。</p>
+<p><strong>PCI总线</strong></p>
+<p>有两个概念：PCI总线和PCI总线树。PCI总线是由桥引出来的一条总线，而PCI总线树是以HOST主桥为根的一系列PCI总线组成的。所有PCI桥引出总线地址共享PCI总线域（一颗PCI总线树）的地址。</p>
+<p><strong>PCI设备</strong></p>
+<p>三类设备：PCI主设备、PCI从设备和桥设备。</p>
+<p>从设备：只能被动地接收来自HOST主桥或者其他PCI设备的读写请求</p>
+<p>主设备:通过总线仲裁获得PCI总线的使用权，主动地向其他PCI设备或者主存储器（DDR）发起存储器读写请求。</p>
+<p>桥设备：管理下游的PCI总线，并转发上下游总线之间的总线事务。</p>
+<p>一个PCI设备可以既是主设备也是从设备，但是在同一个时刻，这个PCI设备只能是主设备或从设备。PCI总线规范把这类PCI主从设备称为PCI Agent设备。</p>
+<p><strong>HOST处理器：</strong>CPU</p>
+<p><strong>PCI总线负载</strong>：PCI总线能挂接的负载域总线频率相关。如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_001.png" alt=""></p>
+<h4 id="PCI总线事务"><a href="#PCI总线事务" class="headerlink" title="PCI总线事务"></a>PCI总线事务</h4><p>CPU与PCI设备之间数据传输，通过PCI总线地址完成。CPU对PCI设备的地址空间进行读写，先发起存储器域地址读写，然后通过HOST主桥转换为PCI总线地址；PCI设备对CPU的DDR进行DMA操作，使用的目的地址是PCI总线地址，而不是CPU的存储器域地址，由HOST主桥完成PCI域地址到CPU的存储器域的地址转换。</p>
+<ol>
+<li><p><strong>存储器读写总线事务</strong></p>
+<p>（1）事务类型</p>
+<ul>
+<li><p>CPU对PCI的BAR空间地址进行数据读写</p>
+</li>
+<li><p>PCI设备之间的数据传输</p>
+</li>
+<li><p>PCI设备对CPU的DDR进行DMA读写操作。</p>
+</li>
+</ul>
+<p>（2）PCI总线传送方式:Posted 和Non-Posted</p>
+<p>Posted:PCI主设备向PCI目标设备进行数据传递时，当数据到达PCI桥后，PCI桥接管该总线事务，并转发到下游总线，然后，该PCI桥上游的PCI总线可以结束当前总线事务，释放了PCI使用权。在一定程度上解决PCI总线拥塞问题。</p>
+<p>Non-Posted:PCI主设备向PCI目标设备进行数据传递时，数据必须到达目的后，才能结束当前总线事务。</p>
+</li>
+<li><p><strong>CPU访问CPI设备</strong></p>
+<p>（1）CPU对PCI设备的数据访问形式</p>
+<ul>
+<li>CPU向PCI设备发起存储器和I/O读写请求</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li><h2 id="CPU对PCI设备的配置空间进行读写。"><a href="#CPU对PCI设备的配置空间进行读写。" class="headerlink" title="CPU对PCI设备的配置空间进行读写。"></a>CPU对PCI设备的配置空间进行读写。</h2><p> （2）CPU向PCI设备发起存储器读写事务过程</p>
+<p> ​    首先，CPU在初始化时，需要将PCI设备使用的BAR空间映射到存储器域地址空间。之后，CPU通过存储器读写指令访问存储器地址，HOST主桥将存储器地址请求转换为对PCI总线地址的请求，然后发给目标设备。注意：CPU只能使用CPU的存储器域的地址，而PCI设备只能使用PCI总线域的地址。</p>
+<p> （3）I/O读写总线事务</p>
+<p> ​    以X86处理器介绍CPU访问PCI设备的I/O地址空间的过程。X86处理器，具有独立的I/O地址空间，可以将PCI设备的I/O地址映射到CPU的I/O地址空间，之后    使用IN\OUT指令访问CPU自己的I/O地址，然后通过HOST主桥将CPU的I/O地址转换为PCI总线域的I/O地址，最后，使用PCI总线的I/O总线事务对PCI设备的    I/O地址访问。</p>
+</li>
+</ul>
+<ol start="3">
+<li><p><strong>PCI设备读写CPU的DDR存储器</strong></p>
+<p>PCI设备与CPU的DDR直接进行数据交换的过程被称为DMA。PCI设备进行DMA操作时候，需要获得数据传送的目的地址（已经与CPU的DDR内存地址映射的PCI总线地址）。HOST主桥负责完成PCI总线地址到CPU存储器域地址的转换，并向存储器控制器发起对DDR读写请求。注意，PCI设备不能直接访问没有经过HOST主桥映射的DDR内存地址。</p>
+</li>
+</ol>
+<h2 id="PCI总线配置"><a href="#PCI总线配置" class="headerlink" title="PCI总线配置"></a>PCI总线配置</h2><h3 id="弄清几个区域概念"><a href="#弄清几个区域概念" class="headerlink" title="弄清几个区域概念"></a>弄清几个区域概念</h3><p>在一个处理器系统中，存在PCI总线域和存储器域。通过HOST主桥，将存储器域和PCI域隔离，形成各自独立的地址空间。它们之间的关系如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_003.png" alt=""></p>
+<ol>
+<li><p>存储器域</p>
+<p>存储器域包括了CPU内部的通用寄存器、存储器控制器的寄存器、内存地址空间和外设地址空间。</p>
+<p>2.PCI总线域</p>
+</li>
+</ol>
+<p>​    PCI总线域由PCI设备所能直接访问的地址空间组成。在一个处理器系统中，存在几个HOST主桥，就存在几个PCI总线域。</p>
+<p><strong>注释：</strong></p>
+<p>（1）处理器访问PCI总线域地址空间时，首先需要访问存储器域的地址空间，在通过HOST主桥将存储器地址转换为PCI总线地址，之后，才能进入PCI总线域进行数据交换。PCI设备使用的PCI总线域地址空间保存在各自的BAR寄存器中。这些PCI总线地址空间需要在初始化时映射成为存储器域的地址空间，之后处理器才能访问BAR空间。</p>
+<p>（2）PCI设备访问存储器域时，首先需要访问PCI总线域的地址空间，在通过HOST主桥将PCI总线地址转换为存储器地址，之后，才能跟CPU进行数据交换。因此，处理器需要通过HOST主桥将这个PCI总线地址反向映射为存储器地址。PCI设备不能访问在PCI总线域中没有进行映射的存储器域地址空间。</p>
+<h3 id="PCI总线初始化"><a href="#PCI总线初始化" class="headerlink" title="PCI总线初始化"></a>PCI总线初始化</h3><h4 id="PCI设备配置空间寄存器地址"><a href="#PCI设备配置空间寄存器地址" class="headerlink" title="PCI设备配置空间寄存器地址"></a>PCI设备配置空间寄存器地址</h4><p>在PCI设备配置空间中出现的地址都是PCI总线地址，属于PCI总线域地址空间。系统软件需要完成这些寄存器的初始化。PCI  Agent设备的配置空间如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_004.png" alt=""></p>
+<ul>
+<li><p>Device ID 和Vendor ID寄存器:Vendor ID代表厂家，Device ID:代表厂家生产的具体设备</p>
+</li>
+<li><p>Base Address Register0-5寄存器：这组寄存器保存PCI设备使用的PCI总线域地址空间的基地址。</p>
+<p>注释：</p>
+<p>在PCI设备的配置空间中，有6个BAR寄存器。每一个BAR寄存器都与PCI设备使用的某一组PCI总线地址空间对应，BAR寄存器保存该组PCI总线地址空间的基地址，该组PCI总线地址空间也称为BAR空间。BAR空间可以存放I/O地址空间，也可以存放存储器地址空间。（是PCI总线的地址，不是CPU的存储器域地址）</p>
+</li>
+</ul>
+<p>问：</p>
+<p>1、如何访问这些配置空间？</p>
+<p>在MPC8548处理器的HOST主桥中，与PCI设备配置空间相关的寄存器由CFG_ADDR、CFG_DATA和INT-ACK寄存器组成。系统软件使用CFG_ADDR、CFG_DATA寄存器访问PCI设备的配置空间</p>
+<h4 id="PCI总线树BUS总线号初始化"><a href="#PCI总线树BUS总线号初始化" class="headerlink" title="PCI总线树BUS总线号初始化"></a>PCI总线树BUS总线号初始化</h4><p>在一个处理器系统中，每一个HOST主桥都推出一颗PCI总线树。在一块PCI总线树中有多少个PCI桥就含有多少条PCI总线。系统软件在遍历当前PCI总线树时，首先需要对这些PCI总线进行编号，即初始化PCI桥的Primary、Secondary和Subordinate Bus Number寄存器。</p>
+<p>一般，将与HOST主桥直接相连的PCI总线命名为PCI总线0，然后，系统软件使用DFS算法，依次对其他PCI总线进行编号。最后得到的PCI总线结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_007.png" alt=""></p>
+<h4 id="BAR空间的初始化"><a href="#BAR空间的初始化" class="headerlink" title="BAR空间的初始化"></a>BAR空间的初始化</h4><p>系统软件对PCI总线进行配置时，首先获得BAR寄存器中的初始化信息，之后，根据处理器系统的配置，将合理的PCI总线域的某个地址空间的基地址写入BAR寄存器中。</p>
+<p>当处理器访问PCI设备的BAR空间时，需要使用BAR寄存器提供的基地址。注意的是，处理器使用存储器域的地址，不能直接使用<strong>BAR中的基地址+偏移</strong>的方式访问BAR空间，而应该将BAR中的基地址转换为CPU存储器域的地址。</p>
+<p>linux中使用下面的接口获取BAR中的基地址对应的存储器域地址</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pci_resource_start();</span><br><span class="line">原型如下：</span><br><span class="line">#define pci_resource_start(dev, bar)	((dev)-&gt;resource[(bar)].start)</span><br></pre></td></tr></table></figure>
+
+<p><strong>PCI设备BAR空间分配例子</strong></p>
+<p>假设在HOST主桥中，存储器域域PCI总线域的映射关系如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_005.png" alt=""></p>
+<p>BAR空间映射：0xf000-0000<del>0xf7ff-ffff —&gt;0x7000-0000</del>0x7800-0000 </p>
+<p>DMA操作的内存映射：0x8000-0000<del>0xffff-ffff —&gt; 0x0000-0000</del>0x7fff-ffff</p>
+<p>系统软件根据建立起的映射关系，初始化BAR寄存器，完成后如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_006.png" alt=""></p>
+<h2 id="PCI总线数据传输"><a href="#PCI总线数据传输" class="headerlink" title="PCI总线数据传输"></a>PCI总线数据传输</h2><h3 id="处理器到PCI设备的数据传送"><a href="#处理器到PCI设备的数据传送" class="headerlink" title="处理器到PCI设备的数据传送"></a>处理器到PCI设备的数据传送</h3><p>略。</p>
+<h3 id="PCI设备的DMA操作"><a href="#PCI设备的DMA操作" class="headerlink" title="PCI设备的DMA操作"></a>PCI设备的DMA操作</h3><p>略。</p>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/26172972" target="_blank" rel="noopener">深入PCI与PCIe之一：硬件篇</a></p>
+<p><a href="https://blog.csdn.net/qimoDIY/article/details/89784560" target="_blank" rel="noopener">接口技术【1】PCIe入门简介</a></p>
+<p><a href="https://www.twblogs.net/a/5b7ec5632b717767c6abb3f2" target="_blank" rel="noopener">浅析PCI配置空间</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/PCIe/" rel="tag"># PCIe</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/07/13/hello-world/" rel="prev" title="Hello World">
+      <i class="fa fa-chevron-left"></i> Hello World
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="next" title="PCIe总线基础知识">
+      PCIe总线基础知识 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#PCI基础知识"><span class="nav-number">2.</span> <span class="nav-text">PCI基础知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#PCI是什么？"><span class="nav-number">2.1.</span> <span class="nav-text">PCI是什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PCI总线架构"><span class="nav-number">2.2.</span> <span class="nav-text">PCI总线架构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#PCI总线相关模块"><span class="nav-number">2.2.1.</span> <span class="nav-text">PCI总线相关模块</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#PCI总线事务"><span class="nav-number">2.2.2.</span> <span class="nav-text">PCI总线事务</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU对PCI设备的配置空间进行读写。"><span class="nav-number">3.</span> <span class="nav-text">CPU对PCI设备的配置空间进行读写。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#PCI总线配置"><span class="nav-number">4.</span> <span class="nav-text">PCI总线配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#弄清几个区域概念"><span class="nav-number">4.1.</span> <span class="nav-text">弄清几个区域概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PCI总线初始化"><span class="nav-number">4.2.</span> <span class="nav-text">PCI总线初始化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#PCI设备配置空间寄存器地址"><span class="nav-number">4.2.1.</span> <span class="nav-text">PCI设备配置空间寄存器地址</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#PCI总线树BUS总线号初始化"><span class="nav-number">4.2.2.</span> <span class="nav-text">PCI总线树BUS总线号初始化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BAR空间的初始化"><span class="nav-number">4.2.3.</span> <span class="nav-text">BAR空间的初始化</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#PCI总线数据传输"><span class="nav-number">5.</span> <span class="nav-text">PCI总线数据传输</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#处理器到PCI设备的数据传送"><span class="nav-number">5.1.</span> <span class="nav-text">处理器到PCI设备的数据传送</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PCI设备的DMA操作"><span class="nav-number">5.2.</span> <span class="nav-text">PCI设备的DMA操作</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

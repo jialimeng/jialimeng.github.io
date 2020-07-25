@@ -190,6 +190,400 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" class="post-title-link" itemprop="url">PCIe总线基础知识</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-07-22 14:42:00" itemprop="dateCreated datePublished" datetime="2020-07-22T14:42:00+08:00">2020-07-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-07-25 14:21:21" itemprop="dateModified" datetime="2020-07-25T14:21:21+08:00">2020-07-25</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/PCIe/" itemprop="url" rel="index"><span itemprop="name">PCIe</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>[TOC]</p>
+<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>PCIe,全称是PCI-Express（peripheral component interconnect express），这是一种高速串行计算机扩展总线标准。PCI总线使用并行总线结构，在同一条总线上的所有外部设备共享总线带宽，而PCIe总线使用高速串行差分总线，并采用端到端的连接方式，因此，在每一条PCIe链路中只能连接两个设备。两个设备之间的PCIe链路如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_001.png" alt=""></p>
+<p>如果一条链路不够快，可以扩展多几个链路，犹如高速公路一样，车道越多，越少出现拥挤现象，开得越快。</p>
+<p><img src="http://jiali.clouddn.com/20200722_002.png" alt=""></p>
+<p>常见的PCIe插槽如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_007.png" alt=""></p>
+<p>还有一些常见的PCIe设备如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_008.png" alt=""></p>
+<h2 id="基础知识"><a href="#基础知识" class="headerlink" title="基础知识"></a>基础知识</h2><h3 id="硬件接口"><a href="#硬件接口" class="headerlink" title="硬件接口"></a>硬件接口</h3><p>PCIe链路使用端到端的数据传送，每一个端口都包含了发送端（TX）和接收端（RX），硬件接口如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_003.png" alt=""></p>
+<p>从图可以看出，在PCIe总线物理链路的一条PCIe数据通路（Lane）中，发送端和接收端各自有一组差分信号D-和D+，共4根线。一条PCIe总线链路中可以由多个Lane组成。使用差分信号，抗干扰性更强，因此PCIe总线可以在很高频率下正常工作。</p>
+<p>PCIe链路可以支持x1、x2、x4、x8、x12、x16和x32宽度的PCIe链路。频率和编码关系如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_004.png" alt=""></p>
+<p>8/10b编码就是10bit中含有8bit有效数据，128/130b编码就是130bit含有128位有效数据。在PCIe总线中，使用GT(Gigatransfer)计算PCIe链路的峰值带宽。计算公式如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">总线频率*数据位宽*2</span><br></pre></td></tr></table></figure>
+
+<h3 id="电气信号"><a href="#电气信号" class="headerlink" title="电气信号"></a>电气信号</h3><p>略。</p>
+<h3 id="拓扑结构"><a href="#拓扑结构" class="headerlink" title="拓扑结构"></a>拓扑结构</h3><p>一个通用处理器的PCIe总线拓扑结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200723_002.png" alt=""></p>
+<p>整个PCIe拓扑结构是一个树形结构，Root Complex（RC）是树的根。RC为CPU代言，与整个计算机系统其它部分通讯，比如CPU通过它访问内存，通过它访问PCIe系统中的设备。大多数PCIe总线结构中，都包含了RC 、Switch 、PCIe-to-PCI桥和Endpoint（PCIe设备）组件。</p>
+<p>实际上，Root Complex,简称RC。RC设计比较复杂，一个虚拟的处理器系统的RC设计如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200723_003.png" alt=""></p>
+<p><strong>RC组件</strong></p>
+<p>在一个处理器系统PCIe总线中，都有一个RC控制器，主要完成地址转换，和物理信号转换。类似HOST主桥的角色。具体的RC设计，看具体的处理器系统。</p>
+<p><strong>Switch</strong></p>
+<p>因为一条PCIe链路使用端到端的连接方式，所以，只能连接一个设备。为了一条PCIe链路能挂载多个EP，因此，需要Switch器件进行扩展。一个标准的Switch具有一个上游端口和多个下游端口。Switch内部结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200723_004.png" alt=""></p>
+<h2 id="PCIe总线分层结构"><a href="#PCIe总线分层结构" class="headerlink" title="PCIe总线分层结构"></a>PCIe总线分层结构</h2><p>PCIe总线采用串行硬件接口，并以数据包(Packet)格式进行数据传输。数据包需要通过事务层和数据链路层，最后达到物理层，发送出去。PCIe总线的分层如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_005.png" alt=""></p>
+<p><strong>事务层</strong>的主要职责是创建（发送）或者解析（接收）TLP (Transaction Layer packet)，流量控制，QoS，事务排序等。</p>
+<p><strong>数据链路层</strong>的主要职责是创建（发送）或者解析（接收）DLLP(Data Link Layer packet)，Ack/Nak协议（链路层检错和纠错），流控，电源管理等。</p>
+<p><strong>物理层</strong>的主要职责是处理所有的Packet数据物理传输，发送端数据分发到各个Lane传输（stripe），接收端把各个Lane上的数据汇总起来（De-stripe），每个Lane上加扰（Scramble，目的是让0和1分布均匀，去除信道的电磁干扰EMI）去扰（De-scramble)，以及8/10或者128/130编码解码，等等。</p>
+<p>每一层都会定义包头包尾的数据格式。如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_007.png" alt=""></p>
+<p>CPU与设备端数据交互的过程如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_008.png" alt=""></p>
+<h2 id="事务层的TLP协议"><a href="#事务层的TLP协议" class="headerlink" title="事务层的TLP协议"></a>事务层的TLP协议</h2><p>事务层将接收PCIe设备产生的数据请求，并封装成TLP协议。FPGA PCIe的开发工作，就是在PCIe核下封装TLP协议，其他层次基本看不到。因此，重点讲一下TLP协议。TLP的基本格式如下：</p>
+<p><img src="http://jiali.clouddn.com/20200722_009.png" alt=""></p>
+<p>TLP头是最重要的标志，TLP Head包含了当前TLP的总线事务类型、路由信息等一系列信息。Data Payload 表示有效数据，Data Payload 长度与Max_Payload_Size、Max_Read_Request_Size和RCB参数相关。</p>
+<p><strong>TLP Head格式</strong></p>
+<p>一个Header大小可以是3DW，也可以是4DW。以4DW的Header为例，TLP的Header长下面样子：</p>
+<p><img src="http://jiali.clouddn.com/20200722_011.png" alt=""></p>
+<p>红色区域为所有TLP Header公共部分，所有Header都有这些；其它则是跟具体的TLP相关。</p>
+<p>注释：</p>
+<p><strong>Fmt</strong>：Format, 表明该TLP是否带有数据，Header是3DW还是4DW；</p>
+<p><strong>Type</strong>：TLP类型，上一节提到的，Memory Read, Memory Write, Configuration Read, Configuration Write, Message和Completion，等等；</p>
+<p><strong>R：</strong> Reserved，为0；</p>
+<p><strong>TC</strong>: Traffic Class，TLP也分三六九等，优先级高的先得到服务。这里是3比特，说明可以分为8个等级，0-7，TC默认是0，数字越大，优先级越高；</p>
+<p><strong>Attr:</strong> Attrbiute, 属性，前后共三个bit，先不说；</p>
+<p><strong>TH</strong>: TLP Processing Hints，先不说；</p>
+<p><strong>TD</strong>: TLP Digest，之前说ECRC可选，如果这个这个bit置起来，说明该TLP包含ECRC，接收端应该做CRC校验；</p>
+<p><strong>EP</strong>: Poisoned data, 有毒的数据，远离，哈哈；</p>
+<p><strong>AT</strong>: Address Type，地址种类，先不说；</p>
+<p><strong>Length</strong>： Payload数据长度，1~1024，单位DW（4byte），所以TLP最大数据长度是4KB; 该长度总是DW的整数倍，如果TLP的数据不是DW的整数倍（不是4Byte的整数倍），则需要用到两个域：Last DW BE 和 1st DW BE。</p>
+<p><strong>存储器读写请求的TLP</strong></p>
+<p>64位的处理器系统的存储器读写请求的TLP格式如下图</p>
+<p><img src="http://jiali.clouddn.com/20200722_012.png" alt=""></p>
+<p>32位的处理器系统的存储器读写请求的TLP格式如下图</p>
+<p><img src="http://jiali.clouddn.com/20200722_013.png" alt=""></p>
+<p>Requester ID字段包含了生成这个TLP报文的PCIe设备的总线号（Bus Number）、设备号（Device Number）和功能号（Function Number）。因此，Requester ID就是源地址，其格式如下：</p>
+<p><img src="http://jiali.clouddn.com/20200722_014.png" alt=""></p>
+<p>Address:目的地址。PCIe设备，进行DMA操作，往处理器的DDR读写数据时候，需要获取DDR的内存地址，来填充Address。</p>
+<p><strong>注意：</strong></p>
+<p>基于厂家FPGA 的PCIe开发，主要是做事务层开发工作，封装TLP，对TLP接收和发送进行处理。因此，熟悉事务层的存储器、I/O和配置读写请求TLP过程很重要。曾经，CPU写FPGA PCIe设备的BAR地址空间的某个寄存器，因为FPGA 不返回TLP，导致CPU卡住。</p>
+<p><strong>Data Payload参数</strong> </p>
+<p>Max_Payload_Size参数存放PCIe设备<strong>实际使用</strong>的TLP有效负载的最大值。<strong>该参数由PCIe链路两端的设备协商决定，是PCIe设备进行数据传送时，实际使用的参数</strong>。当PCIe设备发送数据报文时，设置Max_Payload_Size参数决定TLP的Data Payload 长度的最大值。</p>
+<p>Max_Payload_Size_Supported参数表示一个PCIe设备中TLP有效负载的最大值，这是由PCIe设备的硬件逻辑决定，软件不能更改。</p>
+<p>Max_Payload_Size和Max_Payload_Size_Supported分别在PCI Express Capability结构中的Device Capability和Device Control寄存器中定义。</p>
+<p>Max_Payload_Size可以设置为128byte、256byte、512byte和1024byte.在FPGA实际应用中，需要配置Max_Payload_Size和<strong>TLP</strong>的Length字段。FPGA的Max_Payload_Size配置如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200722_010.png" alt=""></p>
+<p><strong>注意：</strong></p>
+<p>当PCIe设备接收TLP时，该TLP的最大有效负载不能超过Max_Payload_Size（就是Length字段不能超过Max_Payload_Size），如果Length字段超过Length字段，则接收TLP的PCIe设备认为TLP非法。因此一次TLP传输数据失败。曾经，FPGA进行DMA操作，往CPU系统的DDR写数据，因为一次性把很大的数据量填充到TLP中，所以导致，CPU收不到数据。</p>
+<h2 id="PCIe设备的配置空间"><a href="#PCIe设备的配置空间" class="headerlink" title="PCIe设备的配置空间"></a>PCIe设备的配置空间</h2><p>0x00<del>0xff,这段地址空间共256byte，PCI\PCI-X\PCIe都包含了这256byte配置空间。大多数PCI设备仅支持0x00</del>0x3f，这64byte的配置空间。此外，0x40~0xff，这段配置空间，主要存放一些与MSI或者MSI-X中断管理和电源管理相关的Capability结构。大多数PCI设备不支持MSI\MSI-X中断，而PCIe设备必须支持MSI\MSI-X中断机制(<strong>大多是PCIe设备使用MSI中断</strong>)。</p>
+<p>64byte的配置空间如下图：</p>
+<p><img src="http://jiali.clouddn.com/20200721_004.png" alt=""></p>
+<p>另外，PCIe设备支持0x100<del>0xfff这段扩展配置空间。因此PCIe设备的配置空间最大位4k。0x100</del>0xfff这段空间，存放PCIe设备所独有的一些Capability结构，PCI设备是不能使用这段空间（事实上，PCI设备仅支持0x00~0x3f这段配置空间）。</p>
+<p>PCIe设备的配置空间如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200723_005.png" alt=""></p>
+<p><strong>注意：</strong></p>
+<p>在实际工程中，在FPGA PCIe核设置好BAR配置空间的大小，系统软件根据大小分配PCIe总线地址空间。FPGA配置如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_001.png" alt=""></p>
+<h2 id="MSI中断机制"><a href="#MSI中断机制" class="headerlink" title="MSI中断机制"></a>MSI中断机制</h2><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><p>在PCI总线中，所有需要提交的中断请求，必须通过INTx引脚向处理器提交中断请求；而在PCIe总线中，PCIe设备向处理器提交中断，是通过MSI机制实现，不需要通过INTx引脚。</p>
+<p>MSI机制就是使用存储器写请求TLP向处理器提交中断请求。这种MSI消息，也简称为MSI报文。此外MSI中断最多支持32个中断。32位和64位的MSI 报文协议结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_002.png" alt=""></p>
+<p><strong>Message Control:</strong> 该字段存放当前PCIe设备使用的MSI机制进行中断请求的状态与控制信息。</p>
+<p><strong>Message Address:</strong> 该字段存放MSI存储器写事务的目的地址低32位。</p>
+<p><strong>Message Upper Address:</strong> 该字段存放MSI存储器写事务的目的地址高32位。</p>
+<p>重点关注Message Control字段含义，如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_003.png" alt=""></p>
+<h3 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h3><p>FPGA PCIe MSI控制器配置寄存器地址，如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_004.png" alt=""></p>
+<p>MSI Control Register，如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_005.png" alt=""></p>
+<p>通过MSI控制寄存器可将MSI中断配置成多消息中断模式，中断个数可通过Multiple Message Enable 配置，只读字段Multiple Message Capable表示系统分配给PCIe设备的中断向量数量。</p>
+<p><strong>注意：</strong></p>
+<p>曾经FPGA没有配置字段Multiple Message Capable，因为该字段默认为0,所以，无论怎么配置Multiple Message Enable，MSI只产生1个中断（0号MSI中断）。</p>
+<p>FPGA PCIe设备中，cfg_interrupt_msi_int MSI各中断寄存器如下表所示。</p>
+<p><img src="http://jiali.clouddn.com/20200724_006.png" alt=""></p>
+<p>只要置位中断寄存器对应的Bit,就可以触发中断。例如，本次使用0，1，2号中断，在相应位置位就可以触发中断。</p>
+<p>Linux MSI中断配置如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;1、申请四个中断</span><br><span class="line">pci_alloc_irq_vectors(pdev,1,4,PCI_IRQ_MSI);</span><br><span class="line">&#x2F;&#x2F;2、设置Multiple Message Enable字段为4</span><br><span class="line">control |&#x3D; 0x0020;</span><br><span class="line">pci_write_config_word(pdev,pdev-&gt;msi_cap+2,control);</span><br><span class="line">&#x2F;&#x2F;注册中断</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,0);</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device&quot;, ptr_dma_desc_temp);</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,1);	</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix_1, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device_1&quot;, ptr_dma_desc_temp);</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,2);</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix_2, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device2&quot;, ptr_dma_desc_temp);</span><br><span class="line">&#x2F;&#x2F;编写中断函数</span><br><span class="line">略。。。</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+
+
+
+<p>参考：</p>
+<p><a href="https://www.cnblogs.com/YINBin/p/10946247.html" target="_blank" rel="noopener">PCIe总线（协议简述）</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/26172972" target="_blank" rel="noopener">深入PCI与PCIe之一：硬件篇</a></p>
+<p><a href="http://xilinx.eetrend.com/d6-xilinx/blog/2018-08/13327.html" target="_blank" rel="noopener">PCIe学习（一）：PCIe基础及生成PIO例程分析</a></p>
+<p><a href="http://www.ssdfans.com/?p=8211" target="_blank" rel="noopener">老男孩读PCIe之一：从PCIe速度说起</a></p>
+<p><a href="http://www.ssdfans.com/?p=8213" target="_blank" rel="noopener">老男孩读PCIe之二：PCIe拓扑结构</a></p>
+<p><a href="http://www.ssdfans.com/?p=8214" target="_blank" rel="noopener">老男孩读PCIe之三：PCIe分层结构</a></p>
+<p><a href="http://www.ssdfans.com/?p=8215" target="_blank" rel="noopener">老男孩读PCIe之四：TLP类型</a></p>
+<p><a href="http://www.ssdfans.com/?p=8212" target="_blank" rel="noopener">老男孩读PCIe之五：TLP结构</a></p>
+<p><a href="http://www.ssdfans.com/?p=8210" target="_blank" rel="noopener">老男孩读PCIe之六：配置和地址空间</a></p>
+<p><a href="http://www.ssdfans.com/?p=8216" target="_blank" rel="noopener">老男孩读PCIe之七：TLP的路由</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/20/Linux/Driver/PCIe/PCI%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/07/20/Linux/Driver/PCIe/PCI%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" class="post-title-link" itemprop="url">PCI总线基础知识</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-07-20 17:18:42" itemprop="dateCreated datePublished" datetime="2020-07-20T17:18:42+08:00">2020-07-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-07-25 14:45:12" itemprop="dateModified" datetime="2020-07-25T14:45:12+08:00">2020-07-25</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/PCIe/" itemprop="url" rel="index"><span itemprop="name">PCIe</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>PCI，英文全称：PeripheralComponent Interconnect，外围组件互联，由Intel于1991年提出。随着Intel Pentium处理器诞生而迅速发展，当时几乎所有的外围设备，从硬盘控制器、声卡、显卡和网卡，都使用PCI插槽来连接到计算机的主板上。计算机的PCI总线外设拓扑结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200720_002.png" alt="20200720_002"></p>
+<h2 id="PCI基础知识"><a href="#PCI基础知识" class="headerlink" title="PCI基础知识"></a>PCI基础知识</h2><h3 id="PCI是什么？"><a href="#PCI是什么？" class="headerlink" title="PCI是什么？"></a>PCI是什么？</h3><p>PCI总线是并行、同步、数据地址复用的总线。在一个时钟周期内32个bit（或者64bit）同时被传输，地址和数据在一个时钟周期内按照协议，分别一次被传输。32bit/33MHz峰值带宽为132MB/s，64bit/66MHz峰值带宽为532MB/s。引脚定义如下：</p>
+<p><img src="http://jiali.clouddn.com/20200720_001.png" alt="20200720_001"></p>
+<p>特点：</p>
+<ul>
+<li>PCI总线地址空间与处理器的地址空间隔离：通过HOST主桥将PCI总线地址空间与CPU存储器域地址空间隔离。处理器访问PCI设备，先通过HOST主桥将处理器域的地址转换为PCI总线地址，同理，PCI设备进行DMA操作来传输数据时，也是先通过主桥将PCI总线地址转换为处理器存储器域地址。PCI总线地址是独立的地址空间，这跟处理器的存储器域地址空间不同。</li>
+<li>可扩展性：同过HOST主桥引出一条PCI总线，然后在通过PCI桥引出一系列PCI总线，这样就构成一颗以HOST主桥为根的PCI总线树。</li>
+<li>动态配置机制：每一个PCI设备都有独立的配置空间，在配置空间中包含了该设备在PCI总线地址空间中使用的物理基地址。这个基地址，可以通过软件动态分配，从而保证了每一个PCI设备使用的PCI总线地址不相同。</li>
+<li>总线带宽：32bit/33MHz的PCI总线可以提供132MB/s的峰值带宽，64bit/66MHz的PCI总线可以提供532MB/s的峰值带宽。</li>
+<li>共享总线机制：多个PCI设备可以共享一条PCI总线，PCI设备通过仲裁获得PCI总线的使用权后，才能进程数据传输。</li>
+<li>中断机制。PCI总线上的设备可以通过四根中断请求信号INTA-D#向处理器提交中断请求。还可以通过MSI机制（该机制使用存储器写总线事务传递中断请求信号）提交中断请求。</li>
+</ul>
+<h3 id="PCI总线架构"><a href="#PCI总线架构" class="headerlink" title="PCI总线架构"></a>PCI总线架构</h3><p>在一个处理器系统中，PCI总线相关模块如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200720_003.png" alt="20200720_003"></p>
+<h4 id="PCI总线相关模块"><a href="#PCI总线相关模块" class="headerlink" title="PCI总线相关模块"></a>PCI总线相关模块</h4><p><strong>HOST主桥</strong></p>
+<p>HOST主桥主要功能是隔离CPU系统的存储器域与CPU系统的PCI总线域，并完成CPU与PCI设备间的数据交换。数据交换主要的类型：处理器访问PCI设备的地址空间和PCI设备使用DMA机制访问DDR内存。</p>
+<p><strong>PCI总线</strong></p>
+<p>有两个概念：PCI总线和PCI总线树。PCI总线是由桥引出来的一条总线，而PCI总线树是以HOST主桥为根的一系列PCI总线组成的。所有PCI桥引出总线地址共享PCI总线域（一颗PCI总线树）的地址。</p>
+<p><strong>PCI设备</strong></p>
+<p>三类设备：PCI主设备、PCI从设备和桥设备。</p>
+<p>从设备：只能被动地接收来自HOST主桥或者其他PCI设备的读写请求</p>
+<p>主设备:通过总线仲裁获得PCI总线的使用权，主动地向其他PCI设备或者主存储器（DDR）发起存储器读写请求。</p>
+<p>桥设备：管理下游的PCI总线，并转发上下游总线之间的总线事务。</p>
+<p>一个PCI设备可以既是主设备也是从设备，但是在同一个时刻，这个PCI设备只能是主设备或从设备。PCI总线规范把这类PCI主从设备称为PCI Agent设备。</p>
+<p><strong>HOST处理器：</strong>CPU</p>
+<p><strong>PCI总线负载</strong>：PCI总线能挂接的负载域总线频率相关。如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_001.png" alt=""></p>
+<h4 id="PCI总线事务"><a href="#PCI总线事务" class="headerlink" title="PCI总线事务"></a>PCI总线事务</h4><p>CPU与PCI设备之间数据传输，通过PCI总线地址完成。CPU对PCI设备的地址空间进行读写，先发起存储器域地址读写，然后通过HOST主桥转换为PCI总线地址；PCI设备对CPU的DDR进行DMA操作，使用的目的地址是PCI总线地址，而不是CPU的存储器域地址，由HOST主桥完成PCI域地址到CPU的存储器域的地址转换。</p>
+<ol>
+<li><p><strong>存储器读写总线事务</strong></p>
+<p>（1）事务类型</p>
+<ul>
+<li><p>CPU对PCI的BAR空间地址进行数据读写</p>
+</li>
+<li><p>PCI设备之间的数据传输</p>
+</li>
+<li><p>PCI设备对CPU的DDR进行DMA读写操作。</p>
+</li>
+</ul>
+<p>（2）PCI总线传送方式:Posted 和Non-Posted</p>
+<p>Posted:PCI主设备向PCI目标设备进行数据传递时，当数据到达PCI桥后，PCI桥接管该总线事务，并转发到下游总线，然后，该PCI桥上游的PCI总线可以结束当前总线事务，释放了PCI使用权。在一定程度上解决PCI总线拥塞问题。</p>
+<p>Non-Posted:PCI主设备向PCI目标设备进行数据传递时，数据必须到达目的后，才能结束当前总线事务。</p>
+</li>
+<li><p><strong>CPU访问CPI设备</strong></p>
+<p>（1）CPU对PCI设备的数据访问形式</p>
+<ul>
+<li>CPU向PCI设备发起存储器和I/O读写请求</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li><h2 id="CPU对PCI设备的配置空间进行读写。"><a href="#CPU对PCI设备的配置空间进行读写。" class="headerlink" title="CPU对PCI设备的配置空间进行读写。"></a>CPU对PCI设备的配置空间进行读写。</h2><p> （2）CPU向PCI设备发起存储器读写事务过程</p>
+<p> ​    首先，CPU在初始化时，需要将PCI设备使用的BAR空间映射到存储器域地址空间。之后，CPU通过存储器读写指令访问存储器地址，HOST主桥将存储器地址请求转换为对PCI总线地址的请求，然后发给目标设备。注意：CPU只能使用CPU的存储器域的地址，而PCI设备只能使用PCI总线域的地址。</p>
+<p> （3）I/O读写总线事务</p>
+<p> ​    以X86处理器介绍CPU访问PCI设备的I/O地址空间的过程。X86处理器，具有独立的I/O地址空间，可以将PCI设备的I/O地址映射到CPU的I/O地址空间，之后    使用IN\OUT指令访问CPU自己的I/O地址，然后通过HOST主桥将CPU的I/O地址转换为PCI总线域的I/O地址，最后，使用PCI总线的I/O总线事务对PCI设备的    I/O地址访问。</p>
+</li>
+</ul>
+<ol start="3">
+<li><p><strong>PCI设备读写CPU的DDR存储器</strong></p>
+<p>PCI设备与CPU的DDR直接进行数据交换的过程被称为DMA。PCI设备进行DMA操作时候，需要获得数据传送的目的地址（已经与CPU的DDR内存地址映射的PCI总线地址）。HOST主桥负责完成PCI总线地址到CPU存储器域地址的转换，并向存储器控制器发起对DDR读写请求。注意，PCI设备不能直接访问没有经过HOST主桥映射的DDR内存地址。</p>
+</li>
+</ol>
+<h2 id="PCI总线配置"><a href="#PCI总线配置" class="headerlink" title="PCI总线配置"></a>PCI总线配置</h2><h3 id="弄清几个区域概念"><a href="#弄清几个区域概念" class="headerlink" title="弄清几个区域概念"></a>弄清几个区域概念</h3><p>在一个处理器系统中，存在PCI总线域和存储器域。通过HOST主桥，将存储器域和PCI域隔离，形成各自独立的地址空间。它们之间的关系如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_003.png" alt=""></p>
+<ol>
+<li><p>存储器域</p>
+<p>存储器域包括了CPU内部的通用寄存器、存储器控制器的寄存器、内存地址空间和外设地址空间。</p>
+<p>2.PCI总线域</p>
+</li>
+</ol>
+<p>​    PCI总线域由PCI设备所能直接访问的地址空间组成。在一个处理器系统中，存在几个HOST主桥，就存在几个PCI总线域。</p>
+<p><strong>注释：</strong></p>
+<p>（1）处理器访问PCI总线域地址空间时，首先需要访问存储器域的地址空间，在通过HOST主桥将存储器地址转换为PCI总线地址，之后，才能进入PCI总线域进行数据交换。PCI设备使用的PCI总线域地址空间保存在各自的BAR寄存器中。这些PCI总线地址空间需要在初始化时映射成为存储器域的地址空间，之后处理器才能访问BAR空间。</p>
+<p>（2）PCI设备访问存储器域时，首先需要访问PCI总线域的地址空间，在通过HOST主桥将PCI总线地址转换为存储器地址，之后，才能跟CPU进行数据交换。因此，处理器需要通过HOST主桥将这个PCI总线地址反向映射为存储器地址。PCI设备不能访问在PCI总线域中没有进行映射的存储器域地址空间。</p>
+<h3 id="PCI总线初始化"><a href="#PCI总线初始化" class="headerlink" title="PCI总线初始化"></a>PCI总线初始化</h3><h4 id="PCI设备配置空间寄存器地址"><a href="#PCI设备配置空间寄存器地址" class="headerlink" title="PCI设备配置空间寄存器地址"></a>PCI设备配置空间寄存器地址</h4><p>在PCI设备配置空间中出现的地址都是PCI总线地址，属于PCI总线域地址空间。系统软件需要完成这些寄存器的初始化。PCI  Agent设备的配置空间如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_004.png" alt=""></p>
+<ul>
+<li><p>Device ID 和Vendor ID寄存器:Vendor ID代表厂家，Device ID:代表厂家生产的具体设备</p>
+</li>
+<li><p>Base Address Register0-5寄存器：这组寄存器保存PCI设备使用的PCI总线域地址空间的基地址。</p>
+<p>注释：</p>
+<p>在PCI设备的配置空间中，有6个BAR寄存器。每一个BAR寄存器都与PCI设备使用的某一组PCI总线地址空间对应，BAR寄存器保存该组PCI总线地址空间的基地址，该组PCI总线地址空间也称为BAR空间。BAR空间可以存放I/O地址空间，也可以存放存储器地址空间。（是PCI总线的地址，不是CPU的存储器域地址）</p>
+</li>
+</ul>
+<p>问：</p>
+<p>1、如何访问这些配置空间？</p>
+<p>在MPC8548处理器的HOST主桥中，与PCI设备配置空间相关的寄存器由CFG_ADDR、CFG_DATA和INT-ACK寄存器组成。系统软件使用CFG_ADDR、CFG_DATA寄存器访问PCI设备的配置空间</p>
+<h4 id="PCI总线树BUS总线号初始化"><a href="#PCI总线树BUS总线号初始化" class="headerlink" title="PCI总线树BUS总线号初始化"></a>PCI总线树BUS总线号初始化</h4><p>在一个处理器系统中，每一个HOST主桥都推出一颗PCI总线树。在一块PCI总线树中有多少个PCI桥就含有多少条PCI总线。系统软件在遍历当前PCI总线树时，首先需要对这些PCI总线进行编号，即初始化PCI桥的Primary、Secondary和Subordinate Bus Number寄存器。</p>
+<p>一般，将与HOST主桥直接相连的PCI总线命名为PCI总线0，然后，系统软件使用DFS算法，依次对其他PCI总线进行编号。最后得到的PCI总线结构如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_007.png" alt=""></p>
+<h4 id="BAR空间的初始化"><a href="#BAR空间的初始化" class="headerlink" title="BAR空间的初始化"></a>BAR空间的初始化</h4><p>系统软件对PCI总线进行配置时，首先获得BAR寄存器中的初始化信息，之后，根据处理器系统的配置，将合理的PCI总线域的某个地址空间的基地址写入BAR寄存器中。</p>
+<p>当处理器访问PCI设备的BAR空间时，需要使用BAR寄存器提供的基地址。注意的是，处理器使用存储器域的地址，不能直接使用<strong>BAR中的基地址+偏移</strong>的方式访问BAR空间，而应该将BAR中的基地址转换为CPU存储器域的地址。</p>
+<p>linux中使用下面的接口获取BAR中的基地址对应的存储器域地址</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pci_resource_start();</span><br><span class="line">原型如下：</span><br><span class="line">#define pci_resource_start(dev, bar)	((dev)-&gt;resource[(bar)].start)</span><br></pre></td></tr></table></figure>
+
+<p><strong>PCI设备BAR空间分配例子</strong></p>
+<p>假设在HOST主桥中，存储器域域PCI总线域的映射关系如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_005.png" alt=""></p>
+<p>BAR空间映射：0xf000-0000<del>0xf7ff-ffff —&gt;0x7000-0000</del>0x7800-0000 </p>
+<p>DMA操作的内存映射：0x8000-0000<del>0xffff-ffff —&gt; 0x0000-0000</del>0x7fff-ffff</p>
+<p>系统软件根据建立起的映射关系，初始化BAR寄存器，完成后如下图所示。</p>
+<p><img src="http://jiali.clouddn.com/20200721_006.png" alt=""></p>
+<h2 id="PCI总线数据传输"><a href="#PCI总线数据传输" class="headerlink" title="PCI总线数据传输"></a>PCI总线数据传输</h2><h3 id="处理器到PCI设备的数据传送"><a href="#处理器到PCI设备的数据传送" class="headerlink" title="处理器到PCI设备的数据传送"></a>处理器到PCI设备的数据传送</h3><p>略。</p>
+<h3 id="PCI设备的DMA操作"><a href="#PCI设备的DMA操作" class="headerlink" title="PCI设备的DMA操作"></a>PCI设备的DMA操作</h3><p>略。</p>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/26172972" target="_blank" rel="noopener">深入PCI与PCIe之一：硬件篇</a></p>
+<p><a href="https://blog.csdn.net/qimoDIY/article/details/89784560" target="_blank" rel="noopener">接口技术【1】PCIe入门简介</a></p>
+<p><a href="https://www.twblogs.net/a/5b7ec5632b717767c6abb3f2" target="_blank" rel="noopener">浅析PCI配置空间</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/13/hello-world/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1463,150 +1857,11 @@ int main(void)
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/12/10/%E5%B7%A5%E5%85%B7/hexo/Hexo%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="David Meng">
-      <meta itemprop="description" content="冒险，创新，永不放弃">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Tech Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2019/12/10/%E5%B7%A5%E5%85%B7/hexo/Hexo%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" class="post-title-link" itemprop="url">Hexo环境搭建</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2019-12-10 21:02:06" itemprop="dateCreated datePublished" datetime="2019-12-10T21:02:06+08:00">2019-12-10</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-07-16 09:24:31" itemprop="dateModified" datetime="2020-07-16T09:24:31+08:00">2020-07-16</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7/" itemprop="url" rel="index"><span itemprop="name">工具</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7/Hexo/" itemprop="url" rel="index"><span itemprop="name">Hexo</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>安装前提:<br>安装Node.js<br>安装Git</p>
-<h2 id="安装Node-js"><a href="#安装Node-js" class="headerlink" title="安装Node.js"></a>安装Node.js</h2><p>安装选项全部默认，一路点击Next。</p>
-<p>最后安装好之后，按Win+R打开命令提示符，输入node -v和npm -v，如果出现版本号，那么就安装成功了。</p>
-<p><strong>更改为国内镜像源:</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm config set registry https:&#x2F;&#x2F;registry.npm.taobao.org</span><br></pre></td></tr></table></figure>
-
-<h2 id="安装Git"><a href="#安装Git" class="headerlink" title="安装Git"></a>安装Git</h2><p>安装选项还是全部默认，只不过最后一步添加路径时选择Use Git from the Windows Command Prompt，这样我们就可以直接在命令提示符里打开git了。</p>
-<p>安装完成后在命令提示符中输入git –version验证是否安装成功。</p>
-<h2 id="安装Hexo"><a href="#安装Hexo" class="headerlink" title="安装Hexo"></a>安装Hexo</h2><p>右键点击Git Bash Here，进入git shell<br>所有必备的应用程序安装完成后，即可使用 npm 安装 Hexo。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm install -g hexo-cli</span><br></pre></td></tr></table></figure>
-
-<p>进阶安装和使用<br>对于熟悉 npm 的进阶用户，可以仅局部安装 hexo 包。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm install hexo</span><br></pre></td></tr></table></figure>
-
-<p>安装以后，可以使用以下两种方式执行 Hexo：</p>
-<p>npx hexo <command></p>
-<p>将 Hexo 所在的目录下的 node_modules 添加到环境变量之中即可直接使用 hexo <command>：</p>
-<p>echo ‘PATH=”$PATH:./node_modules/.bin”‘ &gt;&gt; ~/.profile</p>
-<h2 id="Github账户与本地Git绑定"><a href="#Github账户与本地Git绑定" class="headerlink" title="Github账户与本地Git绑定"></a>Github账户与本地Git绑定</h2><p><strong>鼠标右击打开Git Bash：</strong></p>
-<p>设置user.name和user.email配置信息：</p>
-<p>git config –global user.name “你的GitHub用户名”<br>git config –global user.email “你的GitHub注册邮箱”</p>
-<p>生成ssh密钥文件：<br>ssh-keygen -t rsa -C “你的GitHub注册邮箱”</p>
-<p>设置github ssh<br>打开github，在头像下面点击settings，再点击SSH and GPG keys，新建一个SSH，名字随便。</p>
-<p>git bash中输入</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat ~&#x2F;.ssh&#x2F;id_rsa.pub</span><br></pre></td></tr></table></figure>
-
-<p>Title为标题，任意填即可，将刚刚复制的id_rsa.pub内容粘贴进去，最后点击Add SSH key<br>在Git Bash中检测GitHub公钥设置是否成功:<br>输入ssh -T <a href="mailto:git@github.com">git@github.com</a>，如果如下图所示，出现你的用户名，那就成功了。</p>
-<p><img src="http://jiali.clouddn.com/20200714_002.png.jpg" alt="20200714_002.png"></p>
-<p><strong>Github</strong> 创建个人博客创库</p>
-<p><img src="http://jiali.clouddn.com/20200714_003.jpg" alt="20200714_003"></p>
-<p>然后如下图所示，输入自己的项目名字，后面一定要加.github.io后缀，README初始化也要勾上。</p>
-<p><img src="http://jiali.clouddn.com/20200714_004.jpg" alt="20200714_004"></p>
-<p>然后项目就建成了，点击Settings，向下拉到最后有个GitHub Pages，点击Choose a theme选择一个主题。然后等一会儿，再回到GitHub Pages，会变成下面这样：</p>
-<p><img src="http://jiali.clouddn.com/20200714_005.jpg" alt="20200714_005"></p>
-<p>点击那个链接，就会出现自己的网页啦，效果如下：</p>
-<p><img src="http://jiali.clouddn.com/20200714_006.jpg" alt="20200714_006"></p>
-<h2 id="发布文章"><a href="#发布文章" class="headerlink" title="发布文章"></a>发布文章</h2><ol>
-<li>创建博客根目录<br>在硬盘创建一个目录作为博客根目录blog</li>
-<li>初始化博客根目录</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo init blog</span><br></pre></td></tr></table></figure>
-
-<p>3.安装deployer-git</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm install hexo-deployer-git --save</span><br></pre></td></tr></table></figure>
-
-<p>在/blog/_config.yml中修改deploy属性(注意:之后有空格)</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">deploy:</span><br><span class="line">  type: git</span><br><span class="line">  repository: https:&#x2F;&#x2F;github.com&#x2F;thesingularityisnear&#x2F;thesingularityisnear.github.io.git</span><br><span class="line">  branch: master</span><br></pre></td></tr></table></figure>
-
-<p>4.新建文章</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new post &quot;article title&quot;</span><br></pre></td></tr></table></figure>
-
-<p>markdown 格式编辑文章</p>
-<p>5．生成静态网页</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hexo g &#x2F;&#x2F;产生静态博客网页</span><br><span class="line">hexo s&#x2F;&#x2F;本地预览</span><br><span class="line">hexo d &#x2F;&#x2F;上传到github</span><br></pre></td></tr></table></figure>
-
-<p>遇到问题：</p>
-<p>1.本地与github绑定失败：</p>
-<p>解决办法：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh-keygen -t rsa -C &quot;你的GitHub注册邮箱&quot;</span><br></pre></td></tr></table></figure>
-
-<p>然后直接三个回车即可，默认不需要设置密码</p>
-<p>2.deploy 写错，导致不能发布到GIthub,正确格式如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># Deployment</span><br><span class="line">## Docs: https:&#x2F;&#x2F;hexo.io&#x2F;docs&#x2F;deployment.html</span><br><span class="line">deploy:</span><br><span class="line">  type: git</span><br><span class="line">  repository: https:&#x2F;&#x2F;github.com&#x2F;xxx&#x2F;xxx.github.io</span><br><span class="line">  branch: master</span><br></pre></td></tr></table></figure>
-
-<p><strong>参考：</strong><br><a href="https://zhuanlan.zhihu.com/p/35668237" target="_blank" rel="noopener">超详细Hexo+Github博客搭建小白教程</a><br><a href="https://zhuanlan.zhihu.com/p/26625249" target="_blank" rel="noopener">GitHub+Hexo 搭建个人网站详细教程</a><br><a href="https://www.jianshu.com/p/84a8384be1ae" target="_blank" rel="noopener">Hexo使用指南</a><br><a href="https://hexo.io/zh-cn/docs/" target="_blank" rel="noopener">官方文档</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+  </nav>
 
 
 
@@ -1673,20 +1928,20 @@ int main(void)
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-count">11</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-count">6</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-count">3</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -1707,10 +1962,7 @@ int main(void)
     </div>
     <ul class="links-of-blogroll-list">
         <li class="links-of-blogroll-item">
-          <a href="http://yoursite.com/" title="http:&#x2F;&#x2F;yoursite.com">Title</a>
-        </li>
-        <li class="links-of-blogroll-item">
-          <a href="http://www.baidu.com/" title="http:&#x2F;&#x2F;www.baidu.com" rel="noopener" target="_blank">百度</a>
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
         </li>
     </ul>
   </div>
