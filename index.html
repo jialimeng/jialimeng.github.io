@@ -190,6 +190,124 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/25/Linux/Driver/PCIe/linux%E6%9F%A5%E7%9C%8BPCIe%E7%9A%84%E9%85%8D%E7%BD%AE%E7%A9%BA%E9%97%B4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/07/25/Linux/Driver/PCIe/linux%E6%9F%A5%E7%9C%8BPCIe%E7%9A%84%E9%85%8D%E7%BD%AE%E7%A9%BA%E9%97%B4/" class="post-title-link" itemprop="url">linux查看PCIe的配置空间</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-07-25 10:49:37 / Modified: 14:53:11" itemprop="dateCreated datePublished" datetime="2020-07-25T10:49:37+08:00">2020-07-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/PCIe/" itemprop="url" rel="index"><span itemprop="name">PCIe</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>操作系统完成PCI/PCIe的初始化后，建立了PCI总线树。在Linux中，用户空间如何访问PCI/PCIe的配置空间和查看PCIe设备信息呢？本节重点讲在应用层读取配置空间和显示PCI/PCIe设备信息。</p>
+<h2 id="查看配置空间信息"><a href="#查看配置空间信息" class="headerlink" title="查看配置空间信息"></a>查看配置空间信息</h2><p>读取PCIe设备配置空间的命令</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lspci</span><br></pre></td></tr></table></figure>
+
+<p>lspci 是一个用来显示系统中所有PCI总线设备或连接到该总线上的所有设备的工具。</p>
+<p>常用的几个参数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">-v</span><br><span class="line">使得 lspci 以冗余模式显示所有设备的详细信息。</span><br><span class="line">-vv</span><br><span class="line">使得 lspci 以过冗余模式显示更详细的信息 (事实上是 PCI 设备能给出的所有东西)。这些数据的确切意义没有在此手册页中解释，如果你想知道更多，请参照 &#x2F;usr&#x2F;include&#x2F;linux&#x2F;pci.h 或者 PCI 规范。</span><br><span class="line">-vvv 显示设备所有可解析的信息</span><br><span class="line">-n</span><br><span class="line">以数字形式显示 PCI 生产厂商和设备号，而不是在 PCI ID 数据库中查找它们。</span><br><span class="line">-x</span><br><span class="line">以十六进制显示 配置空间 (configuration space) 的前64个字节映像 (标准头部信息)。此参数对调试驱动和 lspci 本身很有用。</span><br><span class="line">-xxx</span><br><span class="line">以十六进制显示所有配置空间的256Byte映像。此选项只有 root 可用，并且很多 PCI 设备在你试图读取配置空间的未定义部分时会崩溃 (此操作可能不违反PCI标准，但是它至少非常愚蠢)。</span><br><span class="line">-xxxx 以16进制显示整个PCIe配置空间（4096字节）。</span><br><span class="line">-t</span><br><span class="line">以树形方式显示包含所有总线、桥、设备和它们的连接的图表。</span><br><span class="line">-s [[]:][][.[]]</span><br><span class="line">仅显示指定总线、插槽上的设备或设备上的功能块信息。设备地址的任何部分都可以忽略，或以「*」代替 (意味著所有值)。所有数字都是十六进制。例如：「0：」指的是在0号总线上的所有设备；「0」指的是在任意总线上0号设备的所有功能块；「0.3」选择 了所有总线上0号设备的第三个功能块；「.4」则是只列出每一设备上的第四个功能块。</span><br><span class="line">-d []:[]</span><br><span class="line">只显示指定生产厂商和设备 ID 的设备。 这两个 ID 都以十六进制表示，可以忽略或者以「*」代替 (意味著所有值)。</span><br></pre></td></tr></table></figure>
+
+<p>操作示例</p>
+<p>示例1：只是简单显示目前所有的硬件设备</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">~# lspci </span><br><span class="line">00:00.0 Host bridge: Intel Corporation Xeon E3-1200 v6&#x2F;7th Gen Core Processor Host Bridge&#x2F;DRAM Registers (rev 05)</span><br><span class="line">00:01.0 PCI bridge: Intel Corporation Xeon E3-1200 v5&#x2F;E3-1500 v5&#x2F;6th Gen Core Processor PCIe Controller (x16) (rev 05)</span><br><span class="line">00:08.0 System peripheral: Intel Corporation Xeon E3-1200 v5&#x2F;v6 &#x2F; E3-1500 v5 &#x2F; 6th&#x2F;7th Gen Core Processor Gaussian Mixture Model</span><br><span class="line">00:14.0 USB controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family USB 3.0 xHCI Controller (rev 31)</span><br><span class="line">00:14.2 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Thermal Subsystem (rev 31)</span><br><span class="line">00:15.0 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #0 (rev 31)</span><br><span class="line">00:15.1 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #1 (rev 31)</span><br><span class="line">00:16.0 Communication controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family MEI Controller #1 (rev 31)</span><br><span class="line">00:16.3 Serial controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family KT Redirection (rev 31)</span><br><span class="line">00:17.0 SATA controller: Intel Corporation Q170&#x2F;Q150&#x2F;B150&#x2F;H170&#x2F;H110&#x2F;Z170&#x2F;CM236 Chipset SATA Controller [AHCI Mode] (rev 31)</span><br><span class="line">00:1c.0 PCI bridge: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family PCI Express Root Port #6 (rev f1)</span><br><span class="line">00:1d.0 PCI bridge: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family PCI Express Root Port #9 (rev f1)</span><br><span class="line">00:1f.0 ISA bridge: Intel Corporation Q170 Chipset LPC&#x2F;eSPI Controller (rev 31)</span><br><span class="line">00:1f.2 Memory controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Power Management Controller (rev 31)</span><br><span class="line">00:1f.3 Audio device: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family HD Audio Controller (rev 31)</span><br><span class="line">00:1f.4 SMBus: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family SMBus (rev 31)</span><br><span class="line">00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (2) I219-LM (rev 31)</span><br><span class="line">01:00.0 VGA compatible controller: NVIDIA Corporation GP107 [GeForce GTX 1050 Ti] (rev a1)</span><br><span class="line">01:00.1 Audio device: NVIDIA Corporation GP107GL High Definition Audio Controller (rev a1)</span><br><span class="line">02:00.0 Ethernet controller: Intel Corporation I211 Gigabit Network Connection (rev 03)</span><br><span class="line">03:00.0 Memory controller: Xilinx Corporation Device 8034</span><br></pre></td></tr></table></figure>
+
+<p>示例2：显示所有设备详细的信息</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br></pre></td><td class="code"><pre><span class="line">~# lspci -v</span><br><span class="line">00:00.0 Host bridge: Intel Corporation Xeon E3-1200 v6&#x2F;7th Gen Core Processor Host Bridge&#x2F;DRAM Registers (rev 05)</span><br><span class="line">	Subsystem: Intel Corporation Xeon E3-1200 v6&#x2F;7th Gen Core Processor Host Bridge&#x2F;DRAM Registers</span><br><span class="line">	Flags: bus master, fast devsel, latency 0</span><br><span class="line">	Capabilities: [e0] Vendor Specific Information: Len&#x3D;10 &lt;?&gt;</span><br><span class="line"></span><br><span class="line">00:01.0 PCI bridge: Intel Corporation Xeon E3-1200 v5&#x2F;E3-1500 v5&#x2F;6th Gen Core Processor PCIe Controller (x16) (rev 05) (prog-if 00 [Normal decode])</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 121</span><br><span class="line">	Bus: primary&#x3D;00, secondary&#x3D;01, subordinate&#x3D;01, sec-latency&#x3D;0</span><br><span class="line">	I&#x2F;O behind bridge: 0000e000-0000efff</span><br><span class="line">	Memory behind bridge: de000000-df0fffff</span><br><span class="line">	Prefetchable memory behind bridge: 00000000c0000000-00000000d1ffffff</span><br><span class="line">	Capabilities: [88] Subsystem: Intel Corporation Skylake PCIe Controller (x16)</span><br><span class="line">	Capabilities: [80] Power Management version 3</span><br><span class="line">	Capabilities: [90] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Capabilities: [a0] Express Root Port (Slot+), MSI 00</span><br><span class="line">	Capabilities: [100] Virtual Channel</span><br><span class="line">	Capabilities: [140] Root Complex Link</span><br><span class="line">	Capabilities: [d94] #19</span><br><span class="line">	Kernel driver in use: pcieport</span><br><span class="line">	Kernel modules: shpchp</span><br><span class="line"></span><br><span class="line">00:08.0 System peripheral: Intel Corporation Xeon E3-1200 v5&#x2F;v6 &#x2F; E3-1500 v5 &#x2F; 6th&#x2F;7th Gen Core Processor Gaussian Mixture Model</span><br><span class="line">	Subsystem: Intel Corporation Skylake Gaussian Mixture Model</span><br><span class="line">	Flags: fast devsel, IRQ 11</span><br><span class="line">	Memory at df252000 (64-bit, non-prefetchable) [disabled] [size&#x3D;4K]</span><br><span class="line">	Capabilities: [90] MSI: Enable- Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Capabilities: [dc] Power Management version 2</span><br><span class="line">	Capabilities: [f0] PCI Advanced Features</span><br><span class="line"></span><br><span class="line">00:14.0 USB controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family USB 3.0 xHCI Controller (rev 31) (prog-if 30 [XHCI])</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H USB 3.0 xHCI Controller</span><br><span class="line">	Flags: bus master, medium devsel, latency 0, IRQ 124</span><br><span class="line">	Memory at df230000 (64-bit, non-prefetchable) [size&#x3D;64K]</span><br><span class="line">	Capabilities: [70] Power Management version 2</span><br><span class="line">	Capabilities: [80] MSI: Enable+ Count&#x3D;1&#x2F;8 Maskable- 64bit+</span><br><span class="line">	Kernel driver in use: xhci_hcd</span><br><span class="line"></span><br><span class="line">00:14.2 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Thermal Subsystem (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H Thermal subsystem</span><br><span class="line">	Flags: fast devsel, IRQ 18</span><br><span class="line">	Memory at df251000 (64-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Capabilities: [50] Power Management version 3</span><br><span class="line">	Capabilities: [80] MSI: Enable- Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Kernel driver in use: intel_pch_thermal</span><br><span class="line">	Kernel modules: intel_pch_thermal</span><br><span class="line"></span><br><span class="line">00:15.0 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #0 (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H Serial IO I2C Controller</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 16</span><br><span class="line">	Memory at df250000 (64-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Capabilities: [80] Power Management version 3</span><br><span class="line">	Capabilities: [90] Vendor Specific Information: Len&#x3D;14 &lt;?&gt;</span><br><span class="line">	Kernel driver in use: intel-lpss</span><br><span class="line">	Kernel modules: intel_lpss_pci</span><br><span class="line"></span><br><span class="line">00:15.1 Signal processing controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #1 (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H Serial IO I2C Controller</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 17</span><br><span class="line">	Memory at df24f000 (64-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Capabilities: [80] Power Management version 3</span><br><span class="line">	Capabilities: [90] Vendor Specific Information: Len&#x3D;14 &lt;?&gt;</span><br><span class="line">	Kernel driver in use: intel-lpss</span><br><span class="line">	Kernel modules: intel_lpss_pci</span><br><span class="line"></span><br><span class="line">00:16.0 Communication controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family MEI Controller #1 (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H CSME HECI</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 324</span><br><span class="line">	Memory at df24e000 (64-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Capabilities: [50] Power Management version 3</span><br><span class="line">	Capabilities: [8c] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Kernel driver in use: mei_me</span><br><span class="line">	Kernel modules: mei_me</span><br><span class="line"></span><br><span class="line">00:16.3 Serial controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family KT Redirection (rev 31) (prog-if 02 [16550])</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H KT Redirection</span><br><span class="line">	Flags: 66MHz, fast devsel, IRQ 19</span><br><span class="line">	I&#x2F;O ports at f060 [size&#x3D;8]</span><br><span class="line">	Memory at df24d000 (32-bit, non-prefetchable) [size&#x3D;4K]</span><br><span class="line">	Capabilities: [40] MSI: Enable- Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Capabilities: [50] Power Management version 3</span><br><span class="line">	Kernel driver in use: serial</span><br><span class="line"></span><br><span class="line">00:17.0 SATA controller: Intel Corporation Q170&#x2F;Q150&#x2F;B150&#x2F;H170&#x2F;H110&#x2F;Z170&#x2F;CM236 Chipset SATA Controller [AHCI Mode] (rev 31) (prog-if 01 [AHCI 1.0])</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H SATA controller [AHCI mode]</span><br><span class="line">	Flags: bus master, 66MHz, medium devsel, latency 0, IRQ 317</span><br><span class="line">	Memory at df248000 (32-bit, non-prefetchable) [size&#x3D;8K]</span><br><span class="line">	Memory at df24c000 (32-bit, non-prefetchable) [size&#x3D;256]</span><br><span class="line">	I&#x2F;O ports at f050 [size&#x3D;8]</span><br><span class="line">	I&#x2F;O ports at f040 [size&#x3D;4]</span><br><span class="line">	I&#x2F;O ports at f020 [size&#x3D;32]</span><br><span class="line">	Memory at df24b000 (32-bit, non-prefetchable) [size&#x3D;2K]</span><br><span class="line">	Capabilities: [80] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Capabilities: [70] Power Management version 3</span><br><span class="line">	Capabilities: [a8] SATA HBA v1.0</span><br><span class="line">	Kernel driver in use: ahci</span><br><span class="line">	Kernel modules: ahci</span><br><span class="line"></span><br><span class="line">00:1c.0 PCI bridge: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family PCI Express Root Port #6 (rev f1) (prog-if 00 [Normal decode])</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 122</span><br><span class="line">	Bus: primary&#x3D;00, secondary&#x3D;02, subordinate&#x3D;02, sec-latency&#x3D;0</span><br><span class="line">	I&#x2F;O behind bridge: 0000d000-0000dfff</span><br><span class="line">	Memory behind bridge: df100000-df1fffff</span><br><span class="line">	Capabilities: [40] Express Root Port (Slot+), MSI 00</span><br><span class="line">	Capabilities: [80] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Capabilities: [90] Subsystem: Intel Corporation Sunrise Point-H PCI Express Root Port</span><br><span class="line">	Capabilities: [a0] Power Management version 3</span><br><span class="line">	Capabilities: [100] Advanced Error Reporting</span><br><span class="line">	Capabilities: [140] Access Control Services</span><br><span class="line">	Capabilities: [200] L1 PM Substates</span><br><span class="line">	Capabilities: [220] #19</span><br><span class="line">	Kernel driver in use: pcieport</span><br><span class="line">	Kernel modules: shpchp</span><br><span class="line"></span><br><span class="line">00:1d.0 PCI bridge: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family PCI Express Root Port #9 (rev f1) (prog-if 00 [Normal decode])</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 123</span><br><span class="line">	Bus: primary&#x3D;00, secondary&#x3D;03, subordinate&#x3D;03, sec-latency&#x3D;0</span><br><span class="line">	Memory behind bridge: dc000000-ddffffff</span><br><span class="line">	Capabilities: [40] Express Root Port (Slot+), MSI 00</span><br><span class="line">	Capabilities: [80] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit-</span><br><span class="line">	Capabilities: [90] Subsystem: Intel Corporation Sunrise Point-H PCI Express Root Port</span><br><span class="line">	Capabilities: [a0] Power Management version 3</span><br><span class="line">	Capabilities: [100] Advanced Error Reporting</span><br><span class="line">	Capabilities: [140] Access Control Services</span><br><span class="line">	Capabilities: [200] L1 PM Substates</span><br><span class="line">	Capabilities: [220] #19</span><br><span class="line">	Kernel driver in use: pcieport</span><br><span class="line">	Kernel modules: shpchp</span><br><span class="line"></span><br><span class="line">00:1f.0 ISA bridge: Intel Corporation Q170 Chipset LPC&#x2F;eSPI Controller (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H LPC Controller</span><br><span class="line">	Flags: bus master, medium devsel, latency 0</span><br><span class="line"></span><br><span class="line">00:1f.2 Memory controller: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Power Management Controller (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H PMC</span><br><span class="line">	Flags: bus master, fast devsel, latency 0</span><br><span class="line">	Memory at df244000 (32-bit, non-prefetchable) [size&#x3D;16K]</span><br><span class="line"></span><br><span class="line">00:1f.3 Audio device: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family HD Audio Controller (rev 31)</span><br><span class="line">	Subsystem: Advantech Co. Ltd Sunrise Point-H HD Audio</span><br><span class="line">	Flags: bus master, fast devsel, latency 32, IRQ 325</span><br><span class="line">	Memory at df240000 (64-bit, non-prefetchable) [size&#x3D;16K]</span><br><span class="line">	Memory at df220000 (64-bit, non-prefetchable) [size&#x3D;64K]</span><br><span class="line">	Capabilities: [50] Power Management version 3</span><br><span class="line">	Capabilities: [60] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Kernel driver in use: snd_hda_intel</span><br><span class="line">	Kernel modules: snd_hda_intel</span><br><span class="line"></span><br><span class="line">00:1f.4 SMBus: Intel Corporation 100 Series&#x2F;C230 Series Chipset Family SMBus (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Sunrise Point-H SMBus</span><br><span class="line">	Flags: medium devsel, IRQ 11</span><br><span class="line">	Memory at df24a000 (64-bit, non-prefetchable) [size&#x3D;256]</span><br><span class="line">	I&#x2F;O ports at f000 [size&#x3D;32]</span><br><span class="line">	Kernel modules: i2c_i801</span><br><span class="line"></span><br><span class="line">00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (2) I219-LM (rev 31)</span><br><span class="line">	Subsystem: Intel Corporation Ethernet Connection (2) I219-LM</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 318</span><br><span class="line">	Memory at df200000 (32-bit, non-prefetchable) [size&#x3D;128K]</span><br><span class="line">	Capabilities: [c8] Power Management version 3</span><br><span class="line">	Capabilities: [d0] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Capabilities: [e0] PCI Advanced Features</span><br><span class="line">	Kernel driver in use: e1000e</span><br><span class="line">	Kernel modules: e1000e</span><br><span class="line"></span><br><span class="line">01:00.0 VGA compatible controller: NVIDIA Corporation GP107 [GeForce GTX 1050 Ti] (rev a1) (prog-if 00 [VGA controller])</span><br><span class="line">	Subsystem: NVIDIA Corporation Device 11bf</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 326</span><br><span class="line">	Memory at de000000 (32-bit, non-prefetchable) [size&#x3D;16M]</span><br><span class="line">	Memory at c0000000 (64-bit, prefetchable) [size&#x3D;256M]</span><br><span class="line">	Memory at d0000000 (64-bit, prefetchable) [size&#x3D;32M]</span><br><span class="line">	I&#x2F;O ports at e000 [size&#x3D;128]</span><br><span class="line">	[virtual] Expansion ROM at 000c0000 [disabled] [size&#x3D;128K]</span><br><span class="line">	Capabilities: [60] Power Management version 3</span><br><span class="line">	Capabilities: [68] MSI: Enable+ Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Capabilities: [78] Express Legacy Endpoint, MSI 00</span><br><span class="line">	Capabilities: [100] Virtual Channel</span><br><span class="line">	Capabilities: [250] Latency Tolerance Reporting</span><br><span class="line">	Capabilities: [128] Power Budgeting &lt;?&gt;</span><br><span class="line">	Capabilities: [420] Advanced Error Reporting</span><br><span class="line">	Capabilities: [600] Vendor Specific Information: ID&#x3D;0001 Rev&#x3D;1 Len&#x3D;024 &lt;?&gt;</span><br><span class="line">	Capabilities: [900] #19</span><br><span class="line">	Kernel driver in use: nvidia</span><br><span class="line">	Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia</span><br><span class="line"></span><br><span class="line">01:00.1 Audio device: NVIDIA Corporation GP107GL High Definition Audio Controller (rev a1)</span><br><span class="line">	Subsystem: NVIDIA Corporation Device 11bf</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 17</span><br><span class="line">	Memory at df080000 (32-bit, non-prefetchable) [size&#x3D;16K]</span><br><span class="line">	Capabilities: [60] Power Management version 3</span><br><span class="line">	Capabilities: [68] MSI: Enable- Count&#x3D;1&#x2F;1 Maskable- 64bit+</span><br><span class="line">	Capabilities: [78] Express Endpoint, MSI 00</span><br><span class="line">	Capabilities: [100] Advanced Error Reporting</span><br><span class="line">	Kernel driver in use: snd_hda_intel</span><br><span class="line">	Kernel modules: snd_hda_intel</span><br><span class="line"></span><br><span class="line">02:00.0 Ethernet controller: Intel Corporation I211 Gigabit Network Connection (rev 03)</span><br><span class="line">	Subsystem: Intel Corporation I211 Gigabit Network Connection</span><br><span class="line">	Flags: bus master, fast devsel, latency 0, IRQ 17</span><br><span class="line">	Memory at df100000 (32-bit, non-prefetchable) [size&#x3D;128K]</span><br><span class="line">	I&#x2F;O ports at d000 [size&#x3D;32]</span><br><span class="line">	Memory at df120000 (32-bit, non-prefetchable) [size&#x3D;16K]</span><br><span class="line">	Capabilities: [40] Power Management version 3</span><br><span class="line">	Capabilities: [50] MSI: Enable- Count&#x3D;1&#x2F;1 Maskable+ 64bit+</span><br><span class="line">	Capabilities: [70] MSI-X: Enable+ Count&#x3D;5 Masked-</span><br><span class="line">	Capabilities: [a0] Express Endpoint, MSI 00</span><br><span class="line">	Capabilities: [100] Advanced Error Reporting</span><br><span class="line">	Capabilities: [140] Device Serial Number c4-00-ad-ff-ff-3a-e7-2d</span><br><span class="line">	Capabilities: [1a0] Transaction Processing Hints</span><br><span class="line">	Kernel driver in use: igb</span><br><span class="line">	Kernel modules: igb</span><br><span class="line"></span><br><span class="line">03:00.0 Memory controller: Xilinx Corporation Device 8034</span><br><span class="line">	Subsystem: Xilinx Corporation Device 0007</span><br><span class="line">	Flags: fast devsel, IRQ 11</span><br><span class="line">	Memory at dc000000 (32-bit, non-prefetchable) [disabled] [size&#x3D;32M]</span><br><span class="line">	Capabilities: [80] Power Management version 3</span><br><span class="line">	Capabilities: [90] MSI: Enable- Count&#x3D;1&#x2F;4 Maskable- 64bit+</span><br><span class="line">	Capabilities: [c0] Express Endpoint, MSI 00</span><br><span class="line">	Capabilities: [100] Advanced Error Reporting</span><br><span class="line">	Capabilities: [300] #19</span><br></pre></td></tr></table></figure>
+
+<p>示例3：显示具体设备更详细的信息</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">~# lspci -vv -s 03:00.0</span><br><span class="line">03:00.0 Memory controller: Xilinx Corporation Device 8034</span><br><span class="line">	Subsystem: Xilinx Corporation Device 0007</span><br><span class="line">	Control: I&#x2F;O- Mem- BusMaster- SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-</span><br><span class="line">	Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL&#x3D;fast &gt;TAbort- &lt;TAbort- &lt;MAbort- &gt;SERR- &lt;PERR- INTx-</span><br><span class="line">	Interrupt: pin A routed to IRQ 11</span><br><span class="line">	Region 0: Memory at dc000000 (32-bit, non-prefetchable) [disabled] [size&#x3D;32M]</span><br><span class="line">	Capabilities: [80] Power Management version 3</span><br><span class="line">		Flags: PMEClk- DSI- D1- D2- AuxCurrent&#x3D;0mA PME(D0-,D1-,D2-,D3hot-,D3cold-)</span><br><span class="line">		Status: D0 NoSoftRst+ PME-Enable- DSel&#x3D;0 DScale&#x3D;0 PME-</span><br><span class="line">	Capabilities: [90] MSI: Enable- Count&#x3D;1&#x2F;4 Maskable- 64bit+</span><br><span class="line">		Address: 0000000000000000  Data: 0000</span><br><span class="line">	Capabilities: [c0] Express (v2) Endpoint, MSI 00</span><br><span class="line">		DevCap:	MaxPayload 512 bytes, PhantFunc 0, Latency L0s &lt;64ns, L1 &lt;1us</span><br><span class="line">			ExtTag- AttnBtn- AttnInd- PwrInd- RBE+ FLReset-</span><br><span class="line">		DevCtl:	Report errors: Correctable- Non-Fatal- Fatal- Unsupported-</span><br><span class="line">			RlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop+</span><br><span class="line">			MaxPayload 256 bytes, MaxReadReq 512 bytes</span><br><span class="line">		DevSta:	CorrErr- UncorrErr- FatalErr- UnsuppReq- AuxPwr- TransPend-</span><br><span class="line">		LnkCap:	Port #0, Speed 8GT&#x2F;s, Width x4, ASPM not supported, Exit Latency L0s unlimited, L1 unlimited</span><br><span class="line">			ClockPM- Surprise- LLActRep- BwNot- ASPMOptComp+</span><br><span class="line">		LnkCtl:	ASPM Disabled; RCB 64 bytes Disabled- CommClk+</span><br><span class="line">			ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-</span><br><span class="line">		LnkSta:	Speed 8GT&#x2F;s, Width x4, TrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-</span><br><span class="line">		DevCap2: Completion Timeout: Range B, TimeoutDis+, LTR-, OBFF Not Supported</span><br><span class="line">		DevCtl2: Completion Timeout: 50us to 50ms, TimeoutDis-, LTR-, OBFF Disabled</span><br><span class="line">		LnkCtl2: Target Link Speed: 8GT&#x2F;s, EnterCompliance- SpeedDis-</span><br><span class="line">			 Transmit Margin: Normal Operating Range, EnterModifiedCompliance- ComplianceSOS-</span><br><span class="line">			 Compliance De-emphasis: -6dB</span><br><span class="line">		LnkSta2: Current De-emphasis Level: -3.5dB, EqualizationComplete+, EqualizationPhase1+</span><br><span class="line">			 EqualizationPhase2+, EqualizationPhase3+, LinkEqualizationRequest-</span><br><span class="line">	Capabilities: [100 v2] Advanced Error Reporting</span><br><span class="line">		UESta:	DLP- SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF- MalfTLP- ECRC- UnsupReq- ACSViol-</span><br><span class="line">		UEMsk:	DLP- SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF- MalfTLP- ECRC- UnsupReq- ACSViol-</span><br><span class="line">		UESvrt:	DLP+ SDES+ TLP- FCP+ CmpltTO- CmpltAbrt- UnxCmplt- RxOF+ MalfTLP+ ECRC- UnsupReq- ACSViol-</span><br><span class="line">		CESta:	RxErr- BadTLP- BadDLLP- Rollover- Timeout- NonFatalErr-</span><br><span class="line">		CEMsk:	RxErr- BadTLP- BadDLLP- Rollover- Timeout- NonFatalErr+</span><br><span class="line">		AERCap:	First Error Pointer: 00, GenCap- CGenEn- ChkCap- ChkEn-</span><br><span class="line">	Capabilities: [300 v1] #19</span><br></pre></td></tr></table></figure>
+
+<p>示例4：显示具体设备的256byte配置空间</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">~# lspci -xxx -s 03:00.0</span><br><span class="line">03:00.0 Memory controller: Xilinx Corporation Device 8034</span><br><span class="line">00: ee 10 34 80 00 00 10 00 00 00 80 05 10 00 00 00</span><br><span class="line">10: 00 00 00 dc 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">20: 00 00 00 00 00 00 00 00 00 00 00 00 ee 10 07 00</span><br><span class="line">30: 00 00 00 00 80 00 00 00 00 00 00 00 0b 01 00 00</span><br><span class="line">40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">50: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">80: 01 90 03 00 08 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">90: 05 c0 84 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">b0: 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">c0: 10 00 02 00 02 80 e8 07 30 28 00 00 43 f0 43 00</span><br><span class="line">d0: 40 00 43 10 00 00 00 00 00 00 00 00 00 00 00 00</span><br><span class="line">e0: 00 00 00 00 12 00 00 00 00 00 00 00 0e 00 00 00</span><br><span class="line">f0: 03 00 1f 00 00 00 00 00 00 00 00 00 00 00 00 00</span><br></pre></td></tr></table></figure>
+
+<p>示例5：显示总线树</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">root@ivus:~# lspci -tv</span><br><span class="line">-[0000:00]-+-00.0  Intel Corporation Xeon E3-1200 v6&#x2F;7th Gen Core Processor Host Bridge&#x2F;DRAM Registers</span><br><span class="line">           +-01.0-[01]--+-00.0  NVIDIA Corporation GP107 [GeForce GTX 1050 Ti]</span><br><span class="line">           |            \-00.1  NVIDIA Corporation GP107GL High Definition Audio Controller</span><br><span class="line">           +-08.0  Intel Corporation Xeon E3-1200 v5&#x2F;v6 &#x2F; E3-1500 v5 &#x2F; 6th&#x2F;7th Gen Core Processor Gaussian Mixture Model</span><br><span class="line">           +-14.0  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family USB 3.0 xHCI Controller</span><br><span class="line">           +-14.2  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Thermal Subsystem</span><br><span class="line">           +-15.0  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #0</span><br><span class="line">           +-15.1  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Serial IO I2C Controller #1</span><br><span class="line">           +-16.0  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family MEI Controller #1</span><br><span class="line">           +-16.3  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family KT Redirection</span><br><span class="line">           +-17.0  Intel Corporation Q170&#x2F;Q150&#x2F;B150&#x2F;H170&#x2F;H110&#x2F;Z170&#x2F;CM236 Chipset SATA Controller [AHCI Mode]</span><br><span class="line">           +-1c.0-[02]----00.0  Intel Corporation I211 Gigabit Network Connection</span><br><span class="line">           +-1d.0-[03]----00.0  Xilinx Corporation Device 8034</span><br><span class="line">           +-1f.0  Intel Corporation Q170 Chipset LPC&#x2F;eSPI Controller</span><br><span class="line">           +-1f.2  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family Power Management Controller</span><br><span class="line">           +-1f.3  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family HD Audio Controller</span><br><span class="line">           +-1f.4  Intel Corporation 100 Series&#x2F;C230 Series Chipset Family SMBus</span><br><span class="line">           \-1f.6  Intel Corporation Ethernet Connection (2) I219-LM</span><br></pre></td></tr></table></figure>
+
+<p>示例6：查看厂家和设备号</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">~# lspci -n</span><br><span class="line">00:00.0 0600: 8086:591f (rev 05)</span><br><span class="line">00:01.0 0604: 8086:1901 (rev 05)</span><br><span class="line">00:08.0 0880: 8086:1911</span><br><span class="line">00:14.0 0c03: 8086:a12f (rev 31)</span><br><span class="line">00:14.2 1180: 8086:a131 (rev 31)</span><br><span class="line">00:15.0 1180: 8086:a160 (rev 31)</span><br><span class="line">00:15.1 1180: 8086:a161 (rev 31)</span><br><span class="line">00:16.0 0780: 8086:a13a (rev 31)</span><br><span class="line">00:16.3 0700: 8086:a13d (rev 31)</span><br><span class="line">00:17.0 0106: 8086:a102 (rev 31)</span><br><span class="line">00:1c.0 0604: 8086:a115 (rev f1)</span><br><span class="line">00:1d.0 0604: 8086:a118 (rev f1)</span><br><span class="line">00:1f.0 0601: 8086:a146 (rev 31)</span><br><span class="line">00:1f.2 0580: 8086:a121 (rev 31)</span><br><span class="line">00:1f.3 0403: 8086:a170 (rev 31)</span><br><span class="line">00:1f.4 0c05: 8086:a123 (rev 31)</span><br><span class="line">00:1f.6 0200: 8086:15b7 (rev 31)</span><br><span class="line">01:00.0 0300: 10de:1c82 (rev a1)</span><br><span class="line">01:00.1 0403: 10de:0fb9 (rev a1)</span><br><span class="line">02:00.0 0200: 8086:1539 (rev 03)</span><br><span class="line">03:00.0 0580: 10ee:8034</span><br></pre></td></tr></table></figure>
+
+<p>解释最后一条信息的含义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">03:00.0 0580: 10ee:8034</span><br></pre></td></tr></table></figure>
+
+<p>03:00.0代表什么意思？</p>
+<p>就是 bus number = 03 ,device number = 00 function = 0 </p>
+<p>0580就是Class code</p>
+<p>10ee就是厂家ID</p>
+<p>8034就是设备ID</p>
+<h2 id="其他操作"><a href="#其他操作" class="headerlink" title="其他操作"></a>其他操作</h2><h3 id="修改配置空间"><a href="#修改配置空间" class="headerlink" title="修改配置空间"></a>修改配置空间</h3><p>在应用层修改配置空间的命令为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">setpci</span><br></pre></td></tr></table></figure>
+
+<h3 id="扫描PCI设备"><a href="#扫描PCI设备" class="headerlink" title="扫描PCI设备"></a>扫描PCI设备</h3><p>探测PCI/PCIe设备的命令为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">scanpci</span><br></pre></td></tr></table></figure>
+
+<p>参考：</p>
+<p><a href="http://ilinuxkernel.com/?p=166" target="_blank" rel="noopener">Linux PCI/PCI-E设备配置空间读取与修改</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1477,386 +1595,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Markdown%20%E8%AF%AD%E6%B3%95%E6%89%8B%E5%86%8C%20%EF%BC%88%E5%AE%8C%E6%95%B4%E6%95%B4%E7%90%86%E7%89%88%EF%BC%89/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="David Meng">
-      <meta itemprop="description" content="冒险，创新，永不放弃">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Tech Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/04/30/%E5%B7%A5%E5%85%B7/markdown/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Markdown%20%E8%AF%AD%E6%B3%95%E6%89%8B%E5%86%8C%20%EF%BC%88%E5%AE%8C%E6%95%B4%E6%95%B4%E7%90%86%E7%89%88%EF%BC%89/" class="post-title-link" itemprop="url">【转载】Markdown 语法手册 （完整整理版）</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2020-04-30 10:45:06" itemprop="dateCreated datePublished" datetime="2020-04-30T10:45:06+08:00">2020-04-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-07-17 09:45:04" itemprop="dateModified" datetime="2020-07-17T09:45:04+08:00">2020-07-17</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7/" itemprop="url" rel="index"><span itemprop="name">工具</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%B7%A5%E5%85%B7/Markdown/" itemprop="url" rel="index"><span itemprop="name">Markdown</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <ul>
-<li>目录<br>{:toc}</li>
-</ul>
-<hr>
-<h4 id="1-斜体和粗体"><a href="#1-斜体和粗体" class="headerlink" title="1. 斜体和粗体"></a>1. 斜体和粗体</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">*斜体*或_斜体_</span><br><span class="line">**粗体**</span><br><span class="line">***加粗斜体***</span><br><span class="line">~~删除线~~</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<p><em>斜体</em>或<em>斜体</em></p>
-<p><strong>粗体</strong></p>
-<p><strong><em>加粗斜体</em></strong></p>
-<p><del>删除线</del></p>
-<hr>
-<h4 id="2-分级标题"><a href="#2-分级标题" class="headerlink" title="2. 分级标题"></a>2. 分级标题</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># 一级标题</span><br><span class="line">## 二级标题</span><br><span class="line">### 三级标题</span><br><span class="line">#### 四级标题</span><br><span class="line">##### 五级标题</span><br><span class="line">###### 六级标题</span><br></pre></td></tr></table></figure>
-<p>由于用了[TOC]标记编辑器会把所有标题写到目录大纲中，在这里写的演示标题也会列进去，所以就不演示了。同学们自己在编辑器中观察，很简单，一级标题字号最大，依级递减。</p>
-<hr>
-<h4 id="3-超链接"><a href="#3-超链接" class="headerlink" title="3. 超链接"></a>3. 超链接</h4><p>Markdown 支持两种形式的链接语法： 行内式和参考式两种形式，行内式一般使用较多。</p>
-<h5 id="3-1-行内式"><a href="#3-1-行内式" class="headerlink" title="3.1. 行内式"></a>3.1. 行内式</h5><p>语法说明：</p>
-<p>[]里写链接文字，()里写链接地址, ()中的”“中可以为链接指定title属性，title属性可加可不加。title属性的效果是鼠标悬停在链接上会出现指定的 title文字。链接地址与链接标题前有一个空格。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">欢迎来到[<span class="string">Demi的随笔和技术空间</span>](<span class="link">https://yuhongjun.github.io/</span>)</span><br><span class="line"></span><br><span class="line">欢迎来到[<span class="string">Demi的随笔和技术空间</span>](<span class="link">https://yuhongjun.github.io/ "Demi的随笔和技术空间"</span>)</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<p>欢迎来到<a href="https://yuhongjun.github.io/" target="_blank" rel="noopener">Demi的随笔和技术空间</a></p>
-<p>欢迎来到<a href="https://yuhongjun.github.io/" target="_blank" rel="noopener" title="Demi的随笔和技术空间">Demi的随笔和技术空间</a></p>
-<h5 id="3-2-参考式"><a href="#3-2-参考式" class="headerlink" title="3.2. 参考式"></a>3.2. 参考式</h5><p>参考式超链接一般用在学术论文上面，或者另一种情况，如果某一个链接在文章中多处使用，那么使用引用 的方式创建链接将非常好，它可以让你对链接进行统一的管理。</p>
-<p>语法说明：<br>参考式链接分为两部分，文中的写法 [链接文字][链接标记]，在文本的任意位置添加[链接标记]:链接地址 “链接标题”，链接地址与链接标题前有一个空格。</p>
-<p>如果链接文字本身可以做为链接标记，你也可以写成[链接文字][]<br>[链接文字]：链接地址的形式，见代码的最后一行。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">我经常去的几个网站[<span class="string">Google</span>][<span class="symbol">1</span>],[<span class="string">Demi的随笔和技术空间</span>][<span class="symbol">2</span>],[<span class="string">Demi的随笔和技术空间</span>][<span class="symbol"></span>]。</span><br><span class="line"></span><br><span class="line">[<span class="symbol">1</span>]:<span class="link">http://www.google.com</span></span><br><span class="line">[<span class="symbol">2</span>]:<span class="link">https://yuhongjun.github.io/ "Demi的随笔和技术空间"</span></span><br><span class="line">[<span class="symbol">Demi的随笔和技术空间</span>]:<span class="link">https://yuhongjun.github.io/</span></span><br></pre></td></tr></table></figure>
-
-<p>我经常去的几个网站<a href="http://www.google.com" target="_blank" rel="noopener">Google</a>,<a href="https://yuhongjun.github.io/" target="_blank" rel="noopener" title="Demi的随笔和技术空间">Demi的随笔和技术空间</a>,<a href="https://yuhongjun.github.io/" target="_blank" rel="noopener">Demi的随笔和技术空间</a>。</p>
-<h5 id="3-3-自动链接"><a href="#3-3-自动链接" class="headerlink" title="3.3. 自动链接"></a>3.3. 自动链接</h5><p>语法说明：<br>Markdown 支持以比较简短的自动链接形式来处理网址和电子邮件信箱，只要是用&lt;&gt;包起来， Markdown 就会自动把它转成链接。一般网址的链接文字就和链接地址一样，例如：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="xml"><span class="tag">&lt;<span class="name">http:</span>//<span class="attr">example.com</span>/&gt;</span></span></span><br><span class="line"><span class="xml"><span class="tag">&lt;<span class="name">address@example.com</span>&gt;</span></span></span><br></pre></td></tr></table></figure>
-<p>view</p>
-<p><a href="http://example.com/" target="_blank" rel="noopener">http://example.com/</a><br><a href="mailto:&#97;&#100;&#100;&#x72;&#x65;&#x73;&#115;&#64;&#101;&#x78;&#x61;&#x6d;&#x70;&#108;&#101;&#46;&#99;&#111;&#109;">&#97;&#100;&#100;&#x72;&#x65;&#x73;&#115;&#64;&#101;&#x78;&#x61;&#x6d;&#x70;&#108;&#101;&#46;&#99;&#111;&#109;</a></p>
-<hr>
-<h4 id="4-锚点"><a href="#4-锚点" class="headerlink" title="4. 锚点"></a>4. 锚点</h4><p>网页中，锚点其实就是页内超链接，也就是链接本文档内部的某些元素，实现当前页面中的跳转。比如我这里写下一个锚点，点击回到目录，就能跳转到目录。 在目录中点击这一节，就能跳过来。还有下一节的注脚。这些根本上都是用锚点来实现的。</p>
-<p>注意： </p>
-<ol>
-<li>Markdown Extra 只支持在标题后插入锚点，其它地方无效。 </li>
-<li>Leanote 编辑器右侧显示效果区域暂时不支持锚点跳转，所以点来点去发现没有跳转不必惊慌，但是你发布成笔记或博文后是支持跳转的。</li>
-</ol>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">## 0. 跳转测试&#123;#index&#125;</span></span><br><span class="line"></span><br><span class="line">跳转到[<span class="string">跳转测试</span>](<span class="link">#index</span>)</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h4 id="5-列表"><a href="#5-列表" class="headerlink" title="5. 列表"></a>5. 列表</h4><h5 id="5-1-无序列表"><a href="#5-1-无序列表" class="headerlink" title="5.1. 无序列表"></a>5.1. 无序列表</h5><p>使用 *，+，- 表示无序列表。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">- </span>无序列表项 一</span><br><span class="line"><span class="bullet">- </span>无序列表项 二</span><br><span class="line"><span class="bullet">- </span>无序列表项 三</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<ul>
-<li>无序列表项 一</li>
-<li>无序列表项 二</li>
-<li>无序列表项 三</li>
-</ul>
-<h5 id="5-2-有序列表"><a href="#5-2-有序列表" class="headerlink" title="5.2. 有序列表"></a>5.2. 有序列表</h5><p>有序列表则使用数字接着一个英文句点。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">1. </span>有序列表项 一</span><br><span class="line"><span class="bullet">2. </span>有序列表项 二</span><br><span class="line"><span class="bullet">3. </span>有序列表项 三</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<ol>
-<li>有序列表项 一</li>
-<li>有序列表项 二</li>
-<li>有序列表项 三</li>
-</ol>
-<h5 id="5-3-定义型列表"><a href="#5-3-定义型列表" class="headerlink" title="5.3. 定义型列表"></a>5.3. 定义型列表</h5><p>语法说明：</p>
-<p>定义型列表由名词和解释组成。一行写上定义，紧跟一行写上解释。解释的写法:紧跟一个缩进(Tab)</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">代码块 1 Markdown</span><br><span class="line">:    轻量级文本标记语言，可以转换成html，pdf等格式（左侧有一个可见的冒号和四个不可见的空格）</span><br><span class="line"></span><br><span class="line">代码块 2</span><br><span class="line">:   这是代码块的定义（左侧有一个可见的冒号和四个不可见的空格）</span><br><span class="line"></span><br><span class="line"><span class="code">        代码块（左侧有八个不可见的空格）</span></span><br></pre></td></tr></table></figure>
-<p>view</p>
-<dl><dt>代码块 1 Markdown</dt><dd>轻量级文本标记语言，可以转换成html，pdf等格式（左侧有一个可见的冒号和四个不可见的空格）</dd></dl><dl><dt>代码块 2</dt><dd>这是代码块的定义（左侧有一个可见的冒号和四个不可见的空格）</dd></dl><pre><code>代码块（左侧有八个不可见的空格）</code></pre><h5 id="5-3-列表缩进"><a href="#5-3-列表缩进" class="headerlink" title="5.3. 列表缩进"></a>5.3. 列表缩进</h5><p>语法说明：</p>
-<p>列表项目标记通常是放在最左边，但是其实也可以缩进，最多 3 个空格，项目标记后面则一定要接着至少一个空格或制表符。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">*   </span>轻轻的我走了， 正如我轻轻的来； 我轻轻的招手， 作别西天的云彩。</span><br><span class="line">那河畔的金柳， 是夕阳中的新娘； 波光里的艳影， 在我的心头荡漾。 </span><br><span class="line">软泥上的青荇， 油油的在水底招摇； 在康河的柔波里， 我甘心做一条水草！ </span><br><span class="line"><span class="bullet">*   </span>那榆荫下的一潭， 不是清泉， 是天上虹； 揉碎在浮藻间， 沉淀着彩虹似的梦。 </span><br><span class="line">寻梦？撑一支长篙， 向青草更青处漫溯； 满载一船星辉， 在星辉斑斓里放歌。 </span><br><span class="line">但我不能放歌， 悄悄是别离的笙箫； 夏虫也为我沉默， 沉默是今晚的康桥！ </span><br><span class="line">悄悄的我走了， 正如我悄悄的来； 我挥一挥衣袖， 不带走一片云彩。</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<ul>
-<li>轻轻的我走了， 正如我轻轻的来； 我轻轻的招手， 作别西天的云彩。<br>那河畔的金柳， 是夕阳中的新娘； 波光里的艳影， 在我的心头荡漾。<br>软泥上的青荇， 油油的在水底招摇； 在康河的柔波里， 我甘心做一条水草！ </li>
-<li>那榆荫下的一潭， 不是清泉， 是天上虹； 揉碎在浮藻间， 沉淀着彩虹似的梦。<br>寻梦？撑一支长篙， 向青草更青处漫溯； 满载一船星辉， 在星辉斑斓里放歌。<br>但我不能放歌， 悄悄是别离的笙箫； 夏虫也为我沉默， 沉默是今晚的康桥！<br>悄悄的我走了， 正如我悄悄的来； 我挥一挥衣袖， 不带走一片云彩。</li>
-</ul>
-<h5 id="5-4-包含段落的列表"><a href="#5-4-包含段落的列表" class="headerlink" title="5.4. 包含段落的列表"></a>5.4. 包含段落的列表</h5><p>语法说明：</p>
-<p>列表项目可以包含多个段落，每个项目下的段落都必须缩进 4 个空格或是 1 个制表符（显示效果与代码一致）：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">*   </span>轻轻的我走了， 正如我轻轻的来； 我轻轻的招手， 作别西天的云彩。</span><br><span class="line">那河畔的金柳， 是夕阳中的新娘； 波光里的艳影， 在我的心头荡漾。 </span><br><span class="line">软泥上的青荇， 油油的在水底招摇； 在康河的柔波里， 我甘心做一条水草！</span><br><span class="line"></span><br><span class="line"><span class="code">     那榆荫下的一潭， 不是清泉， 是天上虹； 揉碎在浮藻间， 沉淀着彩虹似的梦。 </span></span><br><span class="line">寻梦？撑一支长篙， 向青草更青处漫溯； 满载一船星辉， 在星辉斑斓里放歌。 </span><br><span class="line">但我不能放歌， 悄悄是别离的笙箫； 夏虫也为我沉默， 沉默是今晚的康桥！</span><br><span class="line"></span><br><span class="line"><span class="bullet">*    </span>悄悄的我走了， 正如我悄悄的来； 我挥一挥衣袖， 不带走一片云彩。</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<ul>
-<li><p>轻轻的我走了， 正如我轻轻的来； 我轻轻的招手， 作别西天的云彩。<br>那河畔的金柳， 是夕阳中的新娘； 波光里的艳影， 在我的心头荡漾。<br>软泥上的青荇， 油油的在水底招摇； 在康河的柔波里， 我甘心做一条水草！</p>
-<p> 那榆荫下的一潭， 不是清泉， 是天上虹； 揉碎在浮藻间， 沉淀着彩虹似的梦。<br>寻梦？撑一支长篙， 向青草更青处漫溯； 满载一船星辉， 在星辉斑斓里放歌。<br>但我不能放歌， 悄悄是别离的笙箫； 夏虫也为我沉默， 沉默是今晚的康桥！ </p>
-</li>
-<li><p>悄悄的我走了， 正如我悄悄的来； 我挥一挥衣袖， 不带走一片云彩。</p>
-</li>
-</ul>
-<h5 id="5-5-包含引用的列表"><a href="#5-5-包含引用的列表" class="headerlink" title="5.5. 包含引用的列表"></a>5.5. 包含引用的列表</h5><p>语法说明：</p>
-<p>如果要在列表项目内放进引用，那 &gt; 就需要缩进：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">*   </span>阅读的方法:</span><br><span class="line"><span class="code">    &gt; 打开书本。</span></span><br><span class="line"><span class="code">    &gt; 打开电灯。</span></span><br></pre></td></tr></table></figure>
-<p>view</p>
-<ul>
-<li>阅读的方法:<blockquote>
-<p>打开书本。<br>打开电灯。</p>
-</blockquote>
-</li>
-</ul>
-<h5 id="5-6-包含代码区块的引用"><a href="#5-6-包含代码区块的引用" class="headerlink" title="5.6. 包含代码区块的引用"></a>5.6. 包含代码区块的引用</h5><p>语法说明：<br>如果要放代码区块的话，该区块就需要缩进两次，也就是 8 个空格或是 2 个制表符：</p>
-<h5 id="5-7-一个特殊情况"><a href="#5-7-一个特殊情况" class="headerlink" title="5.7. 一个特殊情况"></a>5.7. 一个特殊情况</h5><p>在特殊情况下，项目列表很可能会不小心产生，像是下面这样的写法：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">1986. </span>What a great season.</span><br></pre></td></tr></table></figure>
-<p>会显示成：</p>
-<ol start="1986">
-<li>What a great season.</li>
-</ol>
-<p>换句话说，也就是在行首出现数字-句点-空白，要避免这样的状况，你可以在句点前面加上反斜杠：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1986\. What a great season.</span><br></pre></td></tr></table></figure>
-<p>才会正常显示成：</p>
-<p>1986. What a great season.</p>
-<hr>
-<h4 id="6-引用"><a href="#6-引用" class="headerlink" title="6. 引用"></a>6. 引用</h4><p>语法说明：</p>
-<p>引用需要在被引用的文本前加上&gt;符号。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="quote">&gt; 这是一个有两段文字的引用,</span></span><br><span class="line">无意义的占行文字1.</span><br><span class="line">无意义的占行文字2.</span><br><span class="line"></span><br><span class="line"><span class="quote">&gt; 无意义的占行文字3.</span></span><br><span class="line">无意义的占行文字4.</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<blockquote>
-<p>这是一个有两段文字的引用,<br>无意义的占行文字1.<br>无意义的占行文字2.</p>
-</blockquote>
-<blockquote>
-<p>无意义的占行文字3.<br>无意义的占行文字4.</p>
-</blockquote>
-<h5 id="6-1-引用的多层嵌套"><a href="#6-1-引用的多层嵌套" class="headerlink" title="6.1. 引用的多层嵌套"></a>6.1. 引用的多层嵌套</h5><p>区块引用可以嵌套（例如：引用内的引用），只要根据层次加上不同数量的 &gt; ：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&gt;&gt;&gt; 请问 Markdwon 怎么用？ - 小白</span><br><span class="line"></span><br><span class="line">&gt;&gt; 自己看教程！ - 愤青</span><br><span class="line"></span><br><span class="line"><span class="quote">&gt; 教程在哪？ - 小白</span></span><br></pre></td></tr></table></figure>
-<blockquote>
-<blockquote>
-<blockquote>
-<p>请问 Markdwon 怎么用？ - 小白</p>
-</blockquote>
-</blockquote>
-</blockquote>
-<blockquote>
-<blockquote>
-<p>自己看教程！ - 愤青</p>
-</blockquote>
-</blockquote>
-<blockquote>
-<p>教程在哪？ - 小白</p>
-</blockquote>
-<h5 id="6-2-引用其它要素"><a href="#6-2-引用其它要素" class="headerlink" title="6.2. 引用其它要素"></a>6.2. 引用其它要素</h5><p>引用的区块内也可以使用其他的 Markdown 语法，包括标题、列表、代码区块等：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="quote">&gt; 1.   这是第一行列表项。</span></span><br><span class="line"><span class="quote">&gt; 2.   这是第二行列表项。</span></span><br><span class="line"><span class="quote">&gt; </span></span><br><span class="line"><span class="quote">&gt; 给出一些例子代码：</span></span><br><span class="line"><span class="quote">&gt; </span></span><br><span class="line"><span class="quote">&gt;     return shell_exec("echo $input | $markdown_script");</span></span><br></pre></td></tr></table></figure>
-<blockquote>
-<ol>
-<li>这是第一行列表项。</li>
-<li>这是第二行列表项。</li>
-</ol>
-<p>给出一些例子代码：</p>
-<pre><code>return shell_exec(&quot;echo $input | $markdown_script&quot;);</code></pre></blockquote>
-<hr>
-<h4 id="7-插入图像"><a href="#7-插入图像" class="headerlink" title="7. 插入图像"></a>7. 插入图像</h4><p>图片的创建方式与超链接相似，而且和超链接一样也有两种写法，行内式和参考式写法。</p>
-<p>语法中图片Alt的意思是如果图片因为某些原因不能显示，就用定义的图片Alt文字来代替图片。 图片Title则和链接中的Title一样，表示鼠标悬停与图片上时出现的文字。 Alt 和 Title 都不是必须的，可以省略，但建议写上。</p>
-<h5 id="7-1-行内式"><a href="#7-1-行内式" class="headerlink" title="7.1. 行内式"></a>7.1. 行内式</h5><p>语法说明：![图片Alt](图片地址 “图片Title”)</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">美丽风景： </span><br><span class="line">![<span class="string">美丽风景</span>](<span class="link">https://yuhongjun.github.io/assets/media/scenery.jpeg "美丽风景"</span>)</span><br></pre></td></tr></table></figure>
-<p>view<br>美丽风景：<br><img src="https://yuhongjun.github.io/assets/media/scenery.jpeg" alt="美丽风景" title="美丽风景"></p>
-<p>7.2. 参考式</p>
-<p>语法说明：</p>
-<p>在文档要插入图片的地方写![图片Alt][标记]</p>
-<p>在文档的最后写上[标记]:图片地址 “Title”</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">![<span class="string">美丽风景</span>](<span class="link">https://yuhongjun.github.io/assets/media/scenery.jpeg "美丽风景"</span>)</span><br><span class="line"></span><br><span class="line">[<span class="symbol">scenery</span>]:<span class="link">https://yuhongjun.github.io/assets/media/scenery.jpeg "美丽风景"</span></span><br></pre></td></tr></table></figure>
-<p>view<br><img src="https://yuhongjun.github.io/assets/media/scenery.jpeg" alt="美丽风景" title="美丽风景"></p>
-<hr>
-<h4 id="8-内容目录"><a href="#8-内容目录" class="headerlink" title="8. 内容目录"></a>8. 内容目录</h4><p>在段落中填写 [TOC] 以显示全文内容的目录结构。</p>
-<p>效果参见最上方的目录</p>
-<hr>
-<h4 id="9-注脚"><a href="#9-注脚" class="headerlink" title="9. 注脚"></a>9. 注脚</h4><p>语法说明：</p>
-<p>在需要添加注脚的文字后加上脚注名字[^注脚名字],称为加注。 然后在文本的任意位置(一般在最后)添加脚注，脚注前必须有对应的脚注名字。</p>
-<p>注意：经测试注脚与注脚之间必须空一行，不然会失效。成功后会发现，即使你没有把注脚写在文末，经Markdown转换后，也会自动归类到文章的最后。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">使用 Markdown[^1]可以效率的书写文档, 直接转换成 HTML[^2], 你可以使用 Leanote[^Le] 编辑器进行书写。</span><br><span class="line"></span><br><span class="line">[<span class="symbol">^1</span>]:<span class="link">Markdown是一种纯文本标记语言</span></span><br><span class="line"></span><br><span class="line">[<span class="symbol">^2</span>]:<span class="link">HyperText Markup Language 超文本标记语言</span></span><br><span class="line"></span><br><span class="line">[<span class="symbol">^Le</span>]:<span class="link">开源笔记平台，支持Markdown和笔记直接发为博文</span></span><br></pre></td></tr></table></figure>
-<p>view</p>
-<p>使用 Markdown<a href="Markdown是一种纯文本标记语言">^1</a>可以效率的书写文档, 直接转换成 HTML[^2], 你可以使用 Leanote<a href="开源笔记平台，支持Markdown和笔记直接发为博文">^Le</a> 编辑器进行书写。</p>
-<p>[^2]:HyperText Markup Language 超文本标记语言</p>
-<p>注：脚注自动被搬运到最后面，请到文章末尾查看，并且脚注后方的链接可以直接跳转回到加注的地方。</p>
-<hr>
-<h4 id="10-LaTeX-公式"><a href="#10-LaTeX-公式" class="headerlink" title="10. LaTeX 公式"></a>10. LaTeX 公式</h4><h5 id="10-1-表示行内公式："><a href="#10-1-表示行内公式：" class="headerlink" title="10.1. $ 表示行内公式："></a>10.1. $ 表示行内公式：</h5><figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">质能守恒方程可以用一个很简洁的方程式 $E=mc^2$ 来表达。</span><br></pre></td></tr></table></figure>
-<p>view<br>质能守恒方程可以用一个很简洁的方程式 $E=mc^2$ 来表达。</p>
-<h5 id="10-2-表示整行公式："><a href="#10-2-表示整行公式：" class="headerlink" title="10.2 $$ 表示整行公式："></a>10.2 $$ 表示整行公式：</h5><figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$$\sum<span class="emphasis">_&#123;i=1&#125;^n a_</span>i=0$$</span><br><span class="line">$$f(x<span class="emphasis">_1,x_</span>x,\ldots,x<span class="emphasis">_n) = x_</span>1^2 + x<span class="emphasis">_2^2 + \cdots + x_</span>n^2 $$</span><br><span class="line">$$\sum^&#123;j-1&#125;<span class="emphasis">_&#123;k=0&#125;&#123;\widehat&#123;\gamma&#125;_</span>&#123;kj&#125; z_k&#125;$$</span><br></pre></td></tr></table></figure>
-<p>访问 <a href="https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference" target="_blank" rel="noopener" title="MathJax basic tutorial and quick reference">MathJax</a> 参考更多使用方法。</p>
-<hr>
-<h4 id="11-流程图"><a href="#11-流程图" class="headerlink" title="11. 流程图"></a>11. 流程图</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;div&gt;</span><br><span class="line">&lt;textarea id&#x3D;&quot;code&quot; style&#x3D;&quot;width: 100%;&quot; rows&#x3D;&quot;11&quot;&gt;</span><br><span class="line">st&#x3D;&gt;start: Start|past:&gt;http:&#x2F;&#x2F;www.google.com[blank]</span><br><span class="line">e&#x3D;&gt;end: End:&gt;http:&#x2F;&#x2F;www.google.com</span><br><span class="line">op1&#x3D;&gt;operation: My Operation|past</span><br><span class="line">op2&#x3D;&gt;operation: Stuff|current</span><br><span class="line">sub1&#x3D;&gt;subroutine: My Subroutine|invalid</span><br><span class="line">cond&#x3D;&gt;condition: Yes</span><br><span class="line">or No?|approved:&gt;http:&#x2F;&#x2F;www.google.com</span><br><span class="line">c2&#x3D;&gt;condition: Good idea|rejected</span><br><span class="line">io&#x3D;&gt;inputoutput: catch something...|request</span><br><span class="line"></span><br><span class="line">st-&gt;op1(right)-&gt;cond</span><br><span class="line">cond(yes, right)-&gt;c2</span><br><span class="line">cond(no)-&gt;sub1(left)-&gt;op1</span><br><span class="line">c2(yes)-&gt;io-&gt;e</span><br><span class="line">c2(no)-&gt;op2-&gt;e</span><br><span class="line">&lt;&#x2F;textarea&gt;</span><br><span class="line">&lt;&#x2F;div&gt;</span><br><span class="line">&lt;div&gt;</span><br><span class="line">&lt;button id&#x3D;&quot;run&quot; type&#x3D;&quot;button&quot;&gt;Run&lt;&#x2F;button&gt;</span><br><span class="line">&lt;&#x2F;div&gt;</span><br><span class="line">&lt;div id&#x3D;&quot;canvas&quot;&gt;&lt;&#x2F;div&gt;</span><br></pre></td></tr></table></figure>
-<p>you can  try different in textarea,then run .</p>
-<div>
-<textarea id="code" style="width: 100%;" rows="11">
-st=>start: Start|past:>https://yuhongjun.github.io[blank]
-e=>end: End:>https://yuhongjun.github.io
-op1=>operation: My Operation|past
-op2=>operation: Stuff|current
-sub1=>subroutine: My Subroutine|invalid
-cond=>condition: Yes
-or No?|approved:>https://yuhongjun.github.io
-c2=>condition: Good idea|rejected
-io=>inputoutput: catch something...|request
-
-<p>st-&gt;op1(right)-&gt;cond<br>cond(yes, right)-&gt;c2<br>cond(no)-&gt;sub1(left)-&gt;op1<br>c2(yes)-&gt;io-&gt;e<br>c2(no)-&gt;op2-&gt;e<br></textarea></p>
-</div>
-<div>
-<button id="run" type="button">Run</button>
-</div>
-<div id="canvas"></div>
-
-<p>更多语法参考：<a href="https://flowchart.js.org/" target="_blank" rel="noopener" title="flowchart">流程图语法参考</a></p>
-<hr>
-<h4 id="12-表格"><a href="#12-表格" class="headerlink" title="12 .表格"></a>12 .表格</h4><p>语法说明：</p>
-<p>不管是哪种方式，第一行为表头，第二行分隔表头和主体部分，第三行开始每一行为一个表格行。<br>列于列之间用管道符|隔开。原生方式的表格每一行的两边也要有管道符。<br>第二行还可以为不同的列指定对齐方向。默认为左对齐，在-右边加上:就右对齐。</p>
-<ol>
-<li><p>简单方式写表格：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">学号|姓名|分数</span><br><span class="line">-|-|-</span><br><span class="line">小明|男|75</span><br><span class="line">小红|女|79</span><br><span class="line">小陆|男|92</span><br></pre></td></tr></table></figure></li>
-<li><p>原生方式写表格：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">|学号|姓名|分数|</span><br><span class="line">|-|-|-|</span><br><span class="line">|小明|男|75|</span><br><span class="line">|小红|女|79|</span><br><span class="line">|小陆|男|92|</span><br></pre></td></tr></table></figure></li>
-<li><p>为表格第二列指定方向：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">产品|价格</span><br><span class="line">-|-:</span><br><span class="line">Leanote 高级账号|60元/年</span><br><span class="line">Leanote 超级账号|120元/年</span><br></pre></td></tr></table></figure>
-<p>view</p>
-</li>
-<li><p>简单方式写表格：</p>
-</li>
-</ol>
-<table>
-<thead>
-<tr>
-<th>学号</th>
-<th>姓名</th>
-<th>分数</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>小明</td>
-<td>男</td>
-<td>75</td>
-</tr>
-<tr>
-<td>小红</td>
-<td>女</td>
-<td>79</td>
-</tr>
-<tr>
-<td>小陆</td>
-<td>男</td>
-<td>92</td>
-</tr>
-</tbody></table>
-<p>2.原生方式写表格：</p>
-<table>
-<thead>
-<tr>
-<th>学号</th>
-<th>姓名</th>
-<th>分数</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>小明</td>
-<td>男</td>
-<td>75</td>
-</tr>
-<tr>
-<td>小红</td>
-<td>女</td>
-<td>79</td>
-</tr>
-<tr>
-<td>小陆</td>
-<td>男</td>
-<td>92</td>
-</tr>
-</tbody></table>
-<p>3.为表格第二列指定方向：</p>
-<table>
-<thead>
-<tr>
-<th>产品</th>
-<th align="right">价格</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Leanote 高级账号</td>
-<td align="right">60元/年</td>
-</tr>
-<tr>
-<td>Leanote 超级账号</td>
-<td align="right">120元/年</td>
-</tr>
-</tbody></table>
-<hr>
-<h4 id="13-分隔线"><a href="#13-分隔线" class="headerlink" title="13. 分隔线"></a>13. 分隔线</h4><p>你可以在一行中用三个以上的星号、减号、底线来建立一个分隔线，行内不能有其他东西。你也可以在星号或是减号中间插入空格。下面每种写法都可以建立分隔线：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">* </span><span class="emphasis">* *</span></span><br><span class="line"></span><br><span class="line"><span class="emphasis">***</span></span><br><span class="line"></span><br><span class="line"><span class="strong">*****</span></span><br><span class="line"></span><br><span class="line"><span class="bullet">- </span>- -</span><br><span class="line"></span><br><span class="line">---------------------------------------</span><br></pre></td></tr></table></figure>
-
-<p>显示效果都一样</p>
-<hr>
-<h4 id="14-代码"><a href="#14-代码" class="headerlink" title="14. 代码"></a>14. 代码</h4><p>对于程序员来说这个功能是必不可少的，插入程序代码的方式有两种，一种是利用缩进(Tab), 另一种是利用”`”符号（一般在ESC键下方）包裹代码。</p>
-<p>语法说明：</p>
-<ol>
-<li>插入行内代码，即插入一个单词或者一句代码的情况，使用<code>code</code>这样的形式插入。</li>
-<li>插入多行代码，可以使用缩进或者“<code>code “</code>,具体看示例。</li>
-</ol>
-<p><strong>注意： 缩进式插入前方必须有空行</strong></p>
-<h5 id="14-1-行内式"><a href="#14-1-行内式" class="headerlink" title="14.1. 行内式"></a>14.1. 行内式</h5><figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">C语言里的函数 <span class="code">`scanf()`</span> 怎么使用？</span><br></pre></td></tr></table></figure>
-<p>view<br>C语言里的函数 <code>scanf()</code> 怎么使用？</p>
-<h5 id="14-2-缩进式多行代码"><a href="#14-2-缩进式多行代码" class="headerlink" title="14.2. 缩进式多行代码"></a>14.2. 缩进式多行代码</h5><p>缩进 4 个空格或是 1 个制表符</p>
-<p>一个代码区块会一直持续到没有缩进的那一行（或是文件结尾）。</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">#include &lt;stdio.h&gt;</span></span><br><span class="line">int main(void)</span><br><span class="line">&#123;</span><br><span class="line"><span class="code">    printf("Hello world\n");</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>view</p>
-<pre><code>#include &lt;stdio.h&gt;
-int main(void)
-{
-    printf(&quot;Hello world\n&quot;);
-}</code></pre><h5 id="14-3-用六个-包裹多行代码"><a href="#14-3-用六个-包裹多行代码" class="headerlink" title="14.3. 用六个`包裹多行代码"></a>14.3. 用六个`包裹多行代码</h5><figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="code">` `</span> `</span><br><span class="line"><span class="section">#include &lt;stdio.h&gt;</span></span><br><span class="line">int main(void)</span><br><span class="line">&#123;</span><br><span class="line"><span class="code">    printf("Hello world\n");</span></span><br><span class="line">&#125;</span><br><span class="line">、、、</span><br></pre></td></tr></table></figure>
-
-<h5 id="14-4-HTML-原始码"><a href="#14-4-HTML-原始码" class="headerlink" title="14.4. HTML 原始码"></a>14.4. HTML 原始码</h5><p>在代码区块里面， &amp; 、 &lt; 和 &gt; 会自动转成 HTML 实体，这样的方式让你非常容易使用 Markdown 插入范例用的 HTML 原始码，只需要复制贴上，剩下的 Markdown 都会帮你处理，例如：</p>
-<p>第一个例子：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="xml"><span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"footer"</span>&gt;</span></span></span><br><span class="line">   © 2016 <span class="emphasis">***</span></span><br><span class="line"><span class="xml"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span></span><br></pre></td></tr></table></figure>
-<p>view</p>
-<div class="footer">
-   © 2016 ***
-</div>
-转载：https://yuhongjun.github.io/tech/2017/05/02/Markdown-语法手册-完整整理版.html
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1928,7 +1666,7 @@ int main(void)
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-count">12</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
