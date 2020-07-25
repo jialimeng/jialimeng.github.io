@@ -201,8 +201,8 @@ links_settings:
   layout: inline
 
 links:
-  Title: http://yoursite.com
-  百度: http://www.baidu.com
+  #Title: http://yoursite.com
+  Linux Kernel Exploration: http://ilinuxkernel.com
 # Table of Contents in the Sidebar
 # Front-matter variable (unsupport wrap expand_all).
 toc:
