@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 前言想想用51单片机控制8088液晶屏的过程，首先编写一系列控制液晶屏的子函数，包括画点，画线、画圆，显示字符等子函数，这些子函数的功能控制lcd寄存器，在液晶屏上画一个点。然后在main函数里面调用这些子函数，实现字符显示功能。那么，在Linux上，实现控制液晶屏的原理也是跟单片机一样，都需要控制lcd的寄存器和时序。只不过，Linux分为应用层和内核，应用层和内核交互必须通过一套机">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux framebuffer软件架构">
+<meta property="og:url" content="http://yoursite.com/2021/01/19/Linux/Driver/video/Linux%20framebuffer%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 前言想想用51单片机控制8088液晶屏的过程，首先编写一系列控制液晶屏的子函数，包括画点，画线、画圆，显示字符等子函数，这些子函数的功能控制lcd寄存器，在液晶屏上画一个点。然后在main函数里面调用这些子函数，实现字符显示功能。那么，在Linux上，实现控制液晶屏的原理也是跟单片机一样，都需要控制lcd的寄存器和时序。只不过，Linux分为应用层和内核，应用层和内核交互必须通过一套机">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20210120_001.png">
+<meta property="article:published_time" content="2021-01-19T09:06:06.000Z">
+<meta property="article:modified_time" content="2021-01-20T05:11:56.390Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="LCD">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20210120_001.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/19/Linux/Driver/video/Linux%20framebuffer%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Linux framebuffer软件架构 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/19/Linux/Driver/video/Linux%20framebuffer%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux framebuffer软件架构
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-01-19 17:06:06" itemprop="dateCreated datePublished" datetime="2021-01-19T17:06:06+08:00">2021-01-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-01-20 13:11:56" itemprop="dateModified" datetime="2021-01-20T13:11:56+08:00">2021-01-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/video/" itemprop="url" rel="index"><span itemprop="name">video</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>想想用51单片机控制8088液晶屏的过程，首先编写一系列控制液晶屏的子函数，包括画点，画线、画圆，显示字符等子函数，这些子函数的功能控制lcd寄存器，在液晶屏上画一个点。然后在main函数里面调用这些子函数，实现字符显示功能。那么，在Linux上，实现控制液晶屏的原理也是跟单片机一样，都需要控制lcd的寄存器和时序。只不过，Linux分为应用层和内核，应用层和内核交互必须通过一套机制去实现，这套机制就是open,read,write等接口。因此，应用层想要在液晶屏上显示内容，就必须通过open,read,write等函数实现。为了更好的管理显示设备，Linux设计出一套管理显示设备的通用软件架构，名称就是framebuffer.</p>
+<h2 id="什么是framebuffer"><a href="#什么是framebuffer" class="headerlink" title="什么是framebuffer"></a>什么是framebuffer</h2><p>帧缓冲（Framebuffer）是Linux系统为显示设备提供一种抽象描述。framebuffer代表显示设备的缓存区，应用程序通过open,read,write等接口，就可以访问显示屏，不需要知道底层硬件的具体操作。</p>
+<p>framebuffer帧缓冲设备给用户态提供的读写接口file_operations实际由fbmem.c文件里的特定file_operatins结构对象来提供。而具体帧缓冲设备由fb_info结构体的注册、注销及其中成员的维护，比较重要的成员fb_ops，fb_ops中的成员函数最终会操作LCD控制器的寄存器。</p>
+<h2 id="软件架构设计"><a href="#软件架构设计" class="headerlink" title="软件架构设计"></a>软件架构设计</h2><p>framebuffer设备是一种字符设备。因此，framebuffer驱动设计基于字符设备驱动的机制来实现。软件架构如下</p>
+<p><img src="http://jiali.clouddn.com/20210120_001.png" alt=""></p>
+<p>​                                                                                                                    图 framebuffer 软件架构设计</p>
+<h2 id="数据结构"><a href="#数据结构" class="headerlink" title="数据结构"></a>数据结构</h2><p>1、fb_info结构体是显示器的抽象描述，定义在include/linux/fb.h</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">struct fb_info &#123;</span><br><span class="line">	atomic_t count;</span><br><span class="line">	int node;</span><br><span class="line">	int flags;</span><br><span class="line">	struct mutex lock;		&#x2F;* Lock for open&#x2F;release&#x2F;ioctl funcs *&#x2F;</span><br><span class="line">	struct mutex mm_lock;		&#x2F;* Lock for fb_mmap and smem_* fields *&#x2F;</span><br><span class="line">	struct fb_var_screeninfo var;	&#x2F;* Current var *&#x2F; &#x2F;&#x2F;LCD可变的参数</span><br><span class="line">	struct fb_fix_screeninfo fix;	&#x2F;* Current fix *&#x2F; &#x2F;&#x2F;LCD固定的参数</span><br><span class="line">	struct fb_monspecs monspecs;	&#x2F;* Current Monitor specs *&#x2F; &#x2F;&#x2F; LCD显示器标准</span><br><span class="line">	struct work_struct queue;	&#x2F;* Framebuffer event queue *&#x2F; &#x2F;&#x2F;帧缓冲事件队列</span><br><span class="line">	struct fb_pixmap pixmap;	&#x2F;* Image hardware mapper *&#x2F; &#x2F;&#x2F;图像硬件mapper</span><br><span class="line">	struct fb_pixmap sprite;	&#x2F;* Cursor hardware mapper *&#x2F; &#x2F;&#x2F;光标硬件mapper</span><br><span class="line">	struct fb_cmap cmap;		&#x2F;* Current cmap *&#x2F; &#x2F;&#x2F;当前的颜色表</span><br><span class="line">	struct list_head modelist;      &#x2F;* mode list *&#x2F; </span><br><span class="line">	struct fb_videomode *mode;	&#x2F;* current mode *&#x2F; &#x2F;&#x2F;当前的显示模式</span><br><span class="line"></span><br><span class="line">#ifdef CONFIG_FB_BACKLIGHT</span><br><span class="line">	&#x2F;* assigned backlight device *&#x2F;</span><br><span class="line">	&#x2F;* set before framebuffer registration, </span><br><span class="line">	   remove after unregister *&#x2F;</span><br><span class="line">	struct backlight_device *bl_dev;  &#x2F;&#x2F;对应的背光设备</span><br><span class="line"></span><br><span class="line">	&#x2F;* Backlight level curve *&#x2F;</span><br><span class="line">	struct mutex bl_curve_mutex;	</span><br><span class="line">	u8 bl_curve[FB_BACKLIGHT_LEVELS];  &#x2F;&#x2F;背光调整</span><br><span class="line">#endif</span><br><span class="line">#ifdef CONFIG_FB_DEFERRED_IO</span><br><span class="line">	struct delayed_work deferred_work;</span><br><span class="line">	struct fb_deferred_io *fbdefio;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">	struct fb_ops *fbops;  &#x2F;&#x2F;对底层硬件操作的函数指针</span><br><span class="line">	struct device *device;		&#x2F;* This is the parent *&#x2F;</span><br><span class="line">	struct device *dev;		&#x2F;* This is this fb device *&#x2F;</span><br><span class="line">	int class_flag;                    &#x2F;* private sysfs flags *&#x2F;</span><br><span class="line">#ifdef CONFIG_FB_TILEBLITTING</span><br><span class="line">	struct fb_tile_ops *tileops;    &#x2F;* Tile Blitting *&#x2F;</span><br><span class="line">#endif</span><br><span class="line">	char __iomem *screen_base;	&#x2F;* Virtual address *&#x2F;</span><br><span class="line">	unsigned long screen_size;	&#x2F;* Amount of ioremapped VRAM or 0 *&#x2F; &#x2F;&#x2F;LCD IO映射的虚拟内存大小</span><br><span class="line">	void *pseudo_palette;		&#x2F;* Fake palette of 16 colors *&#x2F; &#x2F;&#x2F;伪16色颜色表</span><br><span class="line">#define FBINFO_STATE_RUNNING	0</span><br><span class="line">#define FBINFO_STATE_SUSPENDED	1</span><br><span class="line">	u32 state;			&#x2F;* Hardware state i.e suspend *&#x2F;&#x2F;&#x2F;LCD的挂起或恢复状态</span><br><span class="line">	void *fbcon_par;                &#x2F;* fbcon use-only private area *&#x2F;</span><br><span class="line">	&#x2F;* From here on everything is device dependent *&#x2F;</span><br><span class="line">	void *par;</span><br><span class="line">	&#x2F;* we need the PCI or similar aperture base&#x2F;size not</span><br><span class="line">	   smem_start&#x2F;size as smem_start may just be an object</span><br><span class="line">	   allocated inside the aperture so may not actually overlap *&#x2F;</span><br><span class="line">	struct apertures_struct &#123;</span><br><span class="line">		unsigned int count;</span><br><span class="line">		struct aperture &#123;</span><br><span class="line">			resource_size_t base;</span><br><span class="line">			resource_size_t size;</span><br><span class="line">		&#125; ranges[0];</span><br><span class="line">	&#125; *apertures;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>2、var对可变的配置对象抽象描述</p>
+<p>fb_var_screeninfo结构体主要记录用户可以修改的控制器的参数，比如屏幕的分辨率和每个像素的比特数等。该结构体定义如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">struct fb_var_screeninfo &#123;</span><br><span class="line">	__u32 xres;			&#x2F;* visible resolution		*&#x2F;&#x2F;&#x2F;可见屏幕一行有多少个像素点</span><br><span class="line">	__u32 yres;                               &#x2F;&#x2F;可见屏幕一列有多少个像素点</span><br><span class="line">	__u32 xres_virtual;		&#x2F;* virtual resolution		*&#x2F;&#x2F;&#x2F;虚拟屏幕一行有多少个像素点</span><br><span class="line">	__u32 yres_virtual;  &#x2F;&#x2F;虚拟屏幕一列有多少个像素点</span><br><span class="line">	__u32 xoffset;			&#x2F;* offset from virtual to visible *&#x2F;</span><br><span class="line">	__u32 yoffset;			&#x2F;* resolution			*&#x2F;</span><br><span class="line"></span><br><span class="line">	__u32 bits_per_pixel;		&#x2F;* guess what			*&#x2F;&#x2F;&#x2F;每个像素的位数</span><br><span class="line">	__u32 grayscale;		&#x2F;* !&#x3D; 0 Graylevels instead of colors *&#x2F; &#x2F;&#x2F;非0时，指的是灰度</span><br><span class="line"></span><br><span class="line">	struct fb_bitfield red;		&#x2F;* bitfield in fb mem if true color, *&#x2F;</span><br><span class="line">	struct fb_bitfield green;	&#x2F;* else only length is significant *&#x2F;</span><br><span class="line">	struct fb_bitfield blue;</span><br><span class="line">	struct fb_bitfield transp;	&#x2F;* transparency			*&#x2F;	&#x2F;&#x2F;透明度</span><br><span class="line"></span><br><span class="line">	__u32 nonstd;			&#x2F;* !&#x3D; 0 Non standard pixel format *&#x2F;</span><br><span class="line"></span><br><span class="line">	__u32 activate;			&#x2F;* see FB_ACTIVATE_*		*&#x2F;</span><br><span class="line"></span><br><span class="line">	__u32 height;			&#x2F;* height of picture in mm    *&#x2F;</span><br><span class="line">	__u32 width;			&#x2F;* width of picture in mm     *&#x2F;</span><br><span class="line"></span><br><span class="line">	__u32 accel_flags;		&#x2F;* (OBSOLETE) see fb_info.flags *&#x2F;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Timing: All values in pixclocks, except pixclock (of course) *&#x2F;</span><br><span class="line">	__u32 pixclock;			&#x2F;* pixel clock in ps (pico seconds) *&#x2F;</span><br><span class="line">	__u32 left_margin;		&#x2F;* time from sync to picture	*&#x2F;</span><br><span class="line">	__u32 right_margin;		&#x2F;* time from picture to sync	*&#x2F;</span><br><span class="line">	__u32 upper_margin;		&#x2F;* time from sync to picture	*&#x2F;</span><br><span class="line">	__u32 lower_margin;</span><br><span class="line">	__u32 hsync_len;		&#x2F;* length of horizontal sync	*&#x2F;</span><br><span class="line">	__u32 vsync_len;		&#x2F;* length of vertical sync	*&#x2F;</span><br><span class="line">	__u32 sync;			&#x2F;* see FB_SYNC_*		*&#x2F;</span><br><span class="line">	__u32 vmode;			&#x2F;* see FB_VMODE_*		*&#x2F;</span><br><span class="line">	__u32 rotate;			&#x2F;* angle we rotate counter clockwise *&#x2F;</span><br><span class="line">	__u32 reserved[5];		&#x2F;* Reserved for future compatibility *&#x2F;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>3、fb_fix_screeninfo描述LCD不可修改的控制器的参数</p>
+<p>fb_fix_screeninfo结构体又主要记录用户不可以修改的控制器的参数，比如屏幕缓冲区的物理地址和长度等。当帧缓冲设备进行映射操作的时候，就是从fb_fix_screeninfo中取得缓冲区物理地址。该结构体的定义如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">struct fb_fix_screeninfo &#123;</span><br><span class="line">	char id[16];			&#x2F;* identification string eg &quot;TT Builtin&quot; *&#x2F;</span><br><span class="line">	unsigned long smem_start;	&#x2F;* Start of frame buffer mem *&#x2F;</span><br><span class="line">					&#x2F;* (physical address) *&#x2F;</span><br><span class="line">	__u32 smem_len;			&#x2F;* Length of frame buffer mem *&#x2F;</span><br><span class="line">	__u32 type;			&#x2F;* see FB_TYPE_*		*&#x2F;</span><br><span class="line">	__u32 type_aux;			&#x2F;* Interleave for interleaved Planes *&#x2F;</span><br><span class="line">	__u32 visual;			&#x2F;* see FB_VISUAL_*		*&#x2F; </span><br><span class="line">	__u16 xpanstep;			&#x2F;* zero if no hardware panning  *&#x2F;</span><br><span class="line">	__u16 ypanstep;			&#x2F;* zero if no hardware panning  *&#x2F;</span><br><span class="line">	__u16 ywrapstep;		&#x2F;* zero if no hardware ywrap    *&#x2F;</span><br><span class="line">	__u32 line_length;		&#x2F;* length of a line in bytes    *&#x2F;</span><br><span class="line">	unsigned long mmio_start;	&#x2F;* Start of Memory Mapped I&#x2F;O   *&#x2F;</span><br><span class="line">					&#x2F;* (physical address) *&#x2F;</span><br><span class="line">	__u32 mmio_len;			&#x2F;* Length of Memory Mapped I&#x2F;O  *&#x2F;</span><br><span class="line">	__u32 accel;			&#x2F;* Indicate to driver which	*&#x2F;</span><br><span class="line">					&#x2F;*  specific chip&#x2F;card we have	*&#x2F;</span><br><span class="line">	__u16 reserved[3];		&#x2F;* Reserved for future compatibility *&#x2F;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>4、fb_ops描述对lcd屏幕的具体操作</p>
+<p> fb_ops结构体是对底层硬件操作的函数指针，该结构体中定义了对硬件的操作</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Frame buffer operations</span><br><span class="line"> *</span><br><span class="line"> * LOCKING NOTE: those functions must _ALL_ be called with the console</span><br><span class="line"> * semaphore held, this is the only suitable locking mechanism we have</span><br><span class="line"> * in 2.6. Some may be called at interrupt time at this point though.</span><br><span class="line"> *</span><br><span class="line"> * The exception to this is the debug related hooks.  Putting the fb</span><br><span class="line"> * into a debug state (e.g. flipping to the kernel console) and restoring</span><br><span class="line"> * it must be done in a lock-free manner, so low level drivers should</span><br><span class="line"> * keep track of the initial console (if applicable) and may need to</span><br><span class="line"> * perform direct, unlocked hardware writes in these hooks.</span><br><span class="line"> *&#x2F;</span><br><span class="line"></span><br><span class="line">struct fb_ops &#123;</span><br><span class="line">	&#x2F;* open&#x2F;release and usage marking *&#x2F;</span><br><span class="line">	struct module *owner;</span><br><span class="line">	int (*fb_open)(struct fb_info *info, int user);</span><br><span class="line">	int (*fb_release)(struct fb_info *info, int user);</span><br><span class="line"></span><br><span class="line">	&#x2F;* For framebuffers with strange non linear layouts or that do not</span><br><span class="line">	 * work with normal memory mapped access</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	ssize_t (*fb_read)(struct fb_info *info, char __user *buf,</span><br><span class="line">			   size_t count, loff_t *ppos);</span><br><span class="line">	ssize_t (*fb_write)(struct fb_info *info, const char __user *buf,</span><br><span class="line">			    size_t count, loff_t *ppos);</span><br><span class="line"></span><br><span class="line">	&#x2F;* checks var and eventually tweaks it to something supported,</span><br><span class="line">	 * DO NOT MODIFY PAR *&#x2F;</span><br><span class="line">	int (*fb_check_var)(struct fb_var_screeninfo *var, struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* set the video mode according to info-&gt;var *&#x2F;</span><br><span class="line">	int (*fb_set_par)(struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* set color register *&#x2F;</span><br><span class="line">	int (*fb_setcolreg)(unsigned regno, unsigned red, unsigned green,</span><br><span class="line">			    unsigned blue, unsigned transp, struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* set color registers in batch *&#x2F;</span><br><span class="line">	int (*fb_setcmap)(struct fb_cmap *cmap, struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* blank display *&#x2F;</span><br><span class="line">	int (*fb_blank)(int blank, struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* pan display *&#x2F;</span><br><span class="line">	int (*fb_pan_display)(struct fb_var_screeninfo *var, struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Draws a rectangle *&#x2F;</span><br><span class="line">	void (*fb_fillrect) (struct fb_info *info, const struct fb_fillrect *rect);</span><br><span class="line">	&#x2F;* Copy data from area to another *&#x2F;</span><br><span class="line">	void (*fb_copyarea) (struct fb_info *info, const struct fb_copyarea *region);</span><br><span class="line">	&#x2F;* Draws a image to the display *&#x2F;</span><br><span class="line">	void (*fb_imageblit) (struct fb_info *info, const struct fb_image *image);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Draws cursor *&#x2F;</span><br><span class="line">	int (*fb_cursor) (struct fb_info *info, struct fb_cursor *cursor);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Rotates the display *&#x2F;</span><br><span class="line">	void (*fb_rotate)(struct fb_info *info, int angle);</span><br><span class="line"></span><br><span class="line">	&#x2F;* wait for blit idle, optional *&#x2F;</span><br><span class="line">	int (*fb_sync)(struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* perform fb specific ioctl (optional) *&#x2F;</span><br><span class="line">	int (*fb_ioctl)(struct fb_info *info, unsigned int cmd,</span><br><span class="line">			unsigned long arg);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Handle 32bit compat ioctl (optional) *&#x2F;</span><br><span class="line">	int (*fb_compat_ioctl)(struct fb_info *info, unsigned cmd,</span><br><span class="line">			unsigned long arg);</span><br><span class="line"></span><br><span class="line">	&#x2F;* perform fb specific mmap *&#x2F;</span><br><span class="line">	int (*fb_mmap)(struct fb_info *info, struct vm_area_struct *vma);</span><br><span class="line"></span><br><span class="line">	&#x2F;* get capability given var *&#x2F;</span><br><span class="line">	void (*fb_get_caps)(struct fb_info *info, struct fb_blit_caps *caps,</span><br><span class="line">			    struct fb_var_screeninfo *var);</span><br><span class="line"></span><br><span class="line">	&#x2F;* teardown any resources to do with this framebuffer *&#x2F;</span><br><span class="line">	void (*fb_destroy)(struct fb_info *info);</span><br><span class="line"></span><br><span class="line">	&#x2F;* called at KDB enter and leave time to prepare the console *&#x2F;</span><br><span class="line">	int (*fb_debug_enter)(struct fb_info *info);</span><br><span class="line">	int (*fb_debug_leave)(struct fb_info *info);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="framebuffer子系统初始化"><a href="#framebuffer子系统初始化" class="headerlink" title="framebuffer子系统初始化"></a>framebuffer子系统初始化</h2><p>初始化framebuffer子系统 ，为framebuffer对象创建一个字符设备fb,主设备为29，同时注册fb_fops，提供给应用层访问fb的接口。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line">static const struct file_operations fb_fops &#x3D; &#123;</span><br><span class="line">	.owner &#x3D;	THIS_MODULE,</span><br><span class="line">	.read &#x3D;		fb_read,</span><br><span class="line">	.write &#x3D;	fb_write,</span><br><span class="line">	.unlocked_ioctl &#x3D; fb_ioctl,</span><br><span class="line">#ifdef CONFIG_COMPAT</span><br><span class="line">	.compat_ioctl &#x3D; fb_compat_ioctl,</span><br><span class="line">#endif</span><br><span class="line">	.mmap &#x3D;		fb_mmap,</span><br><span class="line">	.open &#x3D;		fb_open,</span><br><span class="line">	.release &#x3D;	fb_release,</span><br><span class="line">#ifdef HAVE_ARCH_FB_UNMAPPED_AREA</span><br><span class="line">	.get_unmapped_area &#x3D; get_fb_unmapped_area,</span><br><span class="line">#endif</span><br><span class="line">#ifdef CONFIG_FB_DEFERRED_IO</span><br><span class="line">	.fsync &#x3D;	fb_deferred_io_fsync,</span><br><span class="line">#endif</span><br><span class="line">	.llseek &#x3D;	default_llseek,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">struct class *fb_class;</span><br><span class="line">EXPORT_SYMBOL(fb_class);</span><br><span class="line">#define FB_MAJOR		29   &#x2F;* &#x2F;dev&#x2F;fb* framebuffers *&#x2F;</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line"> *	fbmem_init - init frame buffer subsystem</span><br><span class="line"> *</span><br><span class="line"> *	Initialize the frame buffer subsystem.</span><br><span class="line"> *</span><br><span class="line"> *	NOTE: This function is _only_ to be called by drivers&#x2F;char&#x2F;mem.c.</span><br><span class="line"> *</span><br><span class="line"> *&#x2F;</span><br><span class="line"></span><br><span class="line">static int __init</span><br><span class="line">fbmem_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	proc_create(&quot;fb&quot;, 0, NULL, &amp;fb_proc_fops);</span><br><span class="line"></span><br><span class="line">	if (register_chrdev(FB_MAJOR,&quot;fb&quot;,&amp;fb_fops))</span><br><span class="line">		printk(&quot;unable to get major %d for fb devs\n&quot;, FB_MAJOR);</span><br><span class="line"></span><br><span class="line">	fb_class &#x3D; class_create(THIS_MODULE, &quot;graphics&quot;);</span><br><span class="line">	if (IS_ERR(fb_class)) &#123;</span><br><span class="line">		printk(KERN_WARNING &quot;Unable to create fb class; errno &#x3D; %ld\n&quot;, PTR_ERR(fb_class));</span><br><span class="line">		fb_class &#x3D; NULL;</span><br><span class="line">	&#125;</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">#ifdef MODULE</span><br><span class="line">module_init(fbmem_init);</span><br><span class="line">static void __exit</span><br><span class="line">fbmem_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	remove_proc_entry(&quot;fb&quot;, NULL);</span><br><span class="line">	class_destroy(fb_class);</span><br><span class="line">	unregister_chrdev(FB_MAJOR, &quot;fb&quot;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_exit(fbmem_exit);</span><br><span class="line">MODULE_LICENSE(&quot;GPL&quot;);</span><br><span class="line">MODULE_DESCRIPTION(&quot;Framebuffer base&quot;);</span><br><span class="line">#else</span><br><span class="line">subsys_initcall(fbmem_init);</span><br><span class="line">#endif</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h2 id="framebuffer驱动程序"><a href="#framebuffer驱动程序" class="headerlink" title="framebuffer驱动程序"></a>framebuffer驱动程序</h2><ol>
+<li>调用 framebuffer_alloc()分配一个fb_info结构体</li>
+<li>设置fb_info</li>
+<li>设置硬件相关的操作</li>
+<li>调用register_framebuffer()注册fb_info</li>
+</ol>
+<p>lcd驱动：略</p>
+<h2 id="应用层如何使用framebuffer"><a href="#应用层如何使用framebuffer" class="headerlink" title="应用层如何使用framebuffer"></a>应用层如何使用framebuffer</h2><ol>
+<li>打开framebuffer设备文件： /dev/fb0</li>
+<li>获取framebuffer设备信息 #include &lt;linux/fb.h&gt;</li>
+<li>mmap做映射</li>
+<li>填充framebuffer</li>
+</ol>
+<p>开发板端, 测试方法</p>
+<p>echo hello &gt; /dev/tty1  // 可以在LCD上看见hello, tty1会用到 fbcon.c文件<br>cat lcd.ko &gt; /dev/fb0   // 花屏</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LCD/" rel="tag"># LCD</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/18/Linux/%E5%86%99%E5%BE%97%E5%A5%BD%E7%9A%84Linux%E5%8D%9A%E5%AE%A2/" rel="prev" title="写得好得Linux博客">
+      <i class="fa fa-chevron-left"></i> 写得好得Linux博客
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/25/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E5%86%85%E6%A0%B8%E5%AE%8FDEVICE_ATTR%E4%BD%BF%E7%94%A8/" rel="next" title="【转载】Linux内核宏DEVICE_ATTR使用">
+      【转载】Linux内核宏DEVICE_ATTR使用 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#什么是framebuffer"><span class="nav-number">2.</span> <span class="nav-text">什么是framebuffer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#软件架构设计"><span class="nav-number">3.</span> <span class="nav-text">软件架构设计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据结构"><span class="nav-number">4.</span> <span class="nav-text">数据结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#framebuffer子系统初始化"><span class="nav-number">5.</span> <span class="nav-text">framebuffer子系统初始化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#framebuffer驱动程序"><span class="nav-number">6.</span> <span class="nav-text">framebuffer驱动程序</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#应用层如何使用framebuffer"><span class="nav-number">7.</span> <span class="nav-text">应用层如何使用framebuffer</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

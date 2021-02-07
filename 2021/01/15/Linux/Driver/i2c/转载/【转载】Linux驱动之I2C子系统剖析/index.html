@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 本文转自：【 https:&#x2F;&#x2F;www.caiyifan.cn&#x2F;p&#x2F;8d9c6db2.html】 前言 I2C是广泛应用于计算机中的串行总线，用于处理器和其外设之间的通信。 I2C硬件基本概念 I2C总线由两根传递数据的双向信号线与一根地线组成，半双工、主从方式通信。  Serial Clock Line (SCL) Serial Data Address (SDA)   每个设备都有一">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】Linux驱动之I2C子系统剖析">
+<meta property="og:url" content="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E9%A9%B1%E5%8A%A8%E4%B9%8BI2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%89%96%E6%9E%90/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 本文转自：【 https:&#x2F;&#x2F;www.caiyifan.cn&#x2F;p&#x2F;8d9c6db2.html】 前言 I2C是广泛应用于计算机中的串行总线，用于处理器和其外设之间的通信。 I2C硬件基本概念 I2C总线由两根传递数据的双向信号线与一根地线组成，半双工、主从方式通信。  Serial Clock Line (SCL) Serial Data Address (SDA)   每个设备都有一">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://img.caiyifan.cn/I2C%E6%97%B6%E5%BA%8F.png">
+<meta property="article:published_time" content="2021-01-15T03:19:38.000Z">
+<meta property="article:modified_time" content="2021-01-15T03:25:39.444Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="i2c">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img.caiyifan.cn/I2C%E6%97%B6%E5%BA%8F.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E9%A9%B1%E5%8A%A8%E4%B9%8BI2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%89%96%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】Linux驱动之I2C子系统剖析 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E9%A9%B1%E5%8A%A8%E4%B9%8BI2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%89%96%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】Linux驱动之I2C子系统剖析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-15 11:19:38 / Modified: 11:25:39" itemprop="dateCreated datePublished" datetime="2021-01-15T11:19:38+08:00">2021-01-15</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/i2c%E6%80%BB%E7%BA%BF%E9%A9%B1%E5%8A%A8/" itemprop="url" rel="index"><span itemprop="name">i2c总线驱动</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<p>本文转自：【 <a href="https://www.caiyifan.cn/p/8d9c6db2.html】" target="_blank" rel="noopener">https://www.caiyifan.cn/p/8d9c6db2.html】</a></p>
+<p>前言</p>
+<p>I2C是广泛应用于计算机中的串行总线，用于处理器和其外设之间的通信。</p>
+<h2 id="I2C硬件基本概念"><a href="#I2C硬件基本概念" class="headerlink" title="I2C硬件基本概念"></a>I2C硬件基本概念</h2><ul>
+<li><p>I2C总线由两根传递数据的双向信号线与一根地线组成，半双工、主从方式通信。</p>
+<ul>
+<li>Serial Clock Line (SCL)</li>
+<li>Serial Data Address (SDA)</li>
+</ul>
+</li>
+<li><p>每个设备都有一个唯一设备地址，一次传输8bit，高位在前，低位在后。</p>
+</li>
+<li><p>一次完整的I2C通信需要经历一个完整的时序，I2C总线通信完整时序如下图。一般在驱动中无需关心具体时序，只需操作SoC中的I2C控制器即可，只有在裸机下需要用GPIO模拟I2C通信时才需用到，所以笔者在本文不阐述I2C时序（其实就是懒 O__O “…）。</p>
+</li>
+</ul>
+<p>  <img src="https://img.caiyifan.cn/I2C%E6%97%B6%E5%BA%8F.png" alt="img"></p>
+<ul>
+<li><p>总线速度有三种模式</p>
+<ul>
+<li>标准模式 100kbps</li>
+<li>快速模式 400kbps</li>
+<li>高速模式 3.4Mbps</li>
+</ul>
+</li>
+</ul>
+<h2 id="I2C子系统框架"><a href="#I2C子系统框架" class="headerlink" title="I2C子系统框架"></a>I2C子系统框架</h2><ul>
+<li>I2C设备驱动层：drivers/i2c/i2c-dev.c (通用型) 或者为特定设备定制的设备驱动（比如E2PROM驱动）</li>
+<li>I2C核心层： drivers/i2c/i2c-coere.c</li>
+<li>I2C总线驱动层(主机控制器驱动层)：drivers/i2c/busses/i2c-s3c2410.c</li>
+</ul>
+<h3 id="I2C设备驱动层"><a href="#I2C设备驱动层" class="headerlink" title="I2C设备驱动层"></a>I2C设备驱动层</h3><ul>
+<li>是I2C从机的驱动程序</li>
+<li>给用户提供调用接口</li>
+<li>内核提供两种方式来实现设备驱动：<ul>
+<li>第一种是内核默认实现的<strong>通用型的I2C设备驱动</strong>，位于<code>drivers/i2c/i2c-dev.c</code>中。 这种方式<strong>仅仅只是封装了I2C的基本操作</strong>，相当于<strong>只是封装了I2C的基本时序</strong>，向应用层只提供了I2C基本操作的接口，该接口通用于所有的I2C设备。具体设备相关的操作，需要开发者在应用层根据硬件特性来完成对设备的操作。<strong>该方式的优点就是通用，而缺点也很明显，封装的不够彻底，需要应用开发人员对硬件有一定程度的了解</strong>。</li>
+<li>第二种是根据特定设备来编写的<strong>特定的I2C设备驱动</strong>, 该方式<strong>彻底封装了硬件的操作</strong>，提供给应用层的接口<strong>彻底屏蔽I2C的通信细节</strong>。该方式的<strong>优点就是应用开发人员无需关心硬件</strong>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="I2C核心层"><a href="#I2C核心层" class="headerlink" title="I2C核心层"></a>I2C核心层</h3><ul>
+<li>注册I2C总线</li>
+<li>由内核开发人员编写的，不涉及具体硬件</li>
+<li>给驱动编程人员提供编程接口</li>
+</ul>
+<h3 id="I2C总线驱动层"><a href="#I2C总线驱动层" class="headerlink" title="I2C总线驱动层"></a>I2C总线驱动层</h3><ul>
+<li>是I2C主机适配器的驱动程序</li>
+<li>初始化I2C适配器(控制器)</li>
+<li>实现操作方法：根据I2C操作时序进行操作I2C控制器实现收发数据</li>
+</ul>
+<h2 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h2><p>源码中会涉及到一部分SMBus相关内容，SMBus是Intel在I2C的基础上开发的类似I2C的总线，本文不探讨SMBus相关内容（其实说白了，还是懒QAQ）。笔者会大体上对I2C子系统的源码进行分析，如若分析的有出入，还望指出。</p>
+<h3 id="I2C核心层-1"><a href="#I2C核心层-1" class="headerlink" title="I2C核心层"></a>I2C核心层</h3><p>I2C核心层的实现位于<code>drivers/i2c/i2c-core.c</code>中，笔者从<code>i2c_init</code>函数开始分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">static int __init i2c_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    int retval;</span><br><span class="line"></span><br><span class="line">    retval &#x3D; bus_register(&amp;i2c_bus_type);     &#x2F;&#x2F; 注册I2C总线 </span><br><span class="line">    if (retval)</span><br><span class="line">        return retval;</span><br><span class="line">#ifdef CONFIG_I2C_COMPAT</span><br><span class="line">    i2c_adapter_compat_class &#x3D; class_compat_register(&quot;i2c-adapter&quot;);</span><br><span class="line">    if (!i2c_adapter_compat_class) &#123;</span><br><span class="line">        retval &#x3D; -ENOMEM;</span><br><span class="line">        goto bus_err;</span><br><span class="line">    &#125;</span><br><span class="line">#endif</span><br><span class="line">    retval &#x3D; i2c_add_driver(&amp;dummy_driver);    &#x2F;&#x2F; 注册了一个虚假的I2C驱动</span><br><span class="line">    if (retval)</span><br><span class="line">        goto class_err;</span><br><span class="line">    return 0;</span><br><span class="line"></span><br><span class="line">class_err:</span><br><span class="line">#ifdef CONFIG_I2C_COMPAT</span><br><span class="line">    class_compat_unregister(i2c_adapter_compat_class);</span><br><span class="line">bus_err:</span><br><span class="line">#endif</span><br><span class="line">    bus_unregister(&amp;i2c_bus_type);</span><br><span class="line">    return retval;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该函数先是调用了<code>bus_register</code>函数注册了I2C总线，随后调用<code>i2c_add_driver</code>函数来注册了一个虚假的I2C驱动。</p>
+<p>先对注册的I2C总线<code>i2c_bus_type</code>进行分析</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">struct bus_type i2c_bus_type &#x3D; &#123;</span><br><span class="line">    .name       &#x3D; &quot;i2c&quot;,</span><br><span class="line">    .match      &#x3D; i2c_device_match,</span><br><span class="line">    .probe      &#x3D; i2c_device_probe,</span><br><span class="line">    .remove     &#x3D; i2c_device_remove,</span><br><span class="line">    .shutdown   &#x3D; i2c_device_shutdown,</span><br><span class="line">    .pm     &#x3D; &amp;i2c_device_pm_ops,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>根据Linux设备驱动模型的原理，I2C总线下会挂载两条链表，分别为设备链和驱动链，只要其中一个链表有结点插入，即会通过<code>i2c_device_match</code>函数来遍历另一条链表去匹配设备与驱动，一旦匹配上则会调用<code>i2c_device_probe</code>函数，而<code>i2c_device_probe</code>函数又会调用i2c_driver的<code>probe</code>函数。进到<code>i2c_device_match</code>和<code>i2c_device_probe</code>进行分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">static int i2c_device_match(struct device *dev, struct device_driver *drv)</span><br><span class="line">&#123;</span><br><span class="line">    struct i2c_client   *client &#x3D; i2c_verify_client(dev);</span><br><span class="line">    struct i2c_driver   *driver;</span><br><span class="line"></span><br><span class="line">    if (!client)</span><br><span class="line">        return 0;</span><br><span class="line"></span><br><span class="line">    driver &#x3D; to_i2c_driver(drv);</span><br><span class="line">    &#x2F;* match on an id table if there is one *&#x2F;</span><br><span class="line">    if (driver-&gt;id_table)</span><br><span class="line">        return i2c_match_id(driver-&gt;id_table, client) !&#x3D; NULL;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到, <code>i2c_device_match</code>函数调用的是<code>i2c_match_id</code>函数来进行匹配。从源码中可见，<strong>需要注意的是I2C总线匹配方式不同于Platform总线，I2C总线只匹配<code>id_table</code>中的name，并不会去匹配driver中的name</strong>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">static int i2c_device_probe(struct device *dev)</span><br><span class="line">&#123;</span><br><span class="line">    struct i2c_client  *client &#x3D; i2c_verify_client(dev);</span><br><span class="line">    struct i2c_driver  *driver;</span><br><span class="line">    int status;</span><br><span class="line"></span><br><span class="line">    if (!client)</span><br><span class="line">        return 0;</span><br><span class="line"></span><br><span class="line">    driver &#x3D; to_i2c_driver(dev-&gt;driver);</span><br><span class="line">    if (!driver-&gt;probe || !driver-&gt;id_table)</span><br><span class="line">        return -ENODEV;</span><br><span class="line">    client-&gt;driver &#x3D; driver;</span><br><span class="line">    if (!device_can_wakeup(&amp;client-&gt;dev))</span><br><span class="line">        device_init_wakeup(&amp;client-&gt;dev,</span><br><span class="line">                    client-&gt;flags &amp; I2C_CLIENT_WAKE);</span><br><span class="line">    dev_dbg(dev, &quot;probe\n&quot;);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 调用driver中的probe函数 *&#x2F;</span><br><span class="line">    status &#x3D; driver-&gt;probe(client, i2c_match_id(driver-&gt;id_table, client));</span><br><span class="line">    if (status) &#123;</span><br><span class="line">        client-&gt;driver &#x3D; NULL;</span><br><span class="line">        i2c_set_clientdata(client, NULL);</span><br><span class="line">    &#125;</span><br><span class="line">    return status;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，的确是调用<code>driver-&gt;probe</code>来进行真正的probe。<strong>需要注意的是<code>if (!driver-&gt;probe || !driver-&gt;id_table) return -ENODEV;</code>中对<code>id_table</code>进行了非空判断，所以如果采用设备树方式进行匹配也需要对<code>.id_table</code>进行有效赋值，否则会出现match上了但probe函数不会调用的奇怪现象</strong>，个人感觉这应该是个bug，毕竟这个核心层在设备树出现之前就已经存在了。</p>
+<p>回到<code>i2c_init</code>函数，然后注册了一个空的名为<code>dummy</code>的i2c_driver。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">static int dummy_probe(struct i2c_client *client,</span><br><span class="line">               const struct i2c_device_id *id)</span><br><span class="line">&#123;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static int dummy_remove(struct i2c_client *client)</span><br><span class="line">&#123;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static struct i2c_driver dummy_driver &#x3D; &#123;</span><br><span class="line">    .driver.name    &#x3D; &quot;dummy&quot;,</span><br><span class="line">    .probe      &#x3D; dummy_probe,</span><br><span class="line">    .remove     &#x3D; dummy_remove,</span><br><span class="line">    .id_table   &#x3D; dummy_id,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到这是一个完全空的虚假驱动，而I2C核心层为何要注册一个假的驱动不得而知，笔者查阅了网上资料也没法得知，但是<code>/sys/bus/i2c/drivers/dummy</code>确实存在，所以笔者猜测应该纯粹是开发该层次调试用的。</p>
+<p>核心层还提供了一系列函数接口供驱动开发者注册和注销驱动：</p>
+<ul>
+<li>i2c_add_adapter 注册I2C主机适配器驱动 (动态分配总线号)</li>
+<li>i2c_add_numbered_adapter 注册I2C主机适配器驱动 (静态指定总线号)</li>
+<li>i2c_del_adapter 注销I2C主机适配器驱动</li>
+<li>i2c_add_driver 注册I2C从机设备驱动</li>
+<li>i2c_del_driver 注销I2C从机设备驱动</li>
+</ul>
+<p>其他函数暂不分析，在分析其他层的时候调用时再进行分析。</p>
+<h3 id="I2C设备驱动层-1"><a href="#I2C设备驱动层-1" class="headerlink" title="I2C设备驱动层"></a>I2C设备驱动层</h3><p>笔者先从内核提供的通用驱动开始分析，最后在文末给出特定驱动的分析。内核提供了一个通用于所有设备的I2C设备驱动，用户可以在应用层实现对I2C的驱动，其实现位于<code>drivers/i2c/i2c-dev.c</code>中。同样从init函数开始，笔者从<code>i2c_dev_init</code>函数开始分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">static int __init i2c_dev_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    int res;</span><br><span class="line"></span><br><span class="line">    printk(KERN_INFO &quot;i2c &#x2F;dev entries driver\n&quot;);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 将通用驱动注册为字符设备驱动，并提供file_operations 操作方法 *&#x2F;</span><br><span class="line">    res &#x3D; register_chrdev(I2C_MAJOR, &quot;i2c&quot;, &amp;i2cdev_fops);</span><br><span class="line">    if (res)</span><br><span class="line">        goto out;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 创建类 *&#x2F;</span><br><span class="line">    i2c_dev_class &#x3D; class_create(THIS_MODULE, &quot;i2c-dev&quot;);</span><br><span class="line">    if (IS_ERR(i2c_dev_class)) &#123;</span><br><span class="line">        res &#x3D; PTR_ERR(i2c_dev_class);</span><br><span class="line">        goto out_unreg_chrdev;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 注册I2C从机设备驱动 *&#x2F;</span><br><span class="line">    res &#x3D; i2c_add_driver(&amp;i2cdev_driver);</span><br><span class="line">    if (res)</span><br><span class="line">        goto out_unreg_class;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line"></span><br><span class="line">out_unreg_class:</span><br><span class="line">    class_destroy(i2c_dev_class);</span><br><span class="line">out_unreg_chrdev:</span><br><span class="line">    unregister_chrdev(I2C_MAJOR, &quot;i2c&quot;);</span><br><span class="line">out:</span><br><span class="line">    printk(KERN_ERR &quot;%s: Driver Initialisation failed\n&quot;, __FILE__);</span><br><span class="line">    return res;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>i2c_dev_init</code>函数先是调用了<code>register_chrdev</code>函数注册了一个字符设备驱动，并提供了一个file_operations。由此可见，是将通用驱动实现为字符设备驱动，并由其file_operations结构体的方法为应用层提供通用接口。然后调用<code>class_create</code>创建了一个类，但是可以看到并没有调用<code>device_create</code>在该类下创建设备，所以注意在这里并没有生成设备节点。最后调用<code>i2c_add_driver</code>注册了一个I2C从机设备驱动<code>i2cdev_driver</code>。<code>i2cdev_driver</code>定义如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static struct i2c_driver i2cdev_driver &#x3D; &#123;</span><br><span class="line">    .driver &#x3D; &#123;</span><br><span class="line">        .name   &#x3D; &quot;dev_driver&quot;,</span><br><span class="line">    &#125;,</span><br><span class="line">    .attach_adapter &#x3D; i2cdev_attach_adapter,</span><br><span class="line">    .detach_adapter &#x3D; i2cdev_detach_adapter,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>从上可以看到并没有对<code>id_table</code>进行赋值，从上文在I2C核心层分析可知，I2C总线是根据<code>id_table</code>进行匹配，所以这里并不会按照常规的Linux驱动模型进行match后probe，况且这个驱动里也没有probe方法。所以这到底是什么情况？别慌，虽然没有id_table和probe，但是它单独提供了两个方法<code>attach_adapter</code>和<code>detach_adapter</code>。这里先埋个伏笔，不做分析，到I2C总线驱动层分析后自然会柳暗花明。</p>
+<h3 id="I2C总线驱动层-1"><a href="#I2C总线驱动层-1" class="headerlink" title="I2C总线驱动层"></a>I2C总线驱动层</h3><p>笔者使用的SoC是S5PV210，其控制器跟S3C2410基本一致，所以三星的驱动开发者并没有再去写一份S5PV210的主机适配器驱动，而是使用了S3C2410的主机适配器驱动，其位于<code>drivers/i2c/busses/i2c-s3c2410.c</code>中。</p>
+<p>从<code>i2c_adap_s3c_init</code>函数开始分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">static int __init i2c_adap_s3c_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    return platform_driver_register(&amp;s3c24xx_i2c_driver);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到其作为平台设备驱动而实现，注册了<code>s3c24xx_i2c_driver</code>驱动。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">static struct platform_device_id s3c24xx_driver_ids[] &#x3D; &#123;</span><br><span class="line">    &#123;</span><br><span class="line">        .name       &#x3D; &quot;s3c2410-i2c&quot;,</span><br><span class="line">        .driver_data    &#x3D; TYPE_S3C2410,</span><br><span class="line">    &#125;, &#123;</span><br><span class="line">        .name       &#x3D; &quot;s3c2440-i2c&quot;,</span><br><span class="line">        .driver_data    &#x3D; TYPE_S3C2440,</span><br><span class="line">    &#125;, &#123; &#125;,</span><br><span class="line">&#125;;</span><br><span class="line">MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);</span><br><span class="line"></span><br><span class="line">static struct platform_driver s3c24xx_i2c_driver &#x3D; &#123;</span><br><span class="line">    .probe      &#x3D; s3c24xx_i2c_probe,</span><br><span class="line">    .remove     &#x3D; s3c24xx_i2c_remove,</span><br><span class="line">    .id_table   &#x3D; s3c24xx_driver_ids,</span><br><span class="line">    .driver     &#x3D; &#123;</span><br><span class="line">        .owner  &#x3D; THIS_MODULE,</span><br><span class="line">        .name   &#x3D; &quot;s3c-i2c&quot;,</span><br><span class="line">        .pm &#x3D; S3C24XX_DEV_PM_OPS,</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>根据平台总线的原理，很容易得知在<code>arch/arm/mach-s5pv210/mach-x210.c</code>中对其驱动对应的设备进行了注册，其注册的设备定义位于<code>dev-i2c0.c</code>，这是I2C的资源文件。其定义的资源如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">static struct resource s3c_i2c_resource[] &#x3D; &#123;</span><br><span class="line">    [0] &#x3D; &#123;</span><br><span class="line">        .start &#x3D; S3C_PA_IIC,</span><br><span class="line">        .end   &#x3D; S3C_PA_IIC + SZ_4K - 1,</span><br><span class="line">        .flags &#x3D; IORESOURCE_MEM,</span><br><span class="line">    &#125;,</span><br><span class="line">    [1] &#x3D; &#123;</span><br><span class="line">        .start &#x3D; IRQ_IIC,</span><br><span class="line">        .end   &#x3D; IRQ_IIC,</span><br><span class="line">        .flags &#x3D; IORESOURCE_IRQ,</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">struct platform_device s3c_device_i2c0 &#x3D; &#123;</span><br><span class="line">    .name         &#x3D; &quot;s3c2410-i2c&quot;,</span><br><span class="line">    .id       &#x3D; 0,</span><br><span class="line">    .num_resources    &#x3D; ARRAY_SIZE(s3c_i2c_resource),</span><br><span class="line">    .resource     &#x3D; s3c_i2c_resource,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>由name可知，与<code>s3c24xx_i2c_driver</code>是匹配的。除此之外，还定义了平台数据<code>default_i2c_data0</code>和<code>default_i2c_data0</code>函数。其相关的调用还是在<code>arch/arm/mach-s5pv210/mach-x210.c</code>中进行的，在<code>mach-x210.c</code>中的<code>smdkc110_machine_init</code>函数中进行了如下调用</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;* i2c *&#x2F;</span><br><span class="line">&#x2F;&#x2F; 设置I2C平台数据       NULL表示设置默认的平台数据</span><br><span class="line">s3c_i2c0_set_platdata(NULL);</span><br><span class="line">s3c_i2c1_set_platdata(NULL);</span><br><span class="line">s3c_i2c2_set_platdata(NULL);</span><br></pre></td></tr></table></figure>
+
+<p>现在进到<code>s3c_i2c0_set_platdata</code>函数进行分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">static struct s3c2410_platform_i2c default_i2c_data0 __initdata &#x3D; &#123;</span><br><span class="line">    .flags      &#x3D; 0,</span><br><span class="line">    .slave_addr &#x3D; 0x10,          &#x2F;&#x2F; I2C控制器作为从设备时使用的地址</span><br><span class="line">    .frequency  &#x3D; 400*1000,      &#x2F;&#x2F; 400kbps</span><br><span class="line">    .sda_delay  &#x3D; S3C2410_IICLC_SDA_DELAY15 | S3C2410_IICLC_FILTER_ON,   &#x2F;&#x2F; 间隔时间</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)</span><br><span class="line">&#123;</span><br><span class="line">    struct s3c2410_platform_i2c *npd;</span><br><span class="line"></span><br><span class="line">    if (!pd)   &#x2F;&#x2F; 参数为NULL则使用该函数上面定义的默认的平台数据</span><br><span class="line">        pd &#x3D; &amp;default_i2c_data0;</span><br><span class="line"></span><br><span class="line">    npd &#x3D; kmemdup(pd, sizeof(struct s3c2410_platform_i2c), GFP_KERNEL);</span><br><span class="line">    if (!npd)</span><br><span class="line">        printk(KERN_ERR &quot;%s: no memory for platform data\n&quot;, __func__);</span><br><span class="line">    else if (!npd-&gt;cfg_gpio)</span><br><span class="line">        npd-&gt;cfg_gpio &#x3D; s3c_i2c0_cfg_gpio;  &#x2F;&#x2F; GPIO初始化方法</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 设置为平台数据</span><br><span class="line">    s3c_device_i2c0.dev.platform_data &#x3D; npd;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到传递NULL则使用了默认的平台数据, 将<code>s3c_i2c0_cfg_gpio</code>函数设置到了平台数据<code>cfg_gpio</code>方法中，最后将平台数据挂接到<code>s3c_device_i2c0</code>这个设备上。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">void s3c_i2c0_cfg_gpio(struct platform_device *dev)</span><br><span class="line">&#123;</span><br><span class="line">    s3c_gpio_cfgpin(S5PV210_GPD1(0), S3C_GPIO_SFN(2));      &#x2F;&#x2F; 设置控制寄存器为I2C0_SDA模式</span><br><span class="line">    s3c_gpio_setpull(S5PV210_GPD1(0), S3C_GPIO_PULL_NONE);     </span><br><span class="line">    s3c_gpio_cfgpin(S5PV210_GPD1(1), S3C_GPIO_SFN(2));      &#x2F;&#x2F; 设置控制寄存器为I2C0_SCL模式</span><br><span class="line">    s3c_gpio_setpull(S5PV210_GPD1(1), S3C_GPIO_PULL_NONE);  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>s3c_i2c0_cfg_gpio</code>函数只是对I2C控制器两根通信线的GPIO初始化。</p>
+<p>接下去回到I2C总线驱动层<code>i2c-s3c2410.c</code>中, 进入到<code>s3c24xx_i2c_probe</code>函数进行分析。 probe函数的代码比较多，分段进行分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">struct s3c24xx_i2c *i2c;</span><br><span class="line">struct s3c2410_platform_i2c *pdata;</span><br><span class="line">struct resource *res;</span><br><span class="line">int ret;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 获取I2C平台数据</span><br><span class="line">pdata &#x3D; pdev-&gt;dev.platform_data;</span><br><span class="line">if (!pdata) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;no platform data\n&quot;);</span><br><span class="line">    return -EINVAL;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">i2c &#x3D; kzalloc(sizeof(struct s3c24xx_i2c), GFP_KERNEL);</span><br><span class="line">if (!i2c) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;no memory for state\n&quot;);</span><br><span class="line">    return -ENOMEM;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">strlcpy(i2c-&gt;adap.name, &quot;s3c2410-i2c&quot;, sizeof(i2c-&gt;adap.name));</span><br><span class="line">i2c-&gt;adap.owner   &#x3D; THIS_MODULE;</span><br><span class="line">i2c-&gt;adap.algo    &#x3D; &amp;s3c24xx_i2c_algorithm;      &#x2F;&#x2F; I2C主机控制器的操作方法</span><br><span class="line">i2c-&gt;adap.retries &#x3D; 2;</span><br><span class="line">i2c-&gt;adap.class   &#x3D; I2C_CLASS_HWMON | I2C_CLASS_SPD;</span><br><span class="line">i2c-&gt;tx_setup     &#x3D; 50;</span><br></pre></td></tr></table></figure>
+
+<p>三星采用<code>struct s3c24xx_i2c</code>结构体来对SoC的控制器进行抽象，该结构体继承于<code>struct i2c_adapter</code>。该段代码先是从device中获取了平台数据，该平台数据即是上文调用<code>s3c_i2c0_set_platdata</code>函数时设置的。然后对<code>i2c-&gt;adap</code>进行了相关赋值，关键部分是<code>i2c-&gt;adap.algo = &amp;s3c24xx_i2c_algorithm;</code>，<code>adap.algo</code>表示I2C主机控制器的操作方法，将该SoC的操作方法挂接到了适配器上。<code>s3c24xx_i2c_algorithm</code>定义了两个操作方法，主要是<code>master_xfer</code>方法，用来发送消息。代码如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">static const struct i2c_algorithm s3c24xx_i2c_algorithm &#x3D; &#123;</span><br><span class="line">    .master_xfer        &#x3D; s3c24xx_i2c_xfer,</span><br><span class="line">    .functionality      &#x3D; s3c24xx_i2c_func,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><code>s3c24xx_i2c_xfer</code>涉及到对具体控制器的操作，不进行展开，但是注意的是其内部调用的是<code>s3c24xx_i2c_doxfer</code>，在<code>s3c24xx_i2c_doxfer</code>函数内部发送完数据后，调用<code>wait_event_timeout</code>函数来进行睡眠等待从机响应。因此可知内核中I2C的等待从机的ACK信号是通过中断实现的，即主机发送完数据后进入睡眠等待从机，从机响应后通过中断通知主机后唤醒。</p>
+<p>probe函数接着做了获取时钟和使能时钟，相关代码如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 获取时钟</span><br><span class="line">    i2c-&gt;clk &#x3D; clk_get(&amp;pdev-&gt;dev, &quot;i2c&quot;);</span><br><span class="line"></span><br><span class="line">    if (IS_ERR(i2c-&gt;clk)) &#123;</span><br><span class="line">        dev_err(&amp;pdev-&gt;dev, &quot;cannot get clock\n&quot;);</span><br><span class="line">        ret &#x3D; -ENOENT;</span><br><span class="line">        goto err_noclk;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    dev_dbg(&amp;pdev-&gt;dev, &quot;clock source %p\n&quot;, i2c-&gt;clk);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 使能时钟</span><br><span class="line">    clk_enable(i2c-&gt;clk);</span><br></pre></td></tr></table></figure>
+
+<p>紧接着对具体IO和IRQ进行操作。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 获取I2C平台资源（IO内存地址、IRQ）</span><br><span class="line">res &#x3D; platform_get_resource(pdev, IORESOURCE_MEM, 0);</span><br><span class="line">if (res &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;cannot find IO resource\n&quot;);</span><br><span class="line">    ret &#x3D; -ENOENT;</span><br><span class="line">    goto err_clk;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">i2c-&gt;ioarea &#x3D; request_mem_region(res-&gt;start, resource_size(res),</span><br><span class="line">                 pdev-&gt;name);</span><br><span class="line"></span><br><span class="line">if (i2c-&gt;ioarea &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;cannot request IO\n&quot;);</span><br><span class="line">    ret &#x3D; -ENXIO;</span><br><span class="line">    goto err_clk;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 将物理地址映射为虚拟地址</span><br><span class="line">i2c-&gt;regs &#x3D; ioremap(res-&gt;start, resource_size(res));</span><br><span class="line"></span><br><span class="line">if (i2c-&gt;regs &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;cannot map IO\n&quot;);</span><br><span class="line">    ret &#x3D; -ENXIO;</span><br><span class="line">    goto err_ioarea;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">dev_dbg(&amp;pdev-&gt;dev, &quot;registers %p (%p, %p)\n&quot;,</span><br><span class="line">    i2c-&gt;regs, i2c-&gt;ioarea, res);</span><br><span class="line"></span><br><span class="line">&#x2F;* setup info block for the i2c core *&#x2F;</span><br><span class="line"></span><br><span class="line">i2c-&gt;adap.algo_data &#x3D; i2c;</span><br><span class="line">i2c-&gt;adap.dev.parent &#x3D; &amp;pdev-&gt;dev;</span><br><span class="line"></span><br><span class="line">&#x2F;* initialise the i2c controller *&#x2F;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 初始化I2C控制器</span><br><span class="line">ret &#x3D; s3c24xx_i2c_init(i2c);    </span><br><span class="line">if (ret !&#x3D; 0)</span><br><span class="line">    goto err_iomap;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 获取IRQ资源</span><br><span class="line">i2c-&gt;irq &#x3D; ret &#x3D; platform_get_irq(pdev, 0);   </span><br><span class="line">if (ret &lt;&#x3D; 0) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;cannot find IRQ\n&quot;);</span><br><span class="line">    goto err_iomap;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 申请IRQ (裸机一般使用查询法来判断从机的响应，而内核一般采用中断方式等待从机响应)</span><br><span class="line">ret &#x3D; request_irq(i2c-&gt;irq, s3c24xx_i2c_irq, IRQF_DISABLED,</span><br><span class="line">          dev_name(&amp;pdev-&gt;dev), i2c);</span><br></pre></td></tr></table></figure>
+
+<p>把关注点放在初始化I2C控制器的<code>s3c24xx_i2c_init</code>函数和申请IRQ上。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)</span><br><span class="line">&#123;</span><br><span class="line">    unsigned long iicon &#x3D; S3C2410_IICCON_IRQEN | S3C2410_IICCON_ACKEN;</span><br><span class="line">    struct s3c2410_platform_i2c *pdata;</span><br><span class="line">    unsigned int freq;</span><br><span class="line"></span><br><span class="line">    &#x2F;* get the plafrom data *&#x2F;</span><br><span class="line"></span><br><span class="line">    pdata &#x3D; i2c-&gt;dev-&gt;platform_data;</span><br><span class="line"></span><br><span class="line">    &#x2F;* inititalise the gpio *&#x2F;</span><br><span class="line"></span><br><span class="line">    if (pdata-&gt;cfg_gpio)</span><br><span class="line">        pdata-&gt;cfg_gpio(to_platform_device(i2c-&gt;dev));      &#x2F;&#x2F; 设置I2C对应的管脚</span><br><span class="line"></span><br><span class="line">    &#x2F;* write slave address *&#x2F;</span><br><span class="line">    &#x2F;&#x2F; 设置I2C控制器作为从设备时的地址</span><br><span class="line">    writeb(pdata-&gt;slave_addr, i2c-&gt;regs + S3C2410_IICADD);  </span><br><span class="line"></span><br><span class="line">    dev_dbg(i2c-&gt;dev, &quot;slave address 0x%02x\n&quot;, pdata-&gt;slave_addr);</span><br><span class="line"></span><br><span class="line">    writel(iicon, i2c-&gt;regs + S3C2410_IICCON);        &#x2F;&#x2F; 使能 Tx&#x2F;Rx Interrupt 和 ACK信号</span><br><span class="line"></span><br><span class="line">    &#x2F;* we need to work out the divisors for the clock... *&#x2F;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 配置I2C的时钟频率</span><br><span class="line">    if (s3c24xx_i2c_clockrate(i2c, &amp;freq) !&#x3D; 0) &#123;</span><br><span class="line">        writel(0, i2c-&gt;regs + S3C2410_IICCON);</span><br><span class="line">        dev_err(i2c-&gt;dev, &quot;cannot meet bus frequency required\n&quot;);</span><br><span class="line">        return -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* todo - check that the i2c lines aren&#39;t being dragged anywhere *&#x2F;</span><br><span class="line"></span><br><span class="line">    dev_dbg(i2c-&gt;dev, &quot;bus frequency set to %d KHz\n&quot;, freq);</span><br><span class="line">    dev_dbg(i2c-&gt;dev, &quot;S3C2410_IICCON&#x3D;0x%02lx\n&quot;, iicon);</span><br><span class="line"></span><br><span class="line">    dev_dbg(i2c-&gt;dev, &quot;S3C2440_IICLC&#x3D;%08x\n&quot;, pdata-&gt;sda_delay);</span><br><span class="line">    writel(pdata-&gt;sda_delay, i2c-&gt;regs + S3C2440_IICLC);</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到设置I2C对应的管脚是调用平台数据中的<code>cfg_gpio</code>，其实看到这里如果还有印象的话就能反应出来这是在调用<code>s3c_i2c0_set_platdata</code>中设置的。该函数还设置了I2C控制器的从地址，该地址用来在控制器作为从地址时使用，但是这种情况的出现微乎其微。除此之外使能Tx/Rx Interrupt和ACK信号，配置了I2C的时钟频率。</p>
+<p>注意从前一段分析中得知，内核中I2C采用中断方式等待从机响应，所以probe函数这一段代码中申请了IRQ并绑定了中断处理函数<code>s3c24xx_i2c_irq</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)</span><br><span class="line">&#123;</span><br><span class="line">    struct s3c24xx_i2c *i2c &#x3D; dev_id;</span><br><span class="line">    unsigned long status;</span><br><span class="line">    unsigned long tmp;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 获取I2CSTAT寄存器的值</span><br><span class="line">    status &#x3D; readl(i2c-&gt;regs + S3C2410_IICSTAT);</span><br><span class="line"></span><br><span class="line">    if (status &amp; S3C2410_IICSTAT_ARBITR) &#123;   &#x2F;&#x2F; I2C总线仲裁失败</span><br><span class="line">        &#x2F;* deal with arbitration loss *&#x2F;</span><br><span class="line">        dev_err(i2c-&gt;dev, &quot;deal with arbitration loss\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (i2c-&gt;state &#x3D;&#x3D; STATE_IDLE) &#123;</span><br><span class="line">        dev_dbg(i2c-&gt;dev, &quot;IRQ: error i2c-&gt;state &#x3D;&#x3D; IDLE\n&quot;);</span><br><span class="line"></span><br><span class="line">        tmp &#x3D; readl(i2c-&gt;regs + S3C2410_IICCON);</span><br><span class="line">        tmp &amp;&#x3D; ~S3C2410_IICCON_IRQPEND;</span><br><span class="line">        writel(tmp, i2c-&gt;regs +  S3C2410_IICCON);</span><br><span class="line">        goto out;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* pretty much this leaves us with the fact that we&#39;ve</span><br><span class="line">     * transmitted or received whatever byte we last sent *&#x2F;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 处理I2C的收发数据</span><br><span class="line">    i2c_s3c_irq_nextbyte(i2c, status);</span><br><span class="line"></span><br><span class="line"> out:</span><br><span class="line">    return IRQ_HANDLED;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>具体也不展开分析了，但是要注意的是有这么一条线：该中断处理函数调用了<code>i2c_s3c_irq_nextbyte</code>，然后内部调用了<code>s3c24xx_i2c_stop</code>，再内部调用了<code>s3c24xx_i2c_master_complete</code>，最后再内部执行了一个关键代码<code>wake_up(&amp;i2c-&gt;wait);</code>，这就是通过中断方式唤醒之前在发送数据时进行的睡眠等待。</p>
+<p>回到probe函数，最后分析重头戏。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ret &#x3D; i2c_add_numbered_adapter(&amp;i2c-&gt;adap);</span><br><span class="line">if (ret &lt; 0) &#123;</span><br><span class="line">    dev_err(&amp;pdev-&gt;dev, &quot;failed to add bus to i2c core\n&quot;);</span><br><span class="line">    goto err_cpufreq;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该代码将I2C适配器注册到了内核中。<code>i2c_add_numbered_adapter</code>函数由核心层提供，其定义位于I2C核心层<code>drivers/i2c/i2c-core.c</code>中，用来注册I2C适配器。其实在内核中提供了两个adapter注册接口,分别为<code>i2c_add_adapter</code>和<code>i2c_add_numbered_adapter</code>由于在系统中可能存在多个adapter, 所以将每一条I2C总线(控制器)对应一个编号，这个总线号（可以称这个编号为总线号码）与PCI中的总线号不同。它和硬件无关, 只是软件上便于区分而已。对于<code>i2c_add_adapter</code>而言, 它使用的是动态总线号, 即由系统给其分配一个总线号, 而<code>i2c_add_numbered_adapter</code>则是自己指定总线号, 如果这个总线号非法或者是被占用, 就会注册失败。不管哪个注册接口，其核心都是调用<code>i2c_register_adapter</code>函数来进行真正的注册。取出<code>i2c_register_adapter</code>函数的关键部分进行分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">res &#x3D; device_register(&amp;adap-&gt;dev);</span><br><span class="line"></span><br><span class="line">if (adap-&gt;nr &lt; __i2c_first_dynamic_bus_num)</span><br><span class="line">    i2c_scan_static_board_info(adap);</span><br><span class="line"></span><br><span class="line">dummy &#x3D; bus_for_each_drv(&amp;i2c_bus_type, NULL, adap,</span><br><span class="line">             __process_new_adapter);</span><br></pre></td></tr></table></figure>
+
+<p><code>device_register(&amp;adap-&gt;dev);</code>表示主机适配器adapter的注册。</p>
+<p><code>i2c_scan_static_board_info(adap);</code>内部先遍历<code>__i2c_board_list</code>取出板卡信息（描述的是板子上的I2C外设的信息，即I2C从机的信息），该链表的生成是在<code>arch/arm/mach-s5pv210/mach-x210.c</code>中进行的，在<code>mach-x210.c</code>中的<code>smdkc110_machine_init</code>函数中进行了除之前分析的调用<code>s3c_i2c0_set_platdata</code>外，还调用了<code>i2c_register_board_info</code>对板卡信息进行了注册。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">int __init</span><br><span class="line">i2c_register_board_info(int busnum,</span><br><span class="line">    struct i2c_board_info const *info, unsigned len)</span><br><span class="line">&#123;</span><br><span class="line">    int status;</span><br><span class="line"></span><br><span class="line">    down_write(&amp;__i2c_board_lock);</span><br><span class="line"></span><br><span class="line">    &#x2F;* dynamic bus numbers will be assigned after the last static one *&#x2F;</span><br><span class="line">    &#x2F;&#x2F; __i2c_first_dynamic_bus_num为全局未显式初始化变量，所以第一次进到这个函数，值为0</span><br><span class="line">    if (busnum &gt;&#x3D; __i2c_first_dynamic_bus_num)</span><br><span class="line">        __i2c_first_dynamic_bus_num &#x3D; busnum + 1;</span><br><span class="line"></span><br><span class="line">    for (status &#x3D; 0; len; len--, info++) &#123;</span><br><span class="line">        struct i2c_devinfo  *devinfo;</span><br><span class="line"></span><br><span class="line">        devinfo &#x3D; kzalloc(sizeof(*devinfo), GFP_KERNEL);</span><br><span class="line">        if (!devinfo) &#123;</span><br><span class="line">            pr_debug(&quot;i2c-core: can&#39;t register boardinfo!\n&quot;);</span><br><span class="line">            status &#x3D; -ENOMEM;</span><br><span class="line">            break;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        devinfo-&gt;busnum &#x3D; busnum;</span><br><span class="line">        devinfo-&gt;board_info &#x3D; *info;</span><br><span class="line">        list_add_tail(&amp;devinfo-&gt;list, &amp;__i2c_board_list);    &#x2F;&#x2F; 将board_info用链表管理起来 </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    up_write(&amp;__i2c_board_lock);</span><br><span class="line"></span><br><span class="line">    return status;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>板卡信息的描述，主要对其设备名和从地址进行赋值，示例如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">#define I2C_BOARD_INFO(dev_type, dev_addr) \</span><br><span class="line">    .type &#x3D; dev_type, .addr &#x3D; (dev_addr)</span><br><span class="line"></span><br><span class="line">#ifdef CONFIG_TOUCHSCREEN_GSLX680</span><br><span class="line">    &#123;</span><br><span class="line">        I2C_BOARD_INFO(&quot;gslX680&quot;, 0x40),  &#x2F;&#x2F; 主要对其设备名和从地址进行赋值</span><br><span class="line">    &#125;,</span><br><span class="line">#endif</span><br></pre></td></tr></table></figure>
+
+<p>然后在<code>i2c_scan_static_board_info</code>内部利用板卡信息作为原料调用<code>i2c_new_device</code>来创建了client，表示从机设备，并将adapter挂接到了client结构体内部的指针上。<code>i2c_scan_static_board_info</code>代码如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">static void i2c_scan_static_board_info(struct i2c_adapter *adapter)</span><br><span class="line">&#123;</span><br><span class="line">    struct i2c_devinfo  *devinfo;</span><br><span class="line"></span><br><span class="line">    down_read(&amp;__i2c_board_lock);</span><br><span class="line">    &#x2F;&#x2F; __i2c_board_list在调用i2c_register_board_info时链接起来的</span><br><span class="line">    list_for_each_entry(devinfo, &amp;__i2c_board_list, list) &#123;</span><br><span class="line">        if (devinfo-&gt;busnum &#x3D;&#x3D; adapter-&gt;nr</span><br><span class="line">                &amp;&amp; !i2c_new_device(adapter,</span><br><span class="line">                        &amp;devinfo-&gt;board_info))</span><br><span class="line">            dev_err(&amp;adapter-&gt;dev,</span><br><span class="line">                &quot;Can&#39;t create device at 0x%02x\n&quot;,</span><br><span class="line">                devinfo-&gt;board_info.addr);</span><br><span class="line">    &#125;</span><br><span class="line">    up_read(&amp;__i2c_board_lock);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>创建完client后，回到<code>i2c_register_adapter</code>函数，最后执行了<code>dummy = bus_for_each_drv(&amp;i2c_bus_type, NULL, adap, __process_new_adapter);</code>，<strong>该函数是遍历在I2C总线上已经注册的driver，通过回调<code>__process_new_adapter</code>函数的方式，遍历到i2c-dev这个通用驱动后就会用其<code>i2cdev_attach_adapter</code>方法来挂接到在i2c-dev中注册的字符设备驱动，并使用这个字符设备驱动的主设备号和adapter中的总线号（作为次设备号）来创建名为i2c-x的设备节点，应用层访问这个设备节点后即可调用在i2c-dev中注册的file_operations中的操作方法，从操作方法源码知，最终读写调用的是adapter中的读写方法（即在本平台中为i2c-s3c2410.c中定义的方法）</strong>。下面对其进行验证。</p>
+<p><code>__process_new_adapter</code>展开如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">static int i2c_do_add_adapter(struct i2c_driver *driver,</span><br><span class="line">                  struct i2c_adapter *adap)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;* Detect supported devices on that bus, and instantiate them *&#x2F;</span><br><span class="line">    i2c_detect(adap, driver);</span><br><span class="line"></span><br><span class="line">    &#x2F;* Let legacy drivers scan this bus for matching devices *&#x2F;</span><br><span class="line">    if (driver-&gt;attach_adapter) &#123;</span><br><span class="line">        &#x2F;* We ignore the return code; if it fails, too bad *&#x2F;</span><br><span class="line">        driver-&gt;attach_adapter(adap);   &#x2F;&#x2F; 调用i2c-dev中的i2cdev_attach_adapter方法</span><br><span class="line">    &#125;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static int __process_new_adapter(struct device_driver *d, void *data)</span><br><span class="line">&#123;</span><br><span class="line">    return i2c_do_add_adapter(to_i2c_driver(d), data);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>driver-&gt;attach_adapter(adap);</code>，的确是调用I2C总线下的驱动中的<code>attach_adapter</code>方法，到了这里在I2C设备驱动层埋下的悬念终于要水落石出了（不容易啊啊啊啊啊啊），穿越回到I2C设备驱动层进行分析，进入<code>drivers/i2c/i2c-dev.c</code>分析<code>i2cdev_attach_adapter</code>方法。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">static int i2cdev_attach_adapter(struct i2c_adapter *adap)</span><br><span class="line">&#123;</span><br><span class="line">    struct i2c_dev *i2c_dev;</span><br><span class="line">    int res;</span><br><span class="line"></span><br><span class="line">    i2c_dev &#x3D; get_free_i2c_dev(adap);</span><br><span class="line">    if (IS_ERR(i2c_dev))</span><br><span class="line">        return PTR_ERR(i2c_dev);</span><br><span class="line"></span><br><span class="line">    &#x2F;* register this i2c device with the driver core *&#x2F;</span><br><span class="line">    &#x2F;* 使用主设备号和adapter中的总线号（作为次设备号）来创建名为i2c-x的设备节点 *&#x2F;</span><br><span class="line">    i2c_dev-&gt;dev &#x3D; device_create(i2c_dev_class, &amp;adap-&gt;dev,</span><br><span class="line">                     MKDEV(I2C_MAJOR, adap-&gt;nr), NULL,</span><br><span class="line">                     &quot;i2c-%d&quot;, adap-&gt;nr);</span><br><span class="line">    if (IS_ERR(i2c_dev-&gt;dev)) &#123;</span><br><span class="line">        res &#x3D; PTR_ERR(i2c_dev-&gt;dev);</span><br><span class="line">        goto error;</span><br><span class="line">    &#125;</span><br><span class="line">    res &#x3D; device_create_file(i2c_dev-&gt;dev, &amp;dev_attr_name);</span><br><span class="line">    if (res)</span><br><span class="line">        goto error_destroy;</span><br><span class="line"></span><br><span class="line">    pr_debug(&quot;i2c-dev: adapter [%s] registered as minor %d\n&quot;,</span><br><span class="line">         adap-&gt;name, adap-&gt;nr);</span><br><span class="line">    return 0;</span><br><span class="line">error_destroy:</span><br><span class="line">    device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap-&gt;nr));</span><br><span class="line">error:</span><br><span class="line">    return_i2c_dev(i2c_dev);</span><br><span class="line">    return res;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>i2c_dev-&gt;dev = device_create(i2c_dev_class, &amp;adap-&gt;dev, MKDEV(I2C_MAJOR, adap-&gt;nr), NULL, &quot;i2c-%d&quot;, adap-&gt;nr);</code>使用主设备号和adapter中的总线号（作为次设备号）来创建名为i2c-x的设备节点。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">static ssize_t i2cdev_write(struct file *file, const char __user *buf,</span><br><span class="line">        size_t count, loff_t *offset)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    char *tmp;</span><br><span class="line">    &#x2F;&#x2F; 取出i2c_client</span><br><span class="line">    struct i2c_client *client &#x3D; file-&gt;private_data;</span><br><span class="line"></span><br><span class="line">    if (count &gt; 8192)</span><br><span class="line">        count &#x3D; 8192;</span><br><span class="line"></span><br><span class="line">    tmp &#x3D; kmalloc(count, GFP_KERNEL);</span><br><span class="line">    if (tmp &#x3D;&#x3D; NULL)</span><br><span class="line">        return -ENOMEM;</span><br><span class="line">    &#x2F;&#x2F; 拷贝用户数据到内核空间</span><br><span class="line">    if (copy_from_user(tmp, buf, count)) &#123;</span><br><span class="line">        kfree(tmp);</span><br><span class="line">        return -EFAULT;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    pr_debug(&quot;i2c-dev: i2c-%d writing %zu bytes.\n&quot;,</span><br><span class="line">        iminor(file-&gt;f_path.dentry-&gt;d_inode), count);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 发送I2C数据</span><br><span class="line">    ret &#x3D; i2c_master_send(client, tmp, count);</span><br><span class="line">    kfree(tmp);</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以write函数为例，可以看到写数据通过<code>ret = i2c_master_send(client, tmp, count);</code>完成的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">int i2c_master_send(struct i2c_client *client, const char *buf, int count)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    &#x2F;&#x2F; 获取I2C适配器</span><br><span class="line">    struct i2c_adapter *adap &#x3D; client-&gt;adapter;</span><br><span class="line">    struct i2c_msg msg;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 封装I2C数据包</span><br><span class="line">    msg.addr &#x3D; client-&gt;addr;</span><br><span class="line">    msg.flags &#x3D; client-&gt;flags &amp; I2C_M_TEN;   &#x2F;&#x2F; 发送标志位</span><br><span class="line">    msg.len &#x3D; count;</span><br><span class="line">    msg.buf &#x3D; (char *)buf;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 发送I2C数据包</span><br><span class="line">    ret &#x3D; i2c_transfer(adap, &amp;msg, 1);</span><br><span class="line"></span><br><span class="line">    &#x2F;* If everything went ok (i.e. 1 msg transmitted), return #bytes</span><br><span class="line">       transmitted, else error code. *&#x2F;</span><br><span class="line">    return (ret &#x3D;&#x3D; 1) ? count : ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，经过I2C数据包的封装后，真正的最终写数据通过<code>ret = i2c_transfer(adap, &amp;msg, 1);</code>完成的。进入到<code>i2c_transfer</code>函数，截取关键部分。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">for (ret &#x3D; 0, try &#x3D; 0; try &lt;&#x3D; adap-&gt;retries; try++) &#123;</span><br><span class="line">    &#x2F;&#x2F; 调用具体的SoC的I2C总线驱动的发送方法</span><br><span class="line">    ret &#x3D; adap-&gt;algo-&gt;master_xfer(adap, msgs, num);</span><br><span class="line">    if (ret !&#x3D; -EAGAIN)</span><br><span class="line">        break;</span><br><span class="line">    if (time_after(jiffies, orig_jiffies + adap-&gt;timeout))</span><br><span class="line">        break;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>adap-&gt;algo-&gt;master_xfer(adap, msgs, num);</code>终于回到了原点见到了I2C总线驱动层中定义的操作方法。</p>
+<p>可以看到过程的确如上文所说，表现为<strong>从I2C总线驱动层自底向上后又由自顶向下的调用流程</strong>，简直一跃千里后又倾泻而下。</p>
+<h2 id="I2C特定设备驱动分析"><a href="#I2C特定设备驱动分析" class="headerlink" title="I2C特定设备驱动分析"></a>I2C特定设备驱动分析</h2><p>笔者以S5PV210的E2PROM驱动为例讲解, 源码见<a href="https://github.com/IfanTsai/LinuxDriver/blob/master/i2c/at24c02.c" target="_blank" rel="noopener">github链接</a>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">struct e2prom_device &#123;</span><br><span class="line">    struct i2c_client *at24c02_client;   &#x2F;* I2C client(从设备) *&#x2F;</span><br><span class="line">    &#x2F;* class和device用来自动创建设备节点 *&#x2F;</span><br><span class="line">    struct class      *at24c02_class;</span><br><span class="line">    struct device     *at24c02_device;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">struct e2prom_device *e2prom_dev;</span><br></pre></td></tr></table></figure>
+
+<p>封装一个<code>e2prom_device</code>结构体表示对E2PROM的抽象，其中包含I2C client（用来表示I2C从设备）以及class和device（这两者单纯是用来自动创建设备节点的）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">struct i2c_device_id e2prom_table[] &#x3D; &#123;</span><br><span class="line">    [0] &#x3D; &#123;</span><br><span class="line">        .name         &#x3D; &quot;24c02&quot;,</span><br><span class="line">        .driver_data  &#x3D; 0,</span><br><span class="line">    &#125;,</span><br><span class="line">    [1] &#x3D; &#123;</span><br><span class="line">        .name         &#x3D; &quot;24c08&quot;,</span><br><span class="line">        .driver_data  &#x3D; 0,</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">&#x2F;* I2C设备驱动 *&#x2F;</span><br><span class="line">struct i2c_driver e2prom_driver &#x3D; &#123;</span><br><span class="line">    .probe     &#x3D;  e2prom_probe,</span><br><span class="line">    .remove    &#x3D;  e2prom_remove,</span><br><span class="line">    .id_table  &#x3D;  e2prom_table,</span><br><span class="line">    .driver    &#x3D; &#123;</span><br><span class="line">        .name &#x3D; &quot;e2prom&quot;,</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init e2prom_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    return i2c_add_driver(&amp;e2prom_driver);   &#x2F;* 注册I2C设备驱动 *&#x2F;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>先是调用<code>i2c_add_driver</code>注册I2C设备驱动。根据上文在I2C核心层的源码分析可知，会通过在核心层中注册的<code>i2c_bus_type</code>下的<code>i2c_device_match</code>函数来匹配设备与驱动，一旦匹配上则会调用其<code>i2c_device_probe</code>函数，而<code>i2c_device_probe</code>函数又会调用i2c_driver的probe函数。注意如上文分析所知，client生成的原料为board_info，所以要使这个驱动成功匹配，需要在<code>arch/arm/mach-s5pv210/mach-x210.c</code>中使用<code>i2c_register_board_info</code>来注册board_info。接下去直奔prob函数进行分析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">struct file_operations e2prom_fops &#x3D; &#123;</span><br><span class="line">    .owner &#x3D; THIS_MODULE,</span><br><span class="line">    .open  &#x3D; e2prom_open,</span><br><span class="line">    .write &#x3D; e2prom_write,</span><br><span class="line">    .read &#x3D;  e2prom_read,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int e2prom_probe(struct i2c_client *client, const struct i2c_device_id *id)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line"></span><br><span class="line">    printk(KERN_INFO &quot;e2prom probe!\n&quot;);</span><br><span class="line">    e2prom_dev &#x3D; kmalloc(sizeof(struct e2prom_device), GFP_KERNEL);</span><br><span class="line">    if (!e2prom_dev) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;malloc failed!\n&quot;);</span><br><span class="line">        return -ENOMEM;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    e2prom_dev-&gt;at24c02_client &#x3D; client;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 注册为字符设备驱动 *&#x2F;</span><br><span class="line">    ret &#x3D; register_chrdev(E2PROM_MAJOR, &quot;e2prom_module&quot;, &amp;e2prom_fops);</span><br><span class="line">    if (ret &lt; 0) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;malloc failed\n&quot;);</span><br><span class="line">        ret &#x3D; -ENOMEM;</span><br><span class="line">        goto err0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 创建类  *&#x2F;</span><br><span class="line">    e2prom_dev-&gt;at24c02_class &#x3D; class_create(THIS_MODULE, &quot;e2prom_class&quot;);</span><br><span class="line">    if (IS_ERR(e2prom_dev-&gt;at24c02_class)) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;class create failed!\n&quot;);</span><br><span class="line">        ret &#x3D; PTR_ERR(e2prom_dev-&gt;at24c02_class);</span><br><span class="line">        goto err1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 在类下创建设备 *&#x2F;</span><br><span class="line">    e2prom_dev-&gt;at24c02_device &#x3D; device_create(e2prom_dev-&gt;at24c02_class, NULL, MKDEV(E2PROM_MAJOR, 0), NULL, &quot;at24c08&quot;);</span><br><span class="line">    if (IS_ERR(e2prom_dev-&gt;at24c02_device)) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;class create failed!\n&quot;);</span><br><span class="line">        ret &#x3D; PTR_ERR(e2prom_dev-&gt;at24c02_device);</span><br><span class="line">        goto err1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line">err1:</span><br><span class="line">    unregister_chrdev(E2PROM_MAJOR, &quot;e2prom_module&quot;);</span><br><span class="line">err0:</span><br><span class="line">    kfree(e2prom_dev);</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure>
+
+<p>在probe函数中调用<code>register_chrdev</code>函数来将E2PROM驱动注册为了字符设备驱动，并绑定了fops。然后调用<code>class_create</code>和<code>device_create</code>自动生成设备节点。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">static int e2prom_open(struct inode *inode, struct file *file)</span><br><span class="line">&#123;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>open方法为空，以write方法为例讲解具体的操作，read方法类似。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">static ssize_t e2prom_write(struct file *file, const char __user *buf,</span><br><span class="line">        size_t size, loff_t *offset)</span><br><span class="line">&#123;</span><br><span class="line">    int ret &#x3D; 0;</span><br><span class="line">    char *tmp;</span><br><span class="line">    tmp &#x3D; kmalloc(size, GFP_KERNEL);</span><br><span class="line">    if (tmp &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;mallo failed!\n&quot;);</span><br><span class="line">        return -ENOMEM;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 将用户空间数据拷贝到内核空间 *&#x2F;</span><br><span class="line">    ret &#x3D; copy_from_user(tmp, buf, size);</span><br><span class="line">    if (ret) &#123;</span><br><span class="line">        printk(&quot;copy data faile!\n&quot;);</span><br><span class="line">        goto err0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* I2C write *&#x2F;</span><br><span class="line">    ret &#x3D; i2c_write_byte(tmp, size);</span><br><span class="line">    if (ret) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;wrtie byte failed!\n&quot;);</span><br><span class="line">        goto err0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    kfree(tmp);</span><br><span class="line">    return size;</span><br><span class="line"></span><br><span class="line">err0:</span><br><span class="line">    kfree(tmp);</span><br><span class="line">    return -EINVAL;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到真正的操作I2C在<code>i2c_write_byte</code>函数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">static int i2c_write_byte(char *buf, int count)</span><br><span class="line">&#123;</span><br><span class="line">    int ret &#x3D; 0;</span><br><span class="line">    struct i2c_msg msg;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 封装I2C数据包 *&#x2F;</span><br><span class="line">    msg.addr   &#x3D; e2prom_dev-&gt;at24c02_client-&gt;addr; &#x2F;* I2C从设备地址 *&#x2F;</span><br><span class="line">    msg.flags  &#x3D; 0;                                &#x2F;* write flag *&#x2F;</span><br><span class="line">    msg.len    &#x3D; count;                            &#x2F;* 数据长度 *&#x2F;</span><br><span class="line">    msg.buf    &#x3D; buf;                              &#x2F;* 写入的数据 *&#x2F;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 调用I2C核心层提供的传输函数，其本质还是调用的I2C总线驱动(主机控制器驱动)层下实现的algo-&gt;master_xfe方法 *&#x2F;</span><br><span class="line">    ret &#x3D; i2c_transfer(e2prom_dev-&gt;at24c02_client-&gt;adapter, &amp;msg, 1);</span><br><span class="line">    if (ret &lt; 0) &#123;</span><br><span class="line">        printk(KERN_ERR &quot;i2c transfer failed!\n&quot;);</span><br><span class="line">        return -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到是调用在I2C核心层提供的传输函数，其本质还是在传输函数内部调用了跟具体SoC相关的I2C主机控制器操作方法中的传输方法。该函数接口需要提供一个<code>i2c_msg</code>，所以对其进行了创建并填充，注意<code>msg.flags = 0;</code>中0表示写，1表示读。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/i2c/" rel="tag"># i2c</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/13/Linux/Driver/Input/maXTouch%20Object%20Protocol%E7%90%86%E8%A7%A3/" rel="prev" title="Microchip maXTouch Object Protocol理解">
+      <i class="fa fa-chevron-left"></i> Microchip maXTouch Object Protocol理解
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%20i2c%E9%A9%B1%E5%8A%A8%E6%9E%B6%E6%9E%84/" rel="next" title="【转载】 i2c驱动架构">
+      【转载】 i2c驱动架构 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#I2C硬件基本概念"><span class="nav-number">1.</span> <span class="nav-text">I2C硬件基本概念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#I2C子系统框架"><span class="nav-number">2.</span> <span class="nav-text">I2C子系统框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C设备驱动层"><span class="nav-number">2.1.</span> <span class="nav-text">I2C设备驱动层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C核心层"><span class="nav-number">2.2.</span> <span class="nav-text">I2C核心层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C总线驱动层"><span class="nav-number">2.3.</span> <span class="nav-text">I2C总线驱动层</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#源码分析"><span class="nav-number">3.</span> <span class="nav-text">源码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C核心层-1"><span class="nav-number">3.1.</span> <span class="nav-text">I2C核心层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C设备驱动层-1"><span class="nav-number">3.2.</span> <span class="nav-text">I2C设备驱动层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#I2C总线驱动层-1"><span class="nav-number">3.3.</span> <span class="nav-text">I2C总线驱动层</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#I2C特定设备驱动分析"><span class="nav-number">4.</span> <span class="nav-text">I2C特定设备驱动分析</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

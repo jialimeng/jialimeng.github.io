@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文转自：博客园–Lioker【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;Lioker&#x2F;p&#x2F;10871151.html】 前面几章我们写的按键驱动程序虽然已经足够完善，但是这个驱动只有知道&#x2F;dev&#x2F;key设备节点和write()格式的人才能使用，不具有适应性 故本节引入标准的输入子系统，来编写通用的输入类设备。输入子系统是对所有的标准输入类设备的统一的管理系统，使用这个模型可以跨平台的处理所">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】输入子系统">
+<meta property="og:url" content="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E8%BE%93%E5%85%A5%E5%AD%90%E7%B3%BB%E7%BB%9F/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="本文转自：博客园–Lioker【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;Lioker&#x2F;p&#x2F;10871151.html】 前面几章我们写的按键驱动程序虽然已经足够完善，但是这个驱动只有知道&#x2F;dev&#x2F;key设备节点和write()格式的人才能使用，不具有适应性 故本节引入标准的输入子系统，来编写通用的输入类设备。输入子系统是对所有的标准输入类设备的统一的管理系统，使用这个模型可以跨平台的处理所">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515135645745-1155511406.png">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515161307876-106298749.png">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200347113-1161513239.png">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200548748-631729914.png">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200914935-24962756.png">
+<meta property="article:published_time" content="2021-01-07T11:22:14.000Z">
+<meta property="article:modified_time" content="2021-01-07T11:25:59.041Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="Input">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515135645745-1155511406.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E8%BE%93%E5%85%A5%E5%AD%90%E7%B3%BB%E7%BB%9F/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】输入子系统 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E8%BE%93%E5%85%A5%E5%AD%90%E7%B3%BB%E7%BB%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】输入子系统
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-07 19:22:14 / Modified: 19:25:59" itemprop="dateCreated datePublished" datetime="2021-01-07T19:22:14+08:00">2021-01-07</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/Input%E5%AD%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">Input子系统</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文转自：博客园–<a href="https://home.cnblogs.com/u/Lioker/" target="_blank" rel="noopener">Lioker</a>【<a href="https://www.cnblogs.com/Lioker/p/10871151.html】" target="_blank" rel="noopener">https://www.cnblogs.com/Lioker/p/10871151.html】</a></p>
+<p>前面几章我们写的按键驱动程序虽然已经足够完善，但是这个驱动只有知道/dev/key设备节点和write()格式的人才能使用，不具有适应性</p>
+<p>故本节引入标准的输入子系统，来编写通用的输入类设备。输入子系统是对所有的标准输入类设备的统一的管理系统，使用这个模型可以跨平台的处理所有的输入类设备</p>
+<h1 id="一、输入子系统分层"><a href="#一、输入子系统分层" class="headerlink" title="一、输入子系统分层"></a>一、输入子系统分层</h1><p>输入子系统将一个输入设备的输入过程分成了<strong>设备</strong>驱动（input device driver）和<strong>事件</strong>驱动（input event driver）两层。设备驱动负责从底层硬件采集数据，事件驱动负责给用户程序提供接口。通过分层设计，将不同的设备统一到几种驱动接口上。同一种事件驱动可以用来处理多个同类设备；同一个设备也可以和多种事件驱动相衔接。而事件驱动和设备驱动则由输入核心层进行连接，匹配。分层结构如下图：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515135645745-1155511406.png" alt="img"></p>
+<p>输入子系统核心层定义在drivers/input/input.c中</p>
+<p>由于输入子系统也是字符设备驱动程序，因此它一定也会有创建类、注册字符设备的过程，而且会有file_operations等结构体，我们可以从此进行分析</p>
+<h1 id="二、input-c分析"><a href="#二、input-c分析" class="headerlink" title="二、input.c分析"></a>二、input.c分析</h1><p>在input_init()函数中所做的和按键驱动程序中所做的大致相同，如创建类、注册名为input的字符设备</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">static int __init input_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    err &#x3D; class_register(&amp;input_class);</span><br><span class="line">    ...</span><br><span class="line">    err &#x3D; register_chrdev(INPUT_MAJOR, &quot;input&quot;, &amp;input_fops);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>其file_operations结构体定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">static const struct file_operations input_fops &#x3D; &#123;</span><br><span class="line">    .owner &#x3D; THIS_MODULE,</span><br><span class="line">    .open &#x3D; input_open_file,</span><br><span class="line">    .llseek &#x3D; noop_llseek,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>当我们应用程序open()时，会调用file_operations input_fops对应的open()函数</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">static int input_open_file(struct inode *inode, struct file *file)</span><br><span class="line">&#123;</span><br><span class="line">        ...</span><br><span class="line">    handler &#x3D; input_table[iminor(inode) &gt;&gt; 5];</span><br><span class="line">    if (handler)</span><br><span class="line">        new_fops &#x3D; fops_get(handler-&gt;fops);</span><br><span class="line">        ...</span><br><span class="line">    old_fops &#x3D; file-&gt;f_op;</span><br><span class="line">    file-&gt;f_op &#x3D; new_fops;</span><br><span class="line"></span><br><span class="line">    err &#x3D; new_fops-&gt;open(inode, file);</span><br><span class="line">        ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>由上述代码可知：</p>
+<p>\1. input_table[]根据次设备号存储handler</p>
+<p>\2. <strong>open()函数使用新的fops（设备驱动中的fops）代替了旧的fops，这个操作也就解释了为什么file_operations结构体中没有读写函数</strong></p>
+<p>\3. open()函数在替换之后，调用了新的fops的open()函数</p>
+<p>handler是我们之前没有分析的，它定义为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">static struct input_handler *input_table[8];</span><br></pre></td></tr></table></figure>
+
+<p>至于数组大小为什么是8，这是因为目前常用的handler只有三种：<strong>evdev</strong>，mousedev，joydev。而且evdev是通用的handler，定义8个应该够用了</p>
+<p>handler结构体定义为：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * struct input_handler - implements one of interfaces for input devices</span><br><span class="line"> * ...</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct input_handler &#123;</span><br><span class="line">    void *private;</span><br><span class="line"></span><br><span class="line">    void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);</span><br><span class="line">    bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);</span><br><span class="line">    bool (*match)(struct input_handler *handler, struct input_dev *dev);</span><br><span class="line">    int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);</span><br><span class="line">    void (*disconnect)(struct input_handle *handle);</span><br><span class="line">    void (*start)(struct input_handle *handle);</span><br><span class="line"></span><br><span class="line">    const struct file_operations *fops;</span><br><span class="line">    int minor;</span><br><span class="line">    const char *name;</span><br><span class="line"></span><br><span class="line">    const struct input_device_id *id_table;</span><br><span class="line"></span><br><span class="line">    struct list_head    h_list;</span><br><span class="line">    struct list_head    node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>根据注释信息，handler应该就是输入事件驱动程序的结构体</p>
+<p>在input_handler结构体中使用了input_handle结构体，其定义如下：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * struct input_handle - links input device with an input handler</span><br><span class="line"> * ...</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct input_handle &#123;</span><br><span class="line">    void *private;</span><br><span class="line"></span><br><span class="line">    int open;</span><br><span class="line">    const char *name;</span><br><span class="line"></span><br><span class="line">    struct input_dev *dev;</span><br><span class="line">    struct input_handler *handler;</span><br><span class="line"></span><br><span class="line">    struct list_head    d_node;</span><br><span class="line">    struct list_head    h_node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>根据注释信息，<strong>input_handle用于连接input_dev和input_handler</strong>，三者关系在下面分析</p>
+<p>分析完了input.c文件，我们来一一分析input_handler、input_handle以及两者的连接过程</p>
+<h1 id="三、input-dev"><a href="#三、input-dev" class="headerlink" title="三、input_dev"></a>三、input_dev</h1><p>input_dev使用方法遵循：分配、设置、注册</p>
+<p><strong>分配：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">struct input_dev *input_allocate_device(void)</span><br></pre></td></tr></table></figure>
+
+
+
+<p><strong>设置（首先设置事件类，然后设置具体事件）：</strong></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code)</span><br><span class="line">&#123;</span><br><span class="line">    switch (type) &#123;</span><br><span class="line">    case EV_KEY:    &#x2F;&#x2F; 按键事件类，可指定按键如KEY_1、KEY_Q、KEY_ENTER等</span><br><span class="line">        __set_bit(code, dev-&gt;keybit);</span><br><span class="line">        break;</span><br><span class="line"></span><br><span class="line">    case EV_REL:    &#x2F;&#x2F; 相对位移事件类，可指定相对位移如REL_X、REL_Y等</span><br><span class="line">        __set_bit(code, dev-&gt;relbit);</span><br><span class="line">        break;</span><br><span class="line"></span><br><span class="line">    case EV_ABS:    &#x2F;&#x2F; 绝对位移事件类，可指定绝对位移如ABS_X、ABS_Y等</span><br><span class="line">        __set_bit(code, dev-&gt;absbit);</span><br><span class="line">        break;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    __set_bit(type, dev-&gt;evbit);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>也可以使用set_bit()函数，两函数代码类似（实际只是去设置某一个bit），在此仅给出__set_bit()函数定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">1 static inline void __set_bit(int nr, volatile unsigned long *addr) &#123;</span><br><span class="line">2     unsigned long mask &#x3D; BIT_MASK(nr);</span><br><span class="line">3     unsigned long *p &#x3D; ((unsigned long *)addr) + BIT_WORD(nr);</span><br><span class="line">4 </span><br><span class="line">5     *p  |&#x3D; mask;</span><br><span class="line">6 &#125;</span><br></pre></td></tr></table></figure>
+
+<p>源代码中使用set_bit()</p>
+<p><strong>注册：</strong></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">int input_register_device(struct input_dev *dev)</span><br><span class="line">&#123;</span><br><span class="line">...</span><br><span class="line">    &#x2F;* 通用的同步事件 *&#x2F;</span><br><span class="line">    __set_bit(EV_SYN, dev-&gt;evbit);</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">    &#x2F;* 注册的设备名字为input0, 1, 2, ... *&#x2F;</span><br><span class="line">    dev_set_name(&amp;dev-&gt;dev, &quot;input%ld&quot;,</span><br><span class="line">             (unsigned long) atomic_inc_return(&amp;input_no) - 1);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 添加device *&#x2F;</span><br><span class="line">    error &#x3D; device_add(&amp;dev-&gt;dev);</span><br><span class="line">...</span><br><span class="line">    &#x2F;* 把dev结构放到链表里面 *&#x2F;</span><br><span class="line">    list_add_tail(&amp;dev-&gt;node, &amp;input_dev_list);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 对每一个input_handler都调用input_attach_handler()函数 *&#x2F;</span><br><span class="line">    list_for_each_entry(handler, &amp;input_handler_list, node)</span><br><span class="line">        &#x2F;* 匹配dev和handler *&#x2F;</span><br><span class="line">        input_attach_handler(dev, handler);</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>其中的input_attach_handler(dev, handler);对应input_handle，因为之前说过<strong>input_handle用于连接input_dev和input_handler</strong></p>
+<p>在注册完成后，若<strong>input_dev获得数据，需要向核心层上报事件</strong>，上报事件使用如下函数：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 上报事件</span><br><span class="line">void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 上报绝对坐标</span><br><span class="line">void input_report_abs(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 上报相对坐标</span><br><span class="line">void input_report_rel(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 上报键值</span><br><span class="line">void input_report_key(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 上报同步事件</span><br><span class="line">void input_sync(struct input_dev *dev)</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>代码中后四个函数均使用input_event()函数实现，input_event()函数调用过程如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">input_event()</span><br><span class="line">  -&gt; input_handle_event()</span><br><span class="line">    -&gt; input_pass_event()</span><br><span class="line">      -&gt; handler-&gt;event(handle, type, code, value);</span><br></pre></td></tr></table></figure>
+
+
+
+<p><strong>上报事件最终会调用handler-&gt;event()函数</strong></p>
+<p>之前说过evdev是通用的handler，在此我便以/drivers/input/evdev.c进行分析</p>
+<p>evdev_read()会进行休眠，<strong>evdev_event()在上报事件被调用后会唤醒休眠进程</strong>，从而完成read()操作</p>
+<p><strong>注销：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 注销</span><br><span class="line">void input_unregister_device(struct input_dev *dev)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 释放</span><br><span class="line">void input_free_device(struct input_dev *dev)</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h1 id="四、input-handler"><a href="#四、input-handler" class="headerlink" title="四、input_handler"></a>四、input_handler</h1><p><strong>注册：</strong></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">int input_register_handler(struct input_handler *handler)</span><br><span class="line">&#123;</span><br><span class="line">...</span><br><span class="line">    INIT_LIST_HEAD(&amp;handler-&gt;h_list);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 设置input_table *&#x2F;</span><br><span class="line">    if (handler-&gt;fops !&#x3D; NULL) &#123;</span><br><span class="line">        if (input_table[handler-&gt;minor &gt;&gt; 5]) &#123;</span><br><span class="line">            retval &#x3D; -EBUSY;</span><br><span class="line">            goto out;</span><br><span class="line">        &#125;</span><br><span class="line">        input_table[handler-&gt;minor &gt;&gt; 5] &#x3D; handler;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* 把handler放入input_handler_list *&#x2F;</span><br><span class="line">    list_add_tail(&amp;handler-&gt;node, &amp;input_handler_list);</span><br><span class="line"></span><br><span class="line">    &#x2F;* 对每一个dev调用input_attach_handler匹配handler *&#x2F;</span><br><span class="line">    list_for_each_entry(dev, &amp;input_dev_list, node)</span><br><span class="line">        input_attach_handler(dev, handler);</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p><strong>注销：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">void input_unregister_handler(struct input_handler *handler)</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h1 id="五、input-dev和input-handler的连接过程"><a href="#五、input-dev和input-handler的连接过程" class="headerlink" title="五、input_dev和input_handler的连接过程"></a>五、input_dev和input_handler的连接过程</h1><p>两者匹配使用的是input_attach_handler()函数：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">static int input_attach_handler(struct input_dev *dev, struct input_handler *handler)</span><br><span class="line">&#123;</span><br><span class="line">...</span><br><span class="line">    id &#x3D; input_match_device(handler, dev);</span><br><span class="line">...</span><br><span class="line">    error &#x3D; handler-&gt;connect(handler, dev, id);</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>input_match_device()函数：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">static const struct input_device_id *input_match_device(struct input_handler *handler,</span><br><span class="line">                            struct input_dev *dev)</span><br><span class="line">&#123;</span><br><span class="line">    for (id &#x3D; handler-&gt;id_table; id-&gt;flags || id-&gt;driver_info; id++) &#123;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; 默认的匹配过程，使用handler-&gt;id_table和dev-&gt;id进行匹配</span><br><span class="line"></span><br><span class="line">        if (!handler-&gt;match || handler-&gt;match(handler, dev))</span><br><span class="line">            return id;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>在代码中，匹配成功退出调用handler的connect()函数，否则调用handler的match()函数</p>
+<p>在此还是以evdev为例，其连接函数为evdev_connect()定义如下：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">static int evdev_connect(struct input_handler *handler, struct input_dev *dev,</span><br><span class="line">             const struct input_device_id *id)</span><br><span class="line">&#123;</span><br><span class="line">...</span><br><span class="line">    &#x2F;* 分配evdev *&#x2F;</span><br><span class="line">    evdev &#x3D; kzalloc(sizeof(struct evdev), GFP_KERNEL);</span><br><span class="line">...</span><br><span class="line">    &#x2F;* 设置handle *&#x2F;</span><br><span class="line">    evdev-&gt;handle.dev &#x3D; input_get_device(dev);</span><br><span class="line">    evdev-&gt;handle.name &#x3D; dev_name(&amp;evdev-&gt;dev);</span><br><span class="line">    evdev-&gt;handle.handler &#x3D; handler;</span><br><span class="line">    evdev-&gt;handle.private &#x3D; evdev;</span><br><span class="line">...</span><br><span class="line">    &#x2F;* 注册handle *&#x2F;</span><br><span class="line">    error &#x3D; input_register_handle(&amp;evdev-&gt;handle);</span><br><span class="line"></span><br><span class="line">    error &#x3D; evdev_install_chrdev(evdev);</span><br><span class="line">    error &#x3D; device_add(&amp;evdev-&gt;dev);</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>input_dev、input_handler和input_handle三者关系如下：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515161307876-106298749.png" alt="img"></p>
+<h1 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h1><p><strong>1. input_init()初始化输入子系统</strong></p>
+<p>1.1 调用register_chrdev(13, “input”, &amp;input_fops);</p>
+<p><strong>2. open()输入子系统文件：int input_open_file()</strong></p>
+<p>2.1 替换替换file_oprations</p>
+<p>2.2 执行new_fops-&gt;open()函数</p>
+<p><strong>3. 注册input_handler：input_register_handler()</strong></p>
+<p>3.1 添加handler到input_table[]数组</p>
+<p>3.2 添加handler到input_handler_list链表</p>
+<p>3.3 调用input_attach_handler()</p>
+<p><strong>4. 注册input_dev：input_register_device()</strong></p>
+<p>4.1 添加dev到input_dev链表</p>
+<p>4.2 调用input_attach_handler()</p>
+<p><strong>5. 匹配：input_attach_handler()</strong></p>
+<p>5.1 匹配dev-&gt;id和handler-&gt;id_table</p>
+<p>5.2 成功，调用input_handler-&gt;connect()</p>
+<p><strong>6. 连接：input_handler-&gt;connect()</strong></p>
+<p>6.1 创建input_handle，三者连接</p>
+<p><strong>7. event发生（如按键中断），在中断函数中上报事件：input_event()</strong></p>
+<p>7.1 调用input_handler-&gt;event()</p>
+<h1 id="七、更改key-c为输入子系统"><a href="#七、更改key-c为输入子系统" class="headerlink" title="七、更改key.c为输入子系统"></a>七、更改key.c为输入子系统</h1><p>主要更改的函数有keys_init()和key_timer_func()：</p>
+<p><strong>keys_init()：</strong></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"> 1 static int keys_init(void)</span><br><span class="line"> 2 &#123;</span><br><span class="line"> 3     &#x2F;* 1. 分配 *&#x2F;</span><br><span class="line"> 4     inputdev &#x3D; input_allocate_device();</span><br><span class="line"> 5 </span><br><span class="line"> 6     &#x2F;* 2. 设置 *&#x2F;</span><br><span class="line"> 7     &#x2F;* 2.1 设置事件类 *&#x2F;</span><br><span class="line"> 8     set_bit(EV_KEY, inputdev-&gt;evbit);</span><br><span class="line"> 9     set_bit(EV_REP, inputdev-&gt;evbit);    &#x2F;* 重复类事件 *&#x2F;</span><br><span class="line">10 </span><br><span class="line">11     &#x2F;* 2.2 设置按键事件 *&#x2F;</span><br><span class="line">12     set_bit(KEY_L, inputdev-&gt;keybit);</span><br><span class="line">13     set_bit(KEY_S, inputdev-&gt;keybit);</span><br><span class="line">14     set_bit(KEY_ENTER, inputdev-&gt;keybit);</span><br><span class="line">15     set_bit(KEY_LEFTSHIFT, inputdev-&gt;keybit);</span><br><span class="line">16 </span><br><span class="line">17     &#x2F;* 3. 注册 *&#x2F;</span><br><span class="line">18     input_register_device(inputdev);</span><br><span class="line">19 ...</span><br><span class="line">20 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p><strong>set_bit(EV_REP, inputdev-&gt;evbit);表示可产生重复类事件</strong>，也就是长按按键，就会产生多次按键效果 </p>
+<p><strong>key_timer_func()：</strong></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> 1 static void key_timer_func(unsigned long arg)</span><br><span class="line"> 2 &#123;</span><br><span class="line"> 3 ...</span><br><span class="line"> 4     if (pinval) &#x2F;* 松开 *&#x2F; &#123;</span><br><span class="line"> 5         &#x2F;* 上传数据 *&#x2F;</span><br><span class="line"> 6         input_event(inputdev, EV_KEY, pindesc-&gt;val, 0);</span><br><span class="line"> 7         input_sync(inputdev);</span><br><span class="line"> 8     &#125;</span><br><span class="line"> 9     else &#x2F;* 按下 *&#x2F; &#123;</span><br><span class="line">10         input_event(inputdev, EV_KEY, pindesc-&gt;val, 1);</span><br><span class="line">11         input_sync(inputdev);</span><br><span class="line">12     &#125;</span><br><span class="line">13 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p><strong>input_sync(inputdev);表示已完成当前上报工作</strong></p>
+<p>key源代码：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line">  1 #include &lt;linux&#x2F;module.h&gt;</span><br><span class="line">  2 #include &lt;linux&#x2F;fs.h&gt;</span><br><span class="line">  3 #include &lt;linux&#x2F;init.h&gt;</span><br><span class="line">  4 #include &lt;linux&#x2F;cdev.h&gt;</span><br><span class="line">  5 #include &lt;linux&#x2F;slab.h&gt;</span><br><span class="line">  6 #include &lt;linux&#x2F;device.h&gt;</span><br><span class="line">  7 #include &lt;linux&#x2F;irq.h&gt;</span><br><span class="line">  8 #include &lt;linux&#x2F;interrupt.h&gt;</span><br><span class="line">  9 #include &lt;linux&#x2F;wait.h&gt;</span><br><span class="line"> 10 #include &lt;linux&#x2F;timer.h&gt;</span><br><span class="line"> 11 #include &lt;linux&#x2F;gpio.h&gt;</span><br><span class="line"> 12 #include &lt;linux&#x2F;sched.h&gt;</span><br><span class="line"> 13 #include &lt;linux&#x2F;input.h&gt;</span><br><span class="line"> 14 </span><br><span class="line"> 15 #include &lt;asm&#x2F;uaccess.h&gt;</span><br><span class="line"> 16 #include &lt;asm&#x2F;irq.h&gt;</span><br><span class="line"> 17 #include &lt;asm&#x2F;io.h&gt;</span><br><span class="line"> 18 </span><br><span class="line"> 19 #include &lt;mach&#x2F;gpio.h&gt;</span><br><span class="line"> 20 </span><br><span class="line"> 21 #define KEY_MAJOR        255</span><br><span class="line"> 22 </span><br><span class="line"> 23 struct pin_desc &#123;</span><br><span class="line"> 24     unsigned int gpio;</span><br><span class="line"> 25     int val;</span><br><span class="line"> 26     char *name;</span><br><span class="line"> 27 &#125;;</span><br><span class="line"> 28 </span><br><span class="line"> 29 static struct timer_list    key_timer;</span><br><span class="line"> 30 static struct pin_desc*        pindesc;</span><br><span class="line"> 31 static struct input_dev*    inputdev;</span><br><span class="line"> 32 </span><br><span class="line"> 33 static struct pin_desc desc[4] &#x3D; &#123;</span><br><span class="line"> 34     &#123; EXYNOS4_GPX3(2), KEY_L, &quot;KEY0&quot; &#125;,</span><br><span class="line"> 35     &#123; EXYNOS4_GPX3(3), KEY_S, &quot;KEY1&quot; &#125;,</span><br><span class="line"> 36     &#123; EXYNOS4_GPX3(4), KEY_ENTER, &quot;KEY2&quot; &#125;,</span><br><span class="line"> 37     &#123; EXYNOS4_GPX3(5), KEY_LEFTSHIFT, &quot;KEY3&quot; &#125;,</span><br><span class="line"> 38 &#125;;</span><br><span class="line"> 39 </span><br><span class="line"> 40 static void key_timer_func(unsigned long arg)</span><br><span class="line"> 41 &#123;</span><br><span class="line"> 42     struct pin_desc *irq_pd &#x3D; pindesc;</span><br><span class="line"> 43 </span><br><span class="line"> 44     if (!irq_pd)</span><br><span class="line"> 45         return ;</span><br><span class="line"> 46     </span><br><span class="line"> 47     unsigned int pinval;</span><br><span class="line"> 48 </span><br><span class="line"> 49     pinval &#x3D; gpio_get_value(pindesc-&gt;gpio);</span><br><span class="line"> 50 </span><br><span class="line"> 51     if (pinval) &#x2F;* 松开 *&#x2F; &#123;</span><br><span class="line"> 52         &#x2F;* 上传数据 *&#x2F;</span><br><span class="line"> 53         input_event(inputdev, EV_KEY, pindesc-&gt;val, 0);</span><br><span class="line"> 54         input_sync(inputdev);</span><br><span class="line"> 55     &#125;</span><br><span class="line"> 56     else &#x2F;* 按下 *&#x2F; &#123;</span><br><span class="line"> 57         input_event(inputdev, EV_KEY, pindesc-&gt;val, 1);</span><br><span class="line"> 58         input_sync(inputdev);</span><br><span class="line"> 59     &#125;</span><br><span class="line"> 60 &#125;</span><br><span class="line"> 61 </span><br><span class="line"> 62 static irqreturn_t key_interrupt(int irq, void *dev_id)</span><br><span class="line"> 63 &#123;</span><br><span class="line"> 64     pindesc &#x3D; (struct pin_desc *)dev_id;</span><br><span class="line"> 65 </span><br><span class="line"> 66     mod_timer(&amp;key_timer, jiffies + HZ &#x2F; 100);</span><br><span class="line"> 67 </span><br><span class="line"> 68     return IRQ_HANDLED;</span><br><span class="line"> 69 &#125;</span><br><span class="line"> 70 </span><br><span class="line"> 71 static int keys_init(void)</span><br><span class="line"> 72 &#123;</span><br><span class="line"> 73     &#x2F;* 1. 分配 *&#x2F;</span><br><span class="line"> 74     inputdev &#x3D; input_allocate_device();</span><br><span class="line"> 75 </span><br><span class="line"> 76     &#x2F;* 2. 设置 *&#x2F;</span><br><span class="line"> 77     &#x2F;* 2.1 设置事件类 *&#x2F;</span><br><span class="line"> 78     set_bit(EV_KEY, inputdev-&gt;evbit);</span><br><span class="line"> 79     set_bit(EV_REP, inputdev-&gt;evbit);    &#x2F;* 重复类事件 *&#x2F;</span><br><span class="line"> 80 </span><br><span class="line"> 81     &#x2F;* 2.2 设置按键事件 *&#x2F;</span><br><span class="line"> 82     set_bit(KEY_L, inputdev-&gt;keybit);</span><br><span class="line"> 83     set_bit(KEY_S, inputdev-&gt;keybit);</span><br><span class="line"> 84     set_bit(KEY_ENTER, inputdev-&gt;keybit);</span><br><span class="line"> 85     set_bit(KEY_LEFTSHIFT, inputdev-&gt;keybit);</span><br><span class="line"> 86 </span><br><span class="line"> 87     &#x2F;* 3. 注册 *&#x2F;</span><br><span class="line"> 88     input_register_device(inputdev);</span><br><span class="line"> 89 </span><br><span class="line"> 90     &#x2F;* 注册中断 *&#x2F;</span><br><span class="line"> 91     int irq, i;</span><br><span class="line"> 92     for (i &#x3D; 0; i &lt; ARRAY_SIZE(desc); i++) &#123;</span><br><span class="line"> 93         irq &#x3D; gpio_to_irq(desc[i].gpio);</span><br><span class="line"> 94         request_irq(irq, key_interrupt, IRQ_TYPE_EDGE_BOTH, desc[i].name, (void *)&amp;desc[i]);</span><br><span class="line"> 95     &#125;</span><br><span class="line"> 96     </span><br><span class="line"> 97     init_timer(&amp;key_timer);</span><br><span class="line"> 98     key_timer.function &#x3D; key_timer_func;</span><br><span class="line"> 99     add_timer(&amp;key_timer);</span><br><span class="line">100 </span><br><span class="line">101     return 0;</span><br><span class="line">102 &#125;</span><br><span class="line">103 </span><br><span class="line">104 static void keys_exit(void)</span><br><span class="line">105 &#123;    </span><br><span class="line">106     &#x2F;&#x2F; 释放中断</span><br><span class="line">107     int irq, i;</span><br><span class="line">108 </span><br><span class="line">109     for (i &#x3D; 0; i &lt; ARRAY_SIZE(desc); i++) &#123;</span><br><span class="line">110         irq &#x3D; gpio_to_irq(desc[i].gpio);</span><br><span class="line">111         free_irq(irq, (void *)&amp;desc[i]);</span><br><span class="line">112     &#125;</span><br><span class="line">113 </span><br><span class="line">114     del_timer(&amp;key_timer);</span><br><span class="line">115 </span><br><span class="line">116     input_unregister_device(inputdev);</span><br><span class="line">117     input_free_device(inputdev);</span><br><span class="line">118 &#125;</span><br><span class="line">119 </span><br><span class="line">120 module_init(keys_init);</span><br><span class="line">121 module_exit(keys_exit);</span><br><span class="line">122 </span><br><span class="line">123 MODULE_LICENSE(&quot;GPL&quot;);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>Makefile：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"> 1 KERN_DIR &#x3D; &#x2F;work&#x2F;tiny4412&#x2F;tools&#x2F;linux-3.5</span><br><span class="line"> 2 </span><br><span class="line"> 3 all:</span><br><span class="line"> 4     make -C $(KERN_DIR) M&#x3D;&#96;pwd&#96; modules </span><br><span class="line"> 5 </span><br><span class="line"> 6 clean:</span><br><span class="line"> 7     make -C $(KERN_DIR) M&#x3D;&#96;pwd&#96; modules clean</span><br><span class="line"> 8     rm -rf modules.order</span><br><span class="line"> 9 </span><br><span class="line">10 obj-m    +&#x3D; key.o</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>测试文件：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"> 1 #include &lt;stdio.h&gt;</span><br><span class="line"> 2 #include &lt;unistd.h&gt;</span><br><span class="line"> 3 #include &lt;sys&#x2F;types.h&gt;</span><br><span class="line"> 4 #include &lt;sys&#x2F;stat.h&gt;</span><br><span class="line"> 5 #include &lt;fcntl.h&gt;</span><br><span class="line"> 6 #include &lt;string.h&gt;</span><br><span class="line"> 7 </span><br><span class="line"> 8 int main(int argc, char** argv)</span><br><span class="line"> 9 &#123;</span><br><span class="line">10     if (argc !&#x3D; 2) &#123;</span><br><span class="line">11         printf(&quot;Usage:\n&quot;);</span><br><span class="line">12         printf(&quot;%s &lt;event1|event2&gt;\n&quot;, argv[0]);</span><br><span class="line">13         return 0;</span><br><span class="line">14     &#125;</span><br><span class="line">15     </span><br><span class="line">16     char buf[100] &#x3D; &quot;&#x2F;dev&#x2F;&quot;;</span><br><span class="line">17     strcat(buf, argv[1]);</span><br><span class="line">18     printf(&quot;You Will Open %s\n&quot;, buf);</span><br><span class="line">19     </span><br><span class="line">20     int fd;</span><br><span class="line">21     </span><br><span class="line">22     fd &#x3D; open(buf, O_RDWR);</span><br><span class="line">23     if (fd &lt; 0) &#123;</span><br><span class="line">24         printf(&quot;can&#39;t open %s\n&quot;, buf);</span><br><span class="line">25         return -1;</span><br><span class="line">26     &#125;</span><br><span class="line">27 </span><br><span class="line">28     unsigned char key_val;</span><br><span class="line">29     </span><br><span class="line">30     while (1) &#123;</span><br><span class="line">31         read(fd, &amp;key_val, 1);</span><br><span class="line">32         printf(&quot;key_val &#x3D; 0x%x\n&quot;, key_val);</span><br><span class="line">33     &#125;</span><br><span class="line">34     </span><br><span class="line">35     close(fd);</span><br><span class="line">36 </span><br><span class="line">37     return 0;</span><br><span class="line">38 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p><strong>测试：</strong></p>
+<p>在编译并在开发板上insmod后，会出现如下信息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;6&gt;input: Unspecified device as &#x2F;devices&#x2F;virtual&#x2F;input&#x2F;input3</span><br></pre></td></tr></table></figure>
+
+
+
+<p>这是由于未设置input_dev的名字所导致的，暂时不需要管</p>
+<p>接下来执行：</p>
+<p># ps -ef</p>
+<p><img src="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200347113-1161513239.png" alt="img"></p>
+<p>确定-/bin/sh的pid为108（不同开发板-/bin/sh的pid不同）</p>
+<p># ls -l /proc/108/fd</p>
+<p><img src="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200548748-631729914.png" alt="img"></p>
+<p>确定使用tty1</p>
+<p># exec 0&lt;/dev/tty1</p>
+<p>接下来按键，效果如下图：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1542940/201905/1542940-20190515200914935-24962756.png" alt="img"></p>
+<p>下一章  <a href="https://www.cnblogs.com/Lioker/p/10893768.html" target="_blank" rel="noopener">9、总线设备驱动模型</a></p>
+<p>作者：<a href="https://www.cnblogs.com/Lioker/" target="_blank" rel="noopener">Lioker</a></p>
+<p>邮箱：<a href="mailto:lioker@outlook.com">lioker@outlook.com</a></p>
+<p>作者水平有限，欢迎拍砖。转载请注明出处。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Input/" rel="tag"># Input</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E9%94%AE%E7%9B%98%E6%8C%89%E9%94%AE%E9%A9%B1%E5%8A%A8%20(%E8%AF%A6%E8%A7%A3)/" rel="prev" title="【转载】Linux键盘按键驱动 (详解)">
+      <i class="fa fa-chevron-left"></i> 【转载】Linux键盘按键驱动 (详解)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E7%94%B5%E5%AE%B9%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8/" rel="next" title="【转载】电容触摸屏驱动">
+      【转载】电容触摸屏驱动 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、输入子系统分层"><span class="nav-number">1.</span> <span class="nav-text">一、输入子系统分层</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、input-c分析"><span class="nav-number">2.</span> <span class="nav-text">二、input.c分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三、input-dev"><span class="nav-number">3.</span> <span class="nav-text">三、input_dev</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#四、input-handler"><span class="nav-number">4.</span> <span class="nav-text">四、input_handler</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#五、input-dev和input-handler的连接过程"><span class="nav-number">5.</span> <span class="nav-text">五、input_dev和input_handler的连接过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#六、总结"><span class="nav-number">6.</span> <span class="nav-text">六、总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#七、更改key-c为输入子系统"><span class="nav-number">7.</span> <span class="nav-text">七、更改key.c为输入子系统</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

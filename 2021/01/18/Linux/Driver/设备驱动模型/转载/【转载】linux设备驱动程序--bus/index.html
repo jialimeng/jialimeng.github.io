@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;downey-blog&#x2F;p&#x2F;10507703.html】 linux设备驱动程序–buslinux 中bus驱动解析总线(bus)是linux发展过程中抽象出来的一种设备模型，为了统一管理所有的设备，内核中每个设备都会被挂载在总线上，这个bus可以是对应硬件的bus(i2c bus、spi bus)、可以是虚拟bus(plat">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】linux设备驱动程序--bus">
+<meta property="og:url" content="http://yoursite.com/2021/01/18/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F--bus/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;downey-blog&#x2F;p&#x2F;10507703.html】 linux设备驱动程序–buslinux 中bus驱动解析总线(bus)是linux发展过程中抽象出来的一种设备模型，为了统一管理所有的设备，内核中每个设备都会被挂载在总线上，这个bus可以是对应硬件的bus(i2c bus、spi bus)、可以是虚拟bus(plat">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://raw.githubusercontent.com/linux-downey/bloc_test/master/article/linux_driver/i2c_bus_driver/linux_bus_graph.png">
+<meta property="article:published_time" content="2021-01-18T09:14:09.000Z">
+<meta property="article:modified_time" content="2021-01-18T09:17:05.727Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="bus">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/linux-downey/bloc_test/master/article/linux_driver/i2c_bus_driver/linux_bus_graph.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/18/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F--bus/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】linux设备驱动程序--bus | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/18/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91linux%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F--bus/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】linux设备驱动程序--bus
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-18 17:14:09 / Modified: 17:17:05" itemprop="dateCreated datePublished" datetime="2021-01-18T17:14:09+08:00">2021-01-18</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/" itemprop="url" rel="index"><span itemprop="name">设备驱动模型</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<p>本文转自：【<a href="https://www.cnblogs.com/downey-blog/p/10507703.html】" target="_blank" rel="noopener">https://www.cnblogs.com/downey-blog/p/10507703.html】</a></p>
+<h1 id="linux设备驱动程序–bus"><a href="#linux设备驱动程序–bus" class="headerlink" title="linux设备驱动程序–bus"></a><a href="https://www.cnblogs.com/downey-blog/p/10507703.html" target="_blank" rel="noopener">linux设备驱动程序–bus</a></h1><h2 id="linux-中bus驱动解析"><a href="#linux-中bus驱动解析" class="headerlink" title="linux 中bus驱动解析"></a>linux 中bus驱动解析</h2><p>总线(bus)是linux发展过程中抽象出来的一种设备模型，为了统一管理所有的设备，内核中每个设备都会被挂载在总线上，这个bus可以是对应硬件的bus(i2c bus、spi bus)、可以是虚拟bus(platform bus)。</p>
+<h2 id="简述bus的工作流程"><a href="#简述bus的工作流程" class="headerlink" title="简述bus的工作流程"></a>简述bus的工作流程</h2><p>bus将所有挂在上面的具体设备抽象成两部分，driver和device。</p>
+<p>driver实现了同类型设备的驱动程序实现，而device则向系统注册具体的设备需要的资源，每当添加一个新的driver(device)到bus中时，都将调用bus的match函数，试图寻找匹配的device(driver)。</p>
+<p>总线大概是这样的：</p>
+<p><img src="https://raw.githubusercontent.com/linux-downey/bloc_test/master/article/linux_driver/i2c_bus_driver/linux_bus_graph.png" alt="img"></p>
+<p>如果匹配成功，就调用probe函数，在probe函数中实现设备的初始化、各种配置以及生成用户空间的文件接口。</p>
+<p>举个例子，针对AT24CXX(一种常用的存储设备)这种同系列产品，他们的操作方式都是非常相似的，不同的无非是容量大小。</p>
+<p>那么我们就没有必要为AT24C01、AT24C02去分别写一份驱动程序，而是统一为其写一份兼容所有AT24CXX的驱动程序，然后再传入不同的参数以对应具体的型号。</p>
+<p>在linux驱动管理模型中的体现就是：驱动程序对应driver、需要的具体型号的硬件资源对应device，将其挂在bus上。</p>
+<p>将driver注册到bus上，当用户需要使用AT24C01时，以AT24C01的参数构建一个对应device，注册到bus中，bus的match函数匹配上之后，调用probe函数，即可完成AT24C01的初始化，完成在用户空间的文件接口注册。</p>
+<p>以此类推，添加所有的AT24CXX设备都可以以这样的形式实现，只需要构建一份device，而不用为每个设备重写一份驱动，提高了复用性，节省了内存空间。</p>
+<h2 id="linux-bus结构体"><a href="#linux-bus结构体" class="headerlink" title="linux bus结构体"></a>linux bus结构体</h2><p>linux将设备挂在总线上，对应设备的注册和匹配流程由总线进行管理，在linux内核中，每一个bus，都由struct bus_type来描述：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">struct bus_type &#123;</span><br><span class="line">    const char		*name;</span><br><span class="line">    const char		*dev_name;</span><br><span class="line">    struct device		*dev_root;</span><br><span class="line">    ...</span><br><span class="line">    int (*match)(struct device *dev, struct device_driver *drv);</span><br><span class="line">    int (*uevent)(struct device *dev, struct kobj_uevent_env *env);</span><br><span class="line">    int (*probe)(struct device *dev);</span><br><span class="line">    int (*remove)(struct device *dev);</span><br><span class="line">    void (*shutdown)(struct device *dev);</span><br><span class="line">    struct subsys_private *p;</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+
+<p>};<br>为了突出重点，省去了一些暂时不需要深入了解的成员，我们来看看其中最主要的几个成员：</p>
+<blockquote>
+<p>name : 该bus的名字，这个名字是这个bus在sysfs文件系统中的体现，对应/sys/bus/$name.<br>dev_name : 这个dev_name并不对应bus的名称，而是对应bus所包含的struct device的名字，即对应dev_root。<br>dev_root：bus对应的device结构，每个设备都需要对应一个相应的struct device.<br>match:bus的device链表和driver链表进行匹配的实际执行回调函数，每当有device或者driver添加到bus中时，调用match函数，为device(driver)寻找匹配的driver(device)。<br>uevent:bus时间回调函数，当属于这个bus的设备发生添加、删除、修改等行为时，都将出发uvent事件。<br>probe:当device和driver经由match匹配成功时，将会调用总线的probe函数实现具体driver的初始化。事实上每个driver也会提供相应的probe函数，先调用总线的probe函数，在总线probe函数中调用driver的probe函数。<br>remove:移除挂载在设备上的driver，bus上的driver部分也会提供remove函数，在执行移除时，先调用driver的remove，然后再调用bus的remove以清除资源。<br>struct subsys_private *p：见下文</p>
+</blockquote>
+<h2 id="struct-subsys-private-p"><a href="#struct-subsys-private-p" class="headerlink" title="struct subsys_private *p"></a>struct subsys_private *p</h2><p>struct subsys_private *p主要实现了对bus中数据的管理：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">struct subsys_private &#123;</span><br><span class="line">    struct kset subsys;</span><br><span class="line">    struct kset *devices_kset;</span><br><span class="line"></span><br><span class="line">    struct kset *drivers_kset;</span><br><span class="line">    struct klist klist_devices;</span><br><span class="line">    struct klist klist_drivers;</span><br><span class="line">    ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>其中struct kset subsys、struct kset *devices_kset、struct kset *drivers_kset都是在sysfs文件系统中创建对应的目录。</p>
+<p>struct klist klist_devices、struct klist klist_drivers是两个主要的数据部分，klist_devices是存储所有注册到bus的device的链表，而klist_drivers是存储所有注册到bus的driver的链表。</p>
+<h2 id="bus的注册"><a href="#bus的注册" class="headerlink" title="bus的注册"></a>bus的注册</h2><p>了解了bus的结构，那么，bus是怎么注册的呢？</p>
+<p>spi bus的注册过程在KERNEL/drivers/spi/spi.c中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">static int __init spi_init(void)</span><br><span class="line">&#123; </span><br><span class="line">    ...</span><br><span class="line">    status &#x3D; bus_register(&amp;spi_bus_type);</span><br><span class="line">    ...</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">postcore_initcall(spi_init);</span><br></pre></td></tr></table></figure>
+
+<p>i2c bus的注册过程在KERNEL/drivers/i2c/i2c-core-base.c中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static int __init i2c_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    bus_register(&amp;i2c_bus_type);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line">postcore_initcall(i2c_init);</span><br></pre></td></tr></table></figure>
+
+<p>而platform bus的注册过程在KERNEL/drivers/base/platform.c中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">int __init platform_bus_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    bus_register(&amp;platform_bus_type);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>i2c和spi为物理总线，这两种总线通过postcore_initcall()将各自的init函数注册到系统中，postcore_initcall的详解可以参考另一篇博客：<a href="https://www.cnblogs.com/downey-blog/p/10486653.html" target="_blank" rel="noopener">linux init机制</a>。</p>
+<p>而platform作为虚拟总线，platform_bus_init被系统初始化时直接调用，调用流程为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">start_kernel  </span><br><span class="line">-&gt; rest_init();</span><br><span class="line">    -&gt; kernel_thread(kernel_init, NULL, CLONE_FS);</span><br><span class="line">        -&gt; kernel_init()</span><br><span class="line">            -&gt; kernel_init_freeable();</span><br><span class="line">                -&gt; do_basic_setup();</span><br><span class="line">                    -&gt; driver_init();  </span><br><span class="line">                        -&gt;platform_bus_init();</span><br></pre></td></tr></table></figure>
+
+<p>spi_bus_type、i2c_bus_type、platform_bus_type分别为对应的struct bus_type描述结构体。</p>
+<p>对应的spi_bus_type、i2c_bus_type、platform_bus_type实现我将分别在spi、i2c、platform具体框架解析中介绍。</p>
+<h2 id="bus-register"><a href="#bus-register" class="headerlink" title="bus_register()"></a>bus_register()</h2><p>可以看到，这三种总线都是由bus_register()接口注册的，那么这个接口到底做了什么呢？</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">int bus_register(struct bus_type *bus)</span><br><span class="line">&#123;</span><br><span class="line">    int retval;</span><br><span class="line">    struct subsys_private *priv;</span><br><span class="line">    struct lock_class_key *key &#x3D; &amp;bus-&gt;lock_key;</span><br><span class="line"></span><br><span class="line">    priv &#x3D; kzalloc(sizeof(struct subsys_private), GFP_KERNEL);</span><br><span class="line">    if (!priv)</span><br><span class="line">        return -ENOMEM;</span><br><span class="line"></span><br><span class="line">    priv-&gt;bus &#x3D; bus;</span><br><span class="line">    bus-&gt;p &#x3D; priv;</span><br><span class="line"></span><br><span class="line">    BLOCKING_INIT_NOTIFIER_HEAD(&amp;priv-&gt;bus_notifier);</span><br><span class="line"></span><br><span class="line">    retval &#x3D; kobject_set_name(&amp;priv-&gt;subsys.kobj, &quot;%s&quot;, bus-&gt;name);</span><br><span class="line">    if (retval)</span><br><span class="line">        goto out;</span><br><span class="line"></span><br><span class="line">    priv-&gt;subsys.kobj.kset &#x3D; bus_kset;</span><br><span class="line">    priv-&gt;subsys.kobj.ktype &#x3D; &amp;bus_ktype;</span><br><span class="line">    priv-&gt;drivers_autoprobe &#x3D; 1;</span><br><span class="line"></span><br><span class="line">    retval &#x3D; kset_register(&amp;priv-&gt;subsys);</span><br><span class="line">    if (retval)</span><br><span class="line">        goto out;</span><br><span class="line"></span><br><span class="line">    retval &#x3D; bus_create_file(bus, &amp;bus_attr_uevent);</span><br><span class="line">    if (retval)</span><br><span class="line">        goto bus_uevent_fail;</span><br><span class="line"></span><br><span class="line">    priv-&gt;devices_kset &#x3D; kset_create_and_add(&quot;devices&quot;, NULL,</span><br><span class="line">                        &amp;priv-&gt;subsys.kobj);</span><br><span class="line">    if (!priv-&gt;devices_kset) &#123;</span><br><span class="line">        retval &#x3D; -ENOMEM;</span><br><span class="line">        goto bus_devices_fail;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    priv-&gt;drivers_kset &#x3D; kset_create_and_add(&quot;drivers&quot;, NULL,</span><br><span class="line">                        &amp;priv-&gt;subsys.kobj);</span><br><span class="line">    if (!priv-&gt;drivers_kset) &#123;</span><br><span class="line">        retval &#x3D; -ENOMEM;</span><br><span class="line">        goto bus_drivers_fail;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    INIT_LIST_HEAD(&amp;priv-&gt;interfaces);</span><br><span class="line">    __mutex_init(&amp;priv-&gt;mutex, &quot;subsys mutex&quot;, key);</span><br><span class="line">    klist_init(&amp;priv-&gt;klist_devices, klist_devices_get, klist_devices_put);</span><br><span class="line">    klist_init(&amp;priv-&gt;klist_drivers, NULL, NULL);</span><br><span class="line"></span><br><span class="line">    retval &#x3D; add_probe_files(bus);</span><br><span class="line">    if (retval)</span><br><span class="line">        goto bus_probe_files_fail;</span><br><span class="line"></span><br><span class="line">    retval &#x3D; bus_add_groups(bus, bus-&gt;bus_groups);</span><br><span class="line">    if (retval)</span><br><span class="line">        goto bus_groups_fail;</span><br><span class="line"></span><br><span class="line">    pr_debug(&quot;bus: &#39;%s&#39;: registered\n&quot;, bus-&gt;name);</span><br><span class="line">    return 0;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在上面贴出的代码中，可以看出，bus_register()其实也没做什么特别的事，主要是两个：</p>
+<ul>
+<li>在sysfs系统中注册各种用户文件接口，将bus的信息和操作接口导出到用户接口。</li>
+<li>初始化device和driver链表。</li>
+</ul>
+<h2 id="向总线中添加driver-device"><a href="#向总线中添加driver-device" class="headerlink" title="向总线中添加driver/device"></a>向总线中添加driver/device</h2><p>既然bus_register只是初始化了相应的资源，在/sys下导出接口文件，那整个bus是如何工作的呢？</p>
+<p>以i2c为例，我们来看看这整个过程：</p>
+<p>首先使用i2c_new_device接口来添加一个device：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">struct i2c_client *i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)</span><br><span class="line">&#123;</span><br><span class="line">    struct i2c_client	*client;</span><br><span class="line">    client &#x3D; kzalloc(sizeof *client, GFP_KERNEL);</span><br><span class="line">    client-&gt;adapter &#x3D; adap;</span><br><span class="line"></span><br><span class="line">    client-&gt;dev.platform_data &#x3D; info-&gt;platform_data;</span><br><span class="line">    if (info-&gt;archdata)</span><br><span class="line">        client-&gt;dev.archdata &#x3D; *info-&gt;archdata;</span><br><span class="line">    client-&gt;flags &#x3D; info-&gt;flags;</span><br><span class="line">    client-&gt;addr &#x3D; info-&gt;addr;</span><br><span class="line"></span><br><span class="line">    client-&gt;irq &#x3D; info-&gt;irq;</span><br><span class="line">    client-&gt;dev.parent &#x3D; &amp;client-&gt;adapter-&gt;dev;</span><br><span class="line">    client-&gt;dev.bus &#x3D; &amp;i2c_bus_type;</span><br><span class="line">    client-&gt;dev.type &#x3D; &amp;i2c_client_type;</span><br><span class="line">    client-&gt;dev.of_node &#x3D; info-&gt;of_node;</span><br><span class="line">    client-&gt;dev.fwnode &#x3D; info-&gt;fwnode;</span><br><span class="line">    ...</span><br><span class="line">    device_register(&amp;client-&gt;dev);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>申请一个i2c_client并对其赋值，然后以这个为参数调用device_register(&amp;client-&gt;dev)，将dangqiandevice添加到bus中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">int device_register(struct device *dev)</span><br><span class="line">&#123;</span><br><span class="line">    device_initialize(dev);</span><br><span class="line">    return device_add(dev);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">int device_add(struct device *dev)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">     bus_add_device(dev);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line">int bus_add_device(struct device *dev)&#123;</span><br><span class="line">    ...</span><br><span class="line">    klist_add_tail(&amp;dev-&gt;p-&gt;knode_bus, &amp;bus-&gt;p-&gt;klist_devices);</span><br><span class="line">    ...</span><br><span class="line">    bus_probe_device(dev);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在device_register中，调用了device_add,紧接着调用bus_add_device，根据函数名称可以看出是将这个device添加到对应的bus中。</p>
+<p>果然，根据bus_add_device()的源代码，可以看到，将当前device链接到其对应bus的devices链表，然后在下面调用bus_probe_device();这个函数的作用就是轮询对应bus的drivers链接，查看新添加的device是否存在匹配的driver。</p>
+<p>对应的，i2c_driver_register()将i2c driver部分添加到bus中，再轮询检查bus的devices链表是否有对应的device能匹配上,有兴趣的可以从i2c_driver_register()开始研究源代码。</p>
+<h2 id="device和driver的匹配"><a href="#device和driver的匹配" class="headerlink" title="device和driver的匹配"></a>device和driver的匹配</h2><p>上文中提到当bus中有新的device和driver添加时，会调用bus的match函数进行匹配，那么到底是怎么匹配的呢？</p>
+<p>简单来说，在静态定义的device中，一般会有.name属性，与driver的.id_table属性相匹配。</p>
+<p>device部分还有可能从设备树转换而来，就有设备树中相应的.compatible属性和driver的of_match_table.compatible属性相匹配。</p>
+<p>事实上对于匹配这一部分，可以直接参考每个bus的match函数实现。</p>
+<p>这一章节只是对linux中的总线做一个概念性的说明，在之后的博客中会详细介绍到相应bus的框架，同时也会详解对应的match()函数实现。</p>
+<p>敬请期待！</p>
+<p>好了，关于linux的bus讨论就到此为止啦，如果朋友们对于这个有什么疑问或者发现有文章中有什么错误，欢迎留言</p>
+<p><strong><em>原创博客，转载请注明出处！</em></strong></p>
+<p>祝各位早日实现项目丛中过，bug不沾身.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/bus/" rel="tag"># bus</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/15/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E6%80%BB%E7%BA%BF%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/" rel="prev" title="总线设备驱动模型">
+      <i class="fa fa-chevron-left"></i> 总线设备驱动模型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/18/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E9%A9%B1%E5%8A%A8%E8%AE%BE%E5%A4%87%E6%A8%A1%E5%9E%8B%E5%AE%9E%E8%AE%AD/" rel="next" title="【转载】Linux驱动模型(bus/driver/device)实训">
+      【转载】Linux驱动模型(bus/driver/device)实训 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#linux设备驱动程序–bus"><span class="nav-number">1.</span> <span class="nav-text">linux设备驱动程序–bus</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#linux-中bus驱动解析"><span class="nav-number">1.1.</span> <span class="nav-text">linux 中bus驱动解析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#简述bus的工作流程"><span class="nav-number">1.2.</span> <span class="nav-text">简述bus的工作流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#linux-bus结构体"><span class="nav-number">1.3.</span> <span class="nav-text">linux bus结构体</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#struct-subsys-private-p"><span class="nav-number">1.4.</span> <span class="nav-text">struct subsys_private *p</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bus的注册"><span class="nav-number">1.5.</span> <span class="nav-text">bus的注册</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bus-register"><span class="nav-number">1.6.</span> <span class="nav-text">bus_register()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#向总线中添加driver-device"><span class="nav-number">1.7.</span> <span class="nav-text">向总线中添加driver&#x2F;device</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#device和driver的匹配"><span class="nav-number">1.8.</span> <span class="nav-text">device和driver的匹配</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

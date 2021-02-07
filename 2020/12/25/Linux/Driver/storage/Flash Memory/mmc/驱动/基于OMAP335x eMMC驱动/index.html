@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 驱动程序分析软件层次划分MMC framework的软件架构，如下图  ​                                                                                                                                图 mmc 软件架构 eMMC使用MMC驱动模块，mmc驱">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于OMAP335x eMMC驱动">
+<meta property="og:url" content="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E5%9F%BA%E4%BA%8EOMAP335x%20eMMC%E9%A9%B1%E5%8A%A8/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 驱动程序分析软件层次划分MMC framework的软件架构，如下图  ​                                                                                                                                图 mmc 软件架构 eMMC使用MMC驱动模块，mmc驱">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20201225_020.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201225_019.png">
+<meta property="article:published_time" content="2020-12-25T09:17:04.000Z">
+<meta property="article:modified_time" content="2020-12-25T13:01:09.630Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="emmc">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20201225_020.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E5%9F%BA%E4%BA%8EOMAP335x%20eMMC%E9%A9%B1%E5%8A%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>基于OMAP335x eMMC驱动 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E5%9F%BA%E4%BA%8EOMAP335x%20eMMC%E9%A9%B1%E5%8A%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于OMAP335x eMMC驱动
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-12-25 17:17:04 / Modified: 21:01:09" itemprop="dateCreated datePublished" datetime="2020-12-25T17:17:04+08:00">2020-12-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/" itemprop="url" rel="index"><span itemprop="name">storage</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/" itemprop="url" rel="index"><span itemprop="name">Flash Memory</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/mmc/" itemprop="url" rel="index"><span itemprop="name">mmc</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="驱动程序分析"><a href="#驱动程序分析" class="headerlink" title="驱动程序分析"></a>驱动程序分析</h2><h3 id="软件层次划分"><a href="#软件层次划分" class="headerlink" title="软件层次划分"></a>软件层次划分</h3><p>MMC framework的软件架构，如下图</p>
+<p><img src="http://jiali.clouddn.com/20201225_020.png" alt=""></p>
+<p>​                                                                                                                                图 mmc 软件架构</p>
+<p>eMMC使用MMC驱动模块，mmc驱动位于driver/mmc目录下，该文件夹包含card、core和host目录，每个目录跟mmc相关的文件如下：</p>
+<blockquote>
+<p>Card/</p>
+<pre><code>block.c
+
+queue.c/queue.h</code></pre><p>core/</p>
+<pre><code>bus.c/bus.h
+
+core.c/core.h
+
+host.c/host.h
+
+mmc.c
+
+mmc_ops.c/mmc_ops.h</code></pre><p>host/</p>
+<pre><code>omap_hsmmc.c 表示 omap335x 的 MMC/SD 卡控制器，代表emmc控制器的硬件操作</code></pre></blockquote>
+<p>三个目录对应mmc驱动三个层次：</p>
+<p>（1）       块设备层（card）</p>
+<p>主要是按照 LINUX 块设备驱动程序的框架实现一个卡的块设备驱动，这 block.c 当中我们可以看到写一个块设备驱动程序时需要的 block_device_operations 结构体变量的定义，其中有 open/release/request 函数的实现，而 queue.c 则是对内核提供的请求队列的封装。</p>
+<p>（2）       核心层(core)</p>
+<p>核心层封装了 MMC/SD 卡的命令，例如存储卡的识别，设置，读写。例如不管什么卡都应该有一些识别，设置，和读写的命令，这些流程都是必须要有的，只是具体对于不同的卡会有一些各自特有的操作。 Core.c 文件是由 sd.c 、 mmc.c 两个文件支撑的， core.c 把 MMC 卡、 SD 卡的共性抽象出来，它们的差别由 sd.c 和 sd_ops.c 、 mmc.c 和 mmc_ops.c 来完成。</p>
+<p>（3）       硬件控制层(host)</p>
+<p>主机控制器则是依赖于不同的平台的，例如 omap335x 的卡控制器和 atmel 的卡控制器必定是不一样的，所以要针对不同的控制器来实现。以 omap_hsmmc.c 为例，它首先要进行一些设置，例如中断函数注册，全能控制器等等。然后它会向 core 层注册一个主机（ host ），用结构 mmc_host_ops 描述，这样核心层就可以拿着这个 host 来操作omap335x 的卡控制器了，而具体是 omap335x 的卡控制器还是 atmel 的卡控制器， core 层是不用知道的。 </p>
+<h3 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h3><h4 id="关于mmc的几个重要数据结构"><a href="#关于mmc的几个重要数据结构" class="headerlink" title="关于mmc的几个重要数据结构"></a>关于mmc的几个重要数据结构</h4><blockquote>
+<p>struct mmc_host 用来描述卡控制器</p>
+<p>struct mmc_card 用来描述卡</p>
+<p>struct mmc_driver 用来描述 mmc 卡驱动</p>
+<p>struct mmc_host_ops 用来描述卡控制器操作集，用于从主机控制器层向 core 层注册操作函数，从而将 core 层与具体的主机控制器隔离。也就是说 core 要操作主机控制器，就用这个 ops 当中给的函数指针操作，不能直接调用具体主控制器的函数。</p>
+</blockquote>
+<h4 id="mmc模式初始化"><a href="#mmc模式初始化" class="headerlink" title="mmc模式初始化"></a>mmc模式初始化</h4><p>在Linux 启动过程中，依次初始化下面的模块：</p>
+<blockquote>
+<p>1、subsys_initcall(mmc_init) //注册了mmc_bus_type总线</p>
+<p>2、module_init(mmc_blk_init) //注册一个mmc块设备，并向mmc_bus_type总线添加mmc驱动</p>
+<p>3、module_init(omap_hsmmc_init) //注册一个MMC/SD卡控制器为platform总线设备，mmc的一系列初始化，从这个入口开始。</p>
+</blockquote>
+<h4 id="注册mmc总线"><a href="#注册mmc总线" class="headerlink" title="注册mmc总线"></a>注册mmc总线</h4><p>drivers/mmc/core/core.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">static int __init mmc_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	int ret;</span><br><span class="line"></span><br><span class="line">	workqueue &#x3D; alloc_ordered_workqueue(&quot;kmmcd&quot;, 0);</span><br><span class="line">	if (!workqueue)</span><br><span class="line">		return -ENOMEM;</span><br><span class="line"></span><br><span class="line">	ret &#x3D; mmc_register_bus();</span><br><span class="line">	if (ret)</span><br><span class="line">		goto destroy_workqueue;</span><br><span class="line"></span><br><span class="line">	ret &#x3D; mmc_register_host_class();</span><br><span class="line">	if (ret)</span><br><span class="line">		goto unregister_bus;</span><br><span class="line"></span><br><span class="line">	ret &#x3D; sdio_register_bus();</span><br><span class="line">	if (ret)</span><br><span class="line">		goto unregister_host_class;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line">unregister_host_class:</span><br><span class="line">	mmc_unregister_host_class();</span><br><span class="line">unregister_bus:</span><br><span class="line">	mmc_unregister_bus();</span><br><span class="line">destroy_workqueue:</span><br><span class="line">	destroy_workqueue(workqueue);</span><br><span class="line"></span><br><span class="line">	return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit mmc_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	sdio_unregister_bus();</span><br><span class="line">	mmc_unregister_host_class();</span><br><span class="line">	mmc_unregister_bus();</span><br><span class="line">	destroy_workqueue(workqueue);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">subsys_initcall(mmc_init);</span><br><span class="line">module_exit(mmc_exit);</span><br></pre></td></tr></table></figure>
+
+<p>drivers/mmc/core/bus.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">static struct bus_type mmc_bus_type &#x3D; &#123;</span><br><span class="line">	.name		&#x3D; &quot;mmc&quot;,</span><br><span class="line">	.dev_attrs	&#x3D; mmc_dev_attrs,</span><br><span class="line">	.match		&#x3D; mmc_bus_match,</span><br><span class="line">	.uevent		&#x3D; mmc_bus_uevent,</span><br><span class="line">	.probe		&#x3D; mmc_bus_probe,</span><br><span class="line">	.remove		&#x3D; mmc_bus_remove,</span><br><span class="line">	.pm		&#x3D; &amp;mmc_bus_pm_ops,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">int mmc_register_bus(void)</span><br><span class="line">&#123;</span><br><span class="line">	return bus_register(&amp;mmc_bus_type);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="注册-mmc-bus-driver"><a href="#注册-mmc-bus-driver" class="headerlink" title="注册 mmc bus driver"></a>注册 mmc bus driver</h4><p>drivers/mmc/card/block.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">static struct mmc_driver mmc_driver &#x3D; &#123;</span><br><span class="line">	.drv		&#x3D; &#123;</span><br><span class="line">		.name	&#x3D; &quot;mmcblk&quot;,</span><br><span class="line">	&#125;,</span><br><span class="line">	.probe		&#x3D; mmc_blk_probe,</span><br><span class="line">	.remove		&#x3D; mmc_blk_remove,</span><br><span class="line">	.suspend	&#x3D; mmc_blk_suspend,</span><br><span class="line">	.resume		&#x3D; mmc_blk_resume,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init mmc_blk_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	int res;</span><br><span class="line"></span><br><span class="line">	if (perdev_minors !&#x3D; CONFIG_MMC_BLOCK_MINORS)</span><br><span class="line">		pr_info(&quot;mmcblk: using %d minors per device\n&quot;, perdev_minors);</span><br><span class="line"></span><br><span class="line">	max_devices &#x3D; 256 &#x2F; perdev_minors;</span><br><span class="line"></span><br><span class="line">	res &#x3D; register_blkdev(MMC_BLOCK_MAJOR, &quot;mmc&quot;);</span><br><span class="line">	if (res)</span><br><span class="line">		goto out;</span><br><span class="line"></span><br><span class="line">	res &#x3D; mmc_register_driver(&amp;mmc_driver);</span><br><span class="line">	if (res)</span><br><span class="line">		goto out2;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"> out2:</span><br><span class="line">	unregister_blkdev(MMC_BLOCK_MAJOR, &quot;mmc&quot;);</span><br><span class="line"> out:</span><br><span class="line">	return res;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit mmc_blk_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	mmc_unregister_driver(&amp;mmc_driver);</span><br><span class="line">	unregister_blkdev(MMC_BLOCK_MAJOR, &quot;mmc&quot;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_init(mmc_blk_init);</span><br><span class="line">module_exit(mmc_blk_exit);</span><br></pre></td></tr></table></figure>
+
+<h4 id="注册主机MMC-SD卡控制器为platform总线设备"><a href="#注册主机MMC-SD卡控制器为platform总线设备" class="headerlink" title="注册主机MMC/SD卡控制器为platform总线设备"></a>注册主机MMC/SD卡控制器为platform总线设备</h4><p>drivers/mmc/host/omap_hsmmc.c</p>
+<p>入口函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">static struct platform_driver omap_hsmmc_driver &#x3D; &#123;</span><br><span class="line">	.remove		&#x3D; omap_hsmmc_remove,</span><br><span class="line">	.driver		&#x3D; &#123;</span><br><span class="line">		.name &#x3D; DRIVER_NAME,</span><br><span class="line">		.owner &#x3D; THIS_MODULE,</span><br><span class="line">		.pm &#x3D; &amp;omap_hsmmc_dev_pm_ops,</span><br><span class="line">	&#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init omap_hsmmc_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	&#x2F;* Register the MMC driver *&#x2F;</span><br><span class="line">	return platform_driver_probe(&amp;omap_hsmmc_driver, omap_hsmmc_probe);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit omap_hsmmc_cleanup(void)</span><br><span class="line">&#123;</span><br><span class="line">	&#x2F;* Unregister MMC driver *&#x2F;</span><br><span class="line">	platform_driver_unregister(&amp;omap_hsmmc_driver);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_init(omap_hsmmc_init);</span><br><span class="line">module_exit(omap_hsmmc_cleanup);</span><br></pre></td></tr></table></figure>
+
+<p>这里注册一个名为DRIVER_NANE(omap_hsmmc)的platform_driver,因此，在系统启动时一定会有调用 platform_device­_register 对板上的资源进行注册。这里注册成功就会调用omap_hsmmc_probe()函数来初始化mmc设备，最后把mmc设备加入mmc bus ,完成mmc 块设备的创建。</p>
+<p><strong>第一阶段：初始化mmc控制器，并检测卡</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br></pre></td><td class="code"><pre><span class="line">static int __init omap_hsmmc_probe(struct platform_device *pdev)</span><br><span class="line">&#123;</span><br><span class="line">	struct omap_mmc_platform_data *pdata &#x3D; pdev-&gt;dev.platform_data;</span><br><span class="line">	struct mmc_host *mmc;</span><br><span class="line">	struct omap_hsmmc_host *host &#x3D; NULL;</span><br><span class="line">	struct resource *res, *dma_tx, *dma_rx;</span><br><span class="line">	int ret, irq;</span><br><span class="line"></span><br><span class="line">	if (pdata &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">		dev_err(&amp;pdev-&gt;dev, &quot;Platform Data is missing\n&quot;);</span><br><span class="line">		return -ENXIO;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (pdata-&gt;nr_slots &#x3D;&#x3D; 0) &#123;</span><br><span class="line">		dev_err(&amp;pdev-&gt;dev, &quot;No Slots\n&quot;);</span><br><span class="line">		return -ENXIO;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	res &#x3D; platform_get_resource(pdev, IORESOURCE_MEM, 0);</span><br><span class="line">	irq &#x3D; platform_get_irq(pdev, 0);</span><br><span class="line">	if (res &#x3D;&#x3D; NULL || irq &lt; 0)</span><br><span class="line">		return -ENXIO;</span><br><span class="line"></span><br><span class="line">	res-&gt;start +&#x3D; pdata-&gt;reg_offset;</span><br><span class="line">	res-&gt;end +&#x3D; pdata-&gt;reg_offset;</span><br><span class="line">	res &#x3D; request_mem_region(res-&gt;start, resource_size(res), pdev-&gt;name);</span><br><span class="line">	if (res &#x3D;&#x3D; NULL)</span><br><span class="line">		return -EBUSY;</span><br><span class="line"></span><br><span class="line">	ret &#x3D; omap_hsmmc_gpio_init(pdata);</span><br><span class="line">	if (ret)</span><br><span class="line">		goto err;</span><br><span class="line"></span><br><span class="line">	mmc &#x3D; mmc_alloc_host(sizeof(struct omap_hsmmc_host), &amp;pdev-&gt;dev);&#x2F;&#x2F;分配mmc_host</span><br><span class="line">	if (!mmc) &#123;</span><br><span class="line">		ret &#x3D; -ENOMEM;</span><br><span class="line">		goto err_alloc;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	host		&#x3D; mmc_priv(mmc);</span><br><span class="line">	host-&gt;mmc	&#x3D; mmc;</span><br><span class="line">	host-&gt;pdata	&#x3D; pdata;</span><br><span class="line">	host-&gt;dev	&#x3D; &amp;pdev-&gt;dev;</span><br><span class="line">	host-&gt;use_dma	&#x3D; 1;</span><br><span class="line">	host-&gt;dev-&gt;dma_mask &#x3D; &amp;pdata-&gt;dma_mask;</span><br><span class="line">	host-&gt;dma_ch	&#x3D; -1;</span><br><span class="line">	host-&gt;irq	&#x3D; irq;</span><br><span class="line">	host-&gt;id	&#x3D; pdev-&gt;id;</span><br><span class="line">	host-&gt;slot_id	&#x3D; 0;</span><br><span class="line">	host-&gt;mapbase	&#x3D; res-&gt;start;</span><br><span class="line">	host-&gt;base	&#x3D; ioremap(host-&gt;mapbase, SZ_4K);</span><br><span class="line">	host-&gt;power_mode &#x3D; MMC_POWER_OFF;</span><br><span class="line">	host-&gt;next_data.cookie &#x3D; 1;</span><br><span class="line"></span><br><span class="line">	platform_set_drvdata(pdev, host);</span><br><span class="line">	INIT_WORK(&amp;host-&gt;mmc_carddetect_work, omap_hsmmc_detect);</span><br><span class="line">    &#x2F;&#x2F;初始化mmc_host配置</span><br><span class="line">	mmc-&gt;ops	&#x3D; &amp;omap_hsmmc_ops;&#x2F;&#x2F;跟主机的硬件操作相关</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * If regulator_disable can only put vcc_aux to sleep then there is</span><br><span class="line">	 * no off state.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	if (mmc_slot(host).vcc_aux_disable_is_sleep)</span><br><span class="line">		mmc_slot(host).no_off &#x3D; 1;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;f_min	&#x3D; OMAP_MMC_MIN_CLOCK;</span><br><span class="line"></span><br><span class="line">	if(mmc-&gt;index &#x3D;&#x3D; 0)</span><br><span class="line">		mmc-&gt;f_max	&#x3D; OMAP_MMC_MAX_CLOCK_SD;</span><br><span class="line">	if(mmc-&gt;index &#x3D;&#x3D; 1)</span><br><span class="line">		mmc-&gt;f_max	&#x3D; OMAP_MMC_MAX_CLOCK_EMMC;</span><br><span class="line"></span><br><span class="line">	spin_lock_init(&amp;host-&gt;irq_lock);</span><br><span class="line"></span><br><span class="line">	host-&gt;fclk &#x3D; clk_get(&amp;pdev-&gt;dev, &quot;fck&quot;);</span><br><span class="line">	if (IS_ERR(host-&gt;fclk)) &#123;</span><br><span class="line">		ret &#x3D; PTR_ERR(host-&gt;fclk);</span><br><span class="line">		host-&gt;fclk &#x3D; NULL;</span><br><span class="line">		goto err1;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	omap_hsmmc_context_save(host);</span><br><span class="line"></span><br><span class="line">	mmc-&gt;caps |&#x3D; MMC_CAP_DISABLE;</span><br><span class="line">	if (host-&gt;pdata-&gt;controller_flags &amp; OMAP_HSMMC_BROKEN_MULTIBLOCK_READ) &#123;</span><br><span class="line">		dev_info(&amp;pdev-&gt;dev, &quot;multiblock reads disabled due to 35xx erratum 2.1.1.128; MMC read performance may suffer\n&quot;);</span><br><span class="line">		mmc-&gt;caps2 |&#x3D; MMC_CAP2_NO_MULTI_READ;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	pm_runtime_enable(host-&gt;dev);</span><br><span class="line">	pm_runtime_get_sync(host-&gt;dev);</span><br><span class="line">	pm_runtime_set_autosuspend_delay(host-&gt;dev, MMC_AUTOSUSPEND_DELAY);</span><br><span class="line">	pm_runtime_use_autosuspend(host-&gt;dev);</span><br><span class="line"></span><br><span class="line">	if (cpu_is_omap2430()) &#123;</span><br><span class="line">		host-&gt;dbclk &#x3D; clk_get(&amp;pdev-&gt;dev, &quot;mmchsdb_fck&quot;);</span><br><span class="line">		&#x2F;*</span><br><span class="line">		 * MMC can still work without debounce clock.</span><br><span class="line">		 *&#x2F;</span><br><span class="line">		if (IS_ERR(host-&gt;dbclk))</span><br><span class="line">			dev_warn(mmc_dev(host-&gt;mmc),</span><br><span class="line">				&quot;Failed to get debounce clock\n&quot;);</span><br><span class="line">		else</span><br><span class="line">			host-&gt;got_dbclk &#x3D; 1;</span><br><span class="line"></span><br><span class="line">		if (host-&gt;got_dbclk)</span><br><span class="line">			if (clk_enable(host-&gt;dbclk) !&#x3D; 0)</span><br><span class="line">				dev_dbg(mmc_dev(host-&gt;mmc), &quot;Enabling debounce&quot;</span><br><span class="line">							&quot; clk failed\n&quot;);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Since we do only SG emulation, we can have as many segs</span><br><span class="line">	 * as we want. *&#x2F;</span><br><span class="line">	if (pdata-&gt;version &#x3D;&#x3D; MMC_CTRL_VERSION_2)</span><br><span class="line">		mmc-&gt;max_segs &#x3D; 1;</span><br><span class="line">	else</span><br><span class="line">		mmc-&gt;max_segs &#x3D; 1024;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;max_blk_size &#x3D; 512;       &#x2F;* Block Length at max can be 1024 *&#x2F;</span><br><span class="line">	mmc-&gt;max_blk_count &#x3D; 0xFFFF;    &#x2F;* No. of Blocks is 16 bits *&#x2F;</span><br><span class="line">	mmc-&gt;max_req_size &#x3D; mmc-&gt;max_blk_size * mmc-&gt;max_blk_count;</span><br><span class="line">	mmc-&gt;max_seg_size &#x3D; mmc-&gt;max_req_size;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;caps |&#x3D; MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |</span><br><span class="line">		     MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;caps |&#x3D; mmc_slot(host).caps;</span><br><span class="line">	if (mmc-&gt;caps &amp; MMC_CAP_8_BIT_DATA)</span><br><span class="line">		mmc-&gt;caps |&#x3D; MMC_CAP_4_BIT_DATA;</span><br><span class="line"></span><br><span class="line">	if (mmc_slot(host).nonremovable)</span><br><span class="line">		mmc-&gt;caps |&#x3D; MMC_CAP_NONREMOVABLE;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;pm_caps &#x3D; mmc_slot(host).pm_caps;</span><br><span class="line"></span><br><span class="line">	omap_hsmmc_conf_bus_power(host);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Select DMA lines *&#x2F;</span><br><span class="line">	if (pdata-&gt;version &#x3D;&#x3D; MMC_CTRL_VERSION_2) &#123;</span><br><span class="line">		dma_rx &#x3D; platform_get_resource_byname(pdev,</span><br><span class="line">							IORESOURCE_DMA, &quot;rx&quot;);</span><br><span class="line">		if (!dma_rx) &#123;</span><br><span class="line">			ret &#x3D; -EINVAL;</span><br><span class="line">			goto err1;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		dma_tx &#x3D; platform_get_resource_byname(pdev,</span><br><span class="line">							IORESOURCE_DMA, &quot;tx&quot;);</span><br><span class="line">		if (!dma_tx) &#123;</span><br><span class="line">			ret &#x3D; -EINVAL;</span><br><span class="line">			goto err1;</span><br><span class="line">		&#125;</span><br><span class="line">		host-&gt;dma_line_tx &#x3D; dma_tx-&gt;start;</span><br><span class="line">		host-&gt;dma_line_rx &#x3D; dma_rx-&gt;start;</span><br><span class="line"></span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		switch (host-&gt;id) &#123;</span><br><span class="line">		case OMAP_MMC1_DEVID:</span><br><span class="line">			host-&gt;dma_line_tx &#x3D; OMAP24XX_DMA_MMC1_TX;</span><br><span class="line">			host-&gt;dma_line_rx &#x3D; OMAP24XX_DMA_MMC1_RX;</span><br><span class="line">			break;</span><br><span class="line">		case OMAP_MMC2_DEVID:</span><br><span class="line">			host-&gt;dma_line_tx &#x3D; OMAP24XX_DMA_MMC2_TX;</span><br><span class="line">			host-&gt;dma_line_rx &#x3D; OMAP24XX_DMA_MMC2_RX;</span><br><span class="line">			break;</span><br><span class="line">		case OMAP_MMC3_DEVID:</span><br><span class="line">			host-&gt;dma_line_tx &#x3D; OMAP34XX_DMA_MMC3_TX;</span><br><span class="line">			host-&gt;dma_line_rx &#x3D; OMAP34XX_DMA_MMC3_RX;</span><br><span class="line">			break;</span><br><span class="line">		case OMAP_MMC4_DEVID:</span><br><span class="line">			host-&gt;dma_line_tx &#x3D; OMAP44XX_DMA_MMC4_TX;</span><br><span class="line">			host-&gt;dma_line_rx &#x3D; OMAP44XX_DMA_MMC4_RX;</span><br><span class="line">			break;</span><br><span class="line">		case OMAP_MMC5_DEVID:</span><br><span class="line">			host-&gt;dma_line_tx &#x3D; OMAP44XX_DMA_MMC5_TX;</span><br><span class="line">			host-&gt;dma_line_rx &#x3D; OMAP44XX_DMA_MMC5_RX;</span><br><span class="line">			break;</span><br><span class="line">		default:</span><br><span class="line">			dev_err(mmc_dev(host-&gt;mmc), &quot;Invalid MMC id\n&quot;);</span><br><span class="line">			goto err_irq;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Request IRQ for MMC operations *&#x2F;</span><br><span class="line">	ret &#x3D; request_irq(host-&gt;irq, omap_hsmmc_irq, 0,</span><br><span class="line">			mmc_hostname(mmc), host);</span><br><span class="line">	if (ret) &#123;</span><br><span class="line">		dev_dbg(mmc_dev(host-&gt;mmc), &quot;Unable to grab HSMMC IRQ\n&quot;);</span><br><span class="line">		goto err_irq;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (pdata-&gt;init !&#x3D; NULL) &#123;</span><br><span class="line">		if (pdata-&gt;init(&amp;pdev-&gt;dev) !&#x3D; 0) &#123;</span><br><span class="line">			dev_dbg(mmc_dev(host-&gt;mmc),</span><br><span class="line">				&quot;Unable to configure MMC IRQs\n&quot;);</span><br><span class="line">			goto err_irq_cd_init;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (omap_hsmmc_have_reg() &amp;&amp; !mmc_slot(host).set_power) &#123;</span><br><span class="line">		ret &#x3D; omap_hsmmc_reg_get(host);</span><br><span class="line">		if (ret)</span><br><span class="line">			goto err_reg;</span><br><span class="line">		host-&gt;use_reg &#x3D; 1;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	mmc-&gt;ocr_avail &#x3D; mmc_slot(host).ocr_mask;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Request IRQ for card detect *&#x2F;</span><br><span class="line">	if ((mmc_slot(host).card_detect_irq)) &#123;</span><br><span class="line">		ret &#x3D; request_irq(mmc_slot(host).card_detect_irq,</span><br><span class="line">				  omap_hsmmc_cd_handler,</span><br><span class="line">				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,</span><br><span class="line">				  mmc_hostname(mmc), host);</span><br><span class="line">		if (ret) &#123;</span><br><span class="line">			dev_dbg(mmc_dev(host-&gt;mmc),</span><br><span class="line">				&quot;Unable to grab MMC CD IRQ\n&quot;);</span><br><span class="line">			goto err_irq_cd;</span><br><span class="line">		&#125;</span><br><span class="line">		pdata-&gt;suspend &#x3D; omap_hsmmc_suspend_cdirq;</span><br><span class="line">		pdata-&gt;resume &#x3D; omap_hsmmc_resume_cdirq;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	omap_hsmmc_disable_irq(host);</span><br><span class="line"></span><br><span class="line">	omap_hsmmc_protect_card(host);</span><br><span class="line"></span><br><span class="line">	mmc_add_host(mmc);&#x2F;&#x2F;添加mmc_host</span><br><span class="line"></span><br><span class="line">	if (mmc_slot(host).name !&#x3D; NULL) &#123;</span><br><span class="line">		ret &#x3D; device_create_file(&amp;mmc-&gt;class_dev, &amp;dev_attr_slot_name);</span><br><span class="line">		if (ret &lt; 0)</span><br><span class="line">			goto err_slot_name;</span><br><span class="line">	&#125;</span><br><span class="line">	if (mmc_slot(host).card_detect_irq &amp;&amp; mmc_slot(host).get_cover_state) &#123;</span><br><span class="line">		ret &#x3D; device_create_file(&amp;mmc-&gt;class_dev,</span><br><span class="line">					&amp;dev_attr_cover_switch);</span><br><span class="line">		if (ret &lt; 0)</span><br><span class="line">			goto err_slot_name;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	omap_hsmmc_debugfs(mmc);</span><br><span class="line">	pm_runtime_mark_last_busy(host-&gt;dev);</span><br><span class="line">	pm_runtime_put_autosuspend(host-&gt;dev);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line">err_slot_name:</span><br><span class="line">	mmc_remove_host(mmc);</span><br><span class="line">	free_irq(mmc_slot(host).card_detect_irq, host);</span><br><span class="line">err_irq_cd:</span><br><span class="line">	if (host-&gt;use_reg)</span><br><span class="line">		omap_hsmmc_reg_put(host);</span><br><span class="line">err_reg:</span><br><span class="line">	if (host-&gt;pdata-&gt;cleanup)</span><br><span class="line">		host-&gt;pdata-&gt;cleanup(&amp;pdev-&gt;dev);</span><br><span class="line">err_irq_cd_init:</span><br><span class="line">	free_irq(host-&gt;irq, host);</span><br><span class="line">err_irq:</span><br><span class="line">	pm_runtime_mark_last_busy(host-&gt;dev);</span><br><span class="line">	pm_runtime_put_autosuspend(host-&gt;dev);</span><br><span class="line">	clk_put(host-&gt;fclk);</span><br><span class="line">	if (host-&gt;got_dbclk) &#123;</span><br><span class="line">		clk_disable(host-&gt;dbclk);</span><br><span class="line">		clk_put(host-&gt;dbclk);</span><br><span class="line">	&#125;</span><br><span class="line">err1:</span><br><span class="line">	iounmap(host-&gt;base);</span><br><span class="line">	platform_set_drvdata(pdev, NULL);</span><br><span class="line">	mmc_free_host(mmc);</span><br><span class="line">err_alloc:</span><br><span class="line">	omap_hsmmc_gpio_free(pdata);</span><br><span class="line">err:</span><br><span class="line">	release_mem_region(res-&gt;start, resource_size(res));</span><br><span class="line">	return ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>probe()函数所做的有以下几点：</strong></p>
+<ol>
+<li><p>分配、设置并添加mmc_host</p>
+</li>
+<li><p>检测卡是否插入了卡控制器</p>
+</li>
+</ol>
+</blockquote>
+<p>看 mmc_alloc_host 函数:</p>
+<p>来自drivers/mmc/core/host.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> *	mmc_alloc_host - initialise the per-host structure.</span><br><span class="line"> *	@extra: sizeof private data structure</span><br><span class="line"> *	@dev: pointer to host device model structure</span><br><span class="line"> *</span><br><span class="line"> *	Initialise the per-host structure.</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct mmc_host *mmc_alloc_host(int extra, struct device *dev)</span><br><span class="line">&#123;</span><br><span class="line">	int err;</span><br><span class="line">	struct mmc_host *host;</span><br><span class="line"></span><br><span class="line">	if (!idr_pre_get(&amp;mmc_host_idr, GFP_KERNEL))</span><br><span class="line">		return NULL;</span><br><span class="line"></span><br><span class="line">	host &#x3D; kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);</span><br><span class="line">	if (!host)</span><br><span class="line">		return NULL;</span><br><span class="line"></span><br><span class="line">	spin_lock(&amp;mmc_host_lock);</span><br><span class="line">	err &#x3D; idr_get_new(&amp;mmc_host_idr, host, &amp;host-&gt;index);</span><br><span class="line">	spin_unlock(&amp;mmc_host_lock);</span><br><span class="line">	if (err)</span><br><span class="line">		goto free;</span><br><span class="line"></span><br><span class="line">	dev_set_name(&amp;host-&gt;class_dev, &quot;mmc%d&quot;, host-&gt;index);</span><br><span class="line"></span><br><span class="line">	host-&gt;parent &#x3D; dev;</span><br><span class="line">	host-&gt;class_dev.parent &#x3D; dev;</span><br><span class="line">	host-&gt;class_dev.class &#x3D; &amp;mmc_host_class;</span><br><span class="line">	device_initialize(&amp;host-&gt;class_dev);</span><br><span class="line"></span><br><span class="line">	mmc_host_clk_init(host);</span><br><span class="line"></span><br><span class="line">	spin_lock_init(&amp;host-&gt;lock);</span><br><span class="line">	init_waitqueue_head(&amp;host-&gt;wq);</span><br><span class="line">	INIT_DELAYED_WORK(&amp;host-&gt;detect, mmc_rescan);&#x2F;&#x2F;初始化工作队列，向host-&gt;detect注册一个mmc_rescan函数</span><br><span class="line">	INIT_DELAYED_WORK_DEFERRABLE(&amp;host-&gt;disable, mmc_host_deeper_disable);</span><br><span class="line">#ifdef CONFIG_PM</span><br><span class="line">	host-&gt;pm_notify.notifier_call &#x3D; mmc_pm_notify;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * By default, hosts do not support SGIO or large requests.</span><br><span class="line">	 * They have to set these according to their abilities.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	host-&gt;max_segs &#x3D; 1;</span><br><span class="line">	host-&gt;max_seg_size &#x3D; PAGE_CACHE_SIZE;</span><br><span class="line"></span><br><span class="line">	host-&gt;max_req_size &#x3D; PAGE_CACHE_SIZE;</span><br><span class="line">	host-&gt;max_blk_size &#x3D; 512;</span><br><span class="line">	host-&gt;max_blk_count &#x3D; PAGE_CACHE_SIZE &#x2F; 512;</span><br><span class="line"></span><br><span class="line">	return host;</span><br><span class="line"></span><br><span class="line">free:</span><br><span class="line">	kfree(host);</span><br><span class="line">	return NULL;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>mmc_add_host函数做了什么？</p>
+<p>drivers/mmc/core/host.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> *	mmc_add_host - initialise host hardware</span><br><span class="line"> *	@host: mmc host</span><br><span class="line"> *</span><br><span class="line"> *	Register the host with the driver model. The host must be</span><br><span class="line"> *	prepared to start servicing requests before this function</span><br><span class="line"> *	completes.</span><br><span class="line"> *&#x2F;</span><br><span class="line">int mmc_add_host(struct mmc_host *host)</span><br><span class="line">&#123;</span><br><span class="line">	int err;</span><br><span class="line"></span><br><span class="line">	WARN_ON((host-&gt;caps &amp; MMC_CAP_SDIO_IRQ) &amp;&amp;</span><br><span class="line">		!host-&gt;ops-&gt;enable_sdio_irq);</span><br><span class="line"></span><br><span class="line">	err &#x3D; device_add(&amp;host-&gt;class_dev); </span><br><span class="line">	if (err)</span><br><span class="line">		return err;</span><br><span class="line"></span><br><span class="line">	led_trigger_register_simple(dev_name(&amp;host-&gt;class_dev), &amp;host-&gt;led);</span><br><span class="line"></span><br><span class="line">#ifdef CONFIG_DEBUG_FS</span><br><span class="line">	mmc_add_host_debugfs(host);</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">	mmc_start_host(host);</span><br><span class="line">	register_pm_notifier(&amp;host-&gt;pm_notify);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接下来看看mmc_start_host()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">void mmc_start_host(struct mmc_host *host)</span><br><span class="line">&#123;</span><br><span class="line">	mmc_power_off(host); &#x2F;&#x2F;掉电重启</span><br><span class="line">	mmc_detect_change(host, 0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续看mmc_detect_change（）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> *	mmc_detect_change - process change of state on a MMC socket</span><br><span class="line"> *	@host: host which changed state.</span><br><span class="line"> *	@delay: optional delay to wait before detection (jiffies)</span><br><span class="line"> *</span><br><span class="line"> *	MMC drivers should call this when they detect a card has been</span><br><span class="line"> *	inserted or removed. The MMC layer will confirm that any</span><br><span class="line"> *	present card is still functional, and initialize any newly</span><br><span class="line"> *	inserted.</span><br><span class="line"> *&#x2F;</span><br><span class="line">void mmc_detect_change(struct mmc_host *host, unsigned long delay)</span><br><span class="line">&#123;</span><br><span class="line">#ifdef CONFIG_MMC_DEBUG</span><br><span class="line">	unsigned long flags;</span><br><span class="line">	spin_lock_irqsave(&amp;host-&gt;lock, flags);</span><br><span class="line">	WARN_ON(host-&gt;removed);</span><br><span class="line">	spin_unlock_irqrestore(&amp;host-&gt;lock, flags);</span><br><span class="line">#endif</span><br><span class="line">	host-&gt;detect_change &#x3D; 1;</span><br><span class="line">	mmc_schedule_delayed_work(&amp;host-&gt;detect, delay);&#x2F;&#x2F;等待一会，在调度host-&gt;detect，执行mmc_rescan()函数</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>来看 mmc_rescan函数做了什么?</p>
+<p>来自drivers/mmc/core/core.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">void mmc_rescan(struct work_struct *work)</span><br><span class="line">&#123;</span><br><span class="line">	static const unsigned freqs[] &#x3D; &#123; 400000, 300000, 200000, 100000 &#125;;</span><br><span class="line">	struct mmc_host *host &#x3D;</span><br><span class="line">		container_of(work, struct mmc_host, detect.work);</span><br><span class="line">	int i;</span><br><span class="line"></span><br><span class="line">	if (host-&gt;rescan_disable)</span><br><span class="line">		return;</span><br><span class="line"></span><br><span class="line">	mmc_bus_get(host);</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * if there is a _removable_ card registered, check whether it is</span><br><span class="line">	 * still present</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	if (host-&gt;bus_ops &amp;&amp; host-&gt;bus_ops-&gt;detect &amp;&amp; !host-&gt;bus_dead</span><br><span class="line">	    &amp;&amp; !(host-&gt;caps &amp; MMC_CAP_NONREMOVABLE))</span><br><span class="line">		host-&gt;bus_ops-&gt;detect(host);</span><br><span class="line"></span><br><span class="line">	host-&gt;detect_change &#x3D; 0;</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * Let mmc_bus_put() free the bus&#x2F;bus_ops if we&#39;ve found that</span><br><span class="line">	 * the card is no longer present.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	mmc_bus_put(host);</span><br><span class="line">	mmc_bus_get(host);</span><br><span class="line"></span><br><span class="line">	&#x2F;* if there still is a card present, stop here *&#x2F;</span><br><span class="line">	if (host-&gt;bus_ops !&#x3D; NULL) &#123;</span><br><span class="line">		mmc_bus_put(host);</span><br><span class="line">		goto out;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * Only we can add a new handler, so it&#39;s safe to</span><br><span class="line">	 * release the lock here.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	mmc_bus_put(host);</span><br><span class="line"></span><br><span class="line">	if (host-&gt;ops-&gt;get_cd &amp;&amp; host-&gt;ops-&gt;get_cd(host) &#x3D;&#x3D; 0)</span><br><span class="line">		goto out;</span><br><span class="line"></span><br><span class="line">	mmc_claim_host(host);</span><br><span class="line">	for (i &#x3D; 0; i &lt; ARRAY_SIZE(freqs); i++) &#123;</span><br><span class="line">		if (!mmc_rescan_try_freq(host, max(freqs[i], host-&gt;f_min)))</span><br><span class="line">			break;</span><br><span class="line">		if (freqs[i] &lt;&#x3D; host-&gt;f_min)</span><br><span class="line">			break;</span><br><span class="line">	&#125;</span><br><span class="line">	mmc_release_host(host);</span><br><span class="line"></span><br><span class="line"> out:</span><br><span class="line">	if (host-&gt;caps &amp; MMC_CAP_NEEDS_POLL)</span><br><span class="line">		mmc_schedule_delayed_work(&amp;host-&gt;detect, HZ);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>它是在检测是不是有卡插入了卡控制器，如果有卡挺入就要采取相应的行动了。这里要明白一点，我们平时用的 SD/MMC 卡就是一个卡，如果要操作它得用 SD/MMC 卡控制器才行，所以可以看到有 struct mmc_card,struct mmc_host 的区分。</p>
+<p>如果在probe()函数执行时，卡并没有插入呢？也就是除了probe()函数，一定会有其他函数最终调用了mmc_rescan()函数。现在我们需要重新看一遍omap_hsmmc_probe()函数，它注册了一个中断函数omap_hsmmc_cd_handler。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * ISR for handling card insertion and removal</span><br><span class="line"> *&#x2F;</span><br><span class="line">static irqreturn_t omap_hsmmc_cd_handler(int irq, void *dev_id)</span><br><span class="line">&#123;</span><br><span class="line">	struct omap_hsmmc_host *host &#x3D; (struct omap_hsmmc_host *)dev_id;</span><br><span class="line"></span><br><span class="line">	if (host-&gt;suspended)</span><br><span class="line">		return IRQ_HANDLED;</span><br><span class="line">	schedule_work(&amp;host-&gt;mmc_carddetect_work); &#x2F;&#x2F;调度队列，最后执行mmc_rescan()</span><br><span class="line"></span><br><span class="line">	return IRQ_HANDLED;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在omap_hsmmc_probe函数，注册host-&gt;mmc_carddetect_work队列</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">INIT_WORK(&amp;host-&gt;mmc_carddetect_work, omap_hsmmc_detect);</span><br></pre></td></tr></table></figure>
+
+<p>来看看omap_hsmmc_detect()函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Work Item to notify the core about card insertion&#x2F;removal</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void omap_hsmmc_detect(struct work_struct *work)</span><br><span class="line">&#123;</span><br><span class="line">	struct omap_hsmmc_host *host &#x3D;</span><br><span class="line">		container_of(work, struct omap_hsmmc_host, mmc_carddetect_work);</span><br><span class="line">	struct omap_mmc_slot_data *slot &#x3D; &amp;mmc_slot(host);</span><br><span class="line">	int carddetect;</span><br><span class="line"></span><br><span class="line">	if (host-&gt;suspended)</span><br><span class="line">		return;</span><br><span class="line"></span><br><span class="line">	sysfs_notify(&amp;host-&gt;mmc-&gt;class_dev.kobj, NULL, &quot;cover_switch&quot;);</span><br><span class="line"></span><br><span class="line">	if (slot-&gt;card_detect)</span><br><span class="line">		carddetect &#x3D; slot-&gt;card_detect(host-&gt;dev, host-&gt;slot_id);</span><br><span class="line">	else &#123;</span><br><span class="line">		omap_hsmmc_protect_card(host);</span><br><span class="line">		carddetect &#x3D; -ENOSYS;</span><br><span class="line">	&#125;</span><br><span class="line">    &#x2F;*检测到卡，执行mmc_detect_change()*&#x2F;</span><br><span class="line">	if (carddetect)</span><br><span class="line">		mmc_detect_change(host-&gt;mmc, (HZ * 200) &#x2F; 1000);</span><br><span class="line">	else</span><br><span class="line">		mmc_detect_change(host-&gt;mmc, (HZ * 50) &#x2F; 1000);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第一阶段分析完毕，当检测到卡，执行mmc_rescan（）函数，进入第二阶段。</p>
+<p><strong>第二阶段，初始化卡，注册mmc块设备</strong></p>
+<p>mmc_rescan()函数，调用关系如下：</p>
+<blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">mmc_rescan(struct work_struct *work)</span><br><span class="line">  -&gt; mmc_rescan_try_freq(host, max(freqs[i], host-&gt;f_min))</span><br><span class="line">    -&gt; mmc_attach_sdio(host)    &#x2F;* 检测卡的类型 *&#x2F;</span><br><span class="line">    -&gt; mmc_attach_sd(host)</span><br><span class="line">    -&gt; mmc_attach_mmc(host)</span><br><span class="line">      -&gt; mmc_send_op_cond(host, 0, &amp;ocr);         &#x2F;* 发送卡的ID *&#x2F;</span><br><span class="line">      -&gt; mmc_init_card(host, host-&gt;ocr, NULL);    &#x2F;* 初始化mmc_card *&#x2F;</span><br><span class="line">        -&gt; card &#x3D; mmc_alloc_card(host, &amp;mmc_type);</span><br><span class="line">          -&gt; device_initialize(&amp;card-&gt;dev);</span><br><span class="line">          -&gt; card-&gt;dev.bus &#x3D; &amp;mmc_bus_type;   &#x2F;* 设置总线为mmc_bus_type *&#x2F;</span><br><span class="line">        -&gt; card-&gt;type &#x3D; MMC_TYPE_MMC;         &#x2F;* 设置card结构体 *&#x2F;</span><br><span class="line">      -&gt; mmc_release_host(host);</span><br><span class="line">      -&gt; mmc_add_card(host-&gt;card);            &#x2F;* 添加卡mmc_card *&#x2F;</span><br><span class="line">        -&gt; device_add(&amp;card-&gt;dev);            &#x2F;*把卡设备加入mmc bus *&#x2F;</span><br><span class="line">      -&gt; mmc_claim_host(host);                &#x2F;* 使能host *&#x2F;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>在mmc_add_card函数中调用device_add()函数时，mmc_bus_type总线会调用match()函数匹配设备驱动，如果匹配成功会调用总线的probe()函数或设备驱动的probe()函数完成块设备创建。</p>
+<p>这个mmc_driver底层做的与块设备驱动相同：</p>
+<ol>
+<li><p>分配、初始化请求队列，绑定请求队列和请求函数</p>
+</li>
+<li><p>分配、设置并添加gendisk</p>
+</li>
+<li><p>注册块设备驱动</p>
+</li>
+</ol>
+<h2 id="mmc驱动总结"><a href="#mmc驱动总结" class="headerlink" title="mmc驱动总结"></a>mmc驱动总结</h2><ol>
+<li>各个结构体作用：</li>
+</ol>
+<p>struct mmc_card用于描述卡，struct mmc_driver用于描述卡驱动，sutrct mmc_host用于描述卡控制器，struct mmc_host_ops用于描述卡控制器操作函数。</p>
+<ol start="2">
+<li><p>整体框架：</p>
+<p><img src="http://jiali.clouddn.com/20201225_019.png" alt=""></p>
+</li>
+</ol>
+<p>参考：</p>
+<p><a href="https://www.cnblogs.com/Lioker/p/11258958.html" target="_blank" rel="noopener">eMMC驱动框架分析</a></p>
+<p><a href="https://blog.csdn.net/luopingfeng/article/details/42844611" target="_blank" rel="noopener">EMMC 驱动</a></p>
+<p><a href="https://blog.csdn.net/kickxxx/article/details/51130888" target="_blank" rel="noopener">Linux EMMC子系统分析-初始化流程</a></p>
+<p><a href="https://www.daimajiaoliu.com/daima/4794cd5a29003fc" target="_blank" rel="noopener">eMMC驱动分析</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/emmc/" rel="tag"># emmc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E4%B8%89%E6%98%9FeMMC%E8%8A%AF%E7%89%87KLM4G1FEPD-B031%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E/" rel="prev" title="三星eMMC芯片KLM4G1FEPD-B031使用说明">
+      <i class="fa fa-chevron-left"></i> 三星eMMC芯片KLM4G1FEPD-B031使用说明
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91EMMC%20%E9%A9%B1%E5%8A%A8/" rel="next" title="【转载】EMMC 驱动">
+      【转载】EMMC 驱动 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#驱动程序分析"><span class="nav-number">1.</span> <span class="nav-text">驱动程序分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#软件层次划分"><span class="nav-number">1.1.</span> <span class="nav-text">软件层次划分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码分析"><span class="nav-number">1.2.</span> <span class="nav-text">代码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#关于mmc的几个重要数据结构"><span class="nav-number">1.2.1.</span> <span class="nav-text">关于mmc的几个重要数据结构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#mmc模式初始化"><span class="nav-number">1.2.2.</span> <span class="nav-text">mmc模式初始化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#注册mmc总线"><span class="nav-number">1.2.3.</span> <span class="nav-text">注册mmc总线</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#注册-mmc-bus-driver"><span class="nav-number">1.2.4.</span> <span class="nav-text">注册 mmc bus driver</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#注册主机MMC-SD卡控制器为platform总线设备"><span class="nav-number">1.2.5.</span> <span class="nav-text">注册主机MMC&#x2F;SD卡控制器为platform总线设备</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mmc驱动总结"><span class="nav-number">2.</span> <span class="nav-text">mmc驱动总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

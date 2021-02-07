@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 前言本文总结使用input core 编写mxt2952t2触摸屏芯片驱动。先提几个问题如下： 1、mxt2952驱动，如何上报坐标轴的数据给event handlers？ 2、输入设备产生的数据，用什么来描述？ 内核配置配置Linux内核支持input子系统，event handlers和设备驱动。 1、配置input 支持的event handlers  配置支持event han">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Atmel的mXT2952T2触摸屏驱动开发">
+<meta property="og:url" content="http://yoursite.com/2021/01/05/Linux/Driver/Input/Atmel%E7%9A%84mXT2952T2%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 前言本文总结使用input core 编写mxt2952t2触摸屏芯片驱动。先提几个问题如下： 1、mxt2952驱动，如何上报坐标轴的数据给event handlers？ 2、输入设备产生的数据，用什么来描述？ 内核配置配置Linux内核支持input子系统，event handlers和设备驱动。 1、配置input 支持的event handlers  配置支持event han">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20210105_002.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20210105_003.png">
+<meta property="article:published_time" content="2021-01-05T05:55:44.000Z">
+<meta property="article:modified_time" content="2021-01-06T07:05:04.091Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="Input">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20210105_002.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/05/Linux/Driver/Input/Atmel%E7%9A%84mXT2952T2%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Atmel的mXT2952T2触摸屏驱动开发 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/05/Linux/Driver/Input/Atmel%E7%9A%84mXT2952T2%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Atmel的mXT2952T2触摸屏驱动开发
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-01-05 13:55:44" itemprop="dateCreated datePublished" datetime="2021-01-05T13:55:44+08:00">2021-01-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-01-06 15:05:04" itemprop="dateModified" datetime="2021-01-06T15:05:04+08:00">2021-01-06</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/Input%E5%AD%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">Input子系统</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文总结使用input core 编写mxt2952t2触摸屏芯片驱动。先提几个问题如下：</p>
+<p>1、mxt2952驱动，如何上报坐标轴的数据给event handlers？</p>
+<p>2、输入设备产生的数据，用什么来描述？</p>
+<h2 id="内核配置"><a href="#内核配置" class="headerlink" title="内核配置"></a>内核配置</h2><p>配置Linux内核支持input子系统，event handlers和设备驱动。</p>
+<p>1、配置input 支持的event handlers </p>
+<p>配置支持event handlers 如下图所示</p>
+<p><img src="http://jiali.clouddn.com/20210105_002.png" alt=""></p>
+<p>​                                                                                                                  图 input支持的event handlers</p>
+<p>2、配置触摸屏驱动</p>
+<p>配置支持 Atmel mxt 驱动如下图所示</p>
+<p><img src="http://jiali.clouddn.com/20210105_003.png" alt=""></p>
+<p>​                                                                                                                         图配置Atmel mxt驱动</p>
+<h2 id="数据结构分析"><a href="#数据结构分析" class="headerlink" title="数据结构分析"></a>数据结构分析</h2><p>描述一个设备对象的结构体定义在include/linux/input.h</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * struct input_dev - represents an input device</span><br><span class="line"> * @name: name of the device</span><br><span class="line"> * @phys: physical path to the device in the system hierarchy</span><br><span class="line"> * @uniq: unique identification code for the device (if device has it)</span><br><span class="line"> * @id: id of the device (struct input_id)</span><br><span class="line"> * @propbit: bitmap of device properties and quirks</span><br><span class="line"> * @evbit: bitmap of types of events supported by the device (EV_KEY,</span><br><span class="line"> *	EV_REL, etc.)</span><br><span class="line"> * @keybit: bitmap of keys&#x2F;buttons this device has</span><br><span class="line"> * @relbit: bitmap of relative axes for the device</span><br><span class="line"> * @absbit: bitmap of absolute axes for the device</span><br><span class="line"> * @mscbit: bitmap of miscellaneous events supported by the device</span><br><span class="line"> * @ledbit: bitmap of leds present on the device</span><br><span class="line"> * @sndbit: bitmap of sound effects supported by the device</span><br><span class="line"> * @ffbit: bitmap of force feedback effects supported by the device</span><br><span class="line"> * @swbit: bitmap of switches present on the device</span><br><span class="line"> * @hint_events_per_packet: average number of events generated by the</span><br><span class="line"> *	device in a packet (between EV_SYN&#x2F;SYN_REPORT events). Used by</span><br><span class="line"> *	event handlers to estimate size of the buffer needed to hold</span><br><span class="line"> *	events.</span><br><span class="line"> * @keycodemax: size of keycode table</span><br><span class="line"> * @keycodesize: size of elements in keycode table</span><br><span class="line"> * @keycode: map of scancodes to keycodes for this device</span><br><span class="line"> * @getkeycode: optional legacy method to retrieve current keymap.</span><br><span class="line"> * @setkeycode: optional method to alter current keymap, used to implement</span><br><span class="line"> *	sparse keymaps. If not supplied default mechanism will be used.</span><br><span class="line"> *	The method is being called while holding event_lock and thus must</span><br><span class="line"> *	not sleep</span><br><span class="line"> * @ff: force feedback structure associated with the device if device</span><br><span class="line"> *	supports force feedback effects</span><br><span class="line"> * @repeat_key: stores key code of the last key pressed; used to implement</span><br><span class="line"> *	software autorepeat</span><br><span class="line"> * @timer: timer for software autorepeat</span><br><span class="line"> * @rep: current values for autorepeat parameters (delay, rate)</span><br><span class="line"> * @mt: pointer to array of struct input_mt_slot holding current values</span><br><span class="line"> *	of tracked contacts</span><br><span class="line"> * @mtsize: number of MT slots the device uses</span><br><span class="line"> * @slot: MT slot currently being transmitted</span><br><span class="line"> * @trkid: stores MT tracking ID for the current contact</span><br><span class="line"> * @absinfo: array of &amp;struct input_absinfo elements holding information</span><br><span class="line"> *	about absolute axes (current value, min, max, flat, fuzz,</span><br><span class="line"> *	resolution)</span><br><span class="line"> * @key: reflects current state of device&#39;s keys&#x2F;buttons</span><br><span class="line"> * @led: reflects current state of device&#39;s LEDs</span><br><span class="line"> * @snd: reflects current state of sound effects</span><br><span class="line"> * @sw: reflects current state of device&#39;s switches</span><br><span class="line"> * @open: this method is called when the very first user calls</span><br><span class="line"> *	input_open_device(). The driver must prepare the device</span><br><span class="line"> *	to start generating events (start polling thread,</span><br><span class="line"> *	request an IRQ, submit URB, etc.)</span><br><span class="line"> * @close: this method is called when the very last user calls</span><br><span class="line"> *	input_close_device().</span><br><span class="line"> * @flush: purges the device. Most commonly used to get rid of force</span><br><span class="line"> *	feedback effects loaded into the device when disconnecting</span><br><span class="line"> *	from it</span><br><span class="line"> * @event: event handler for events sent _to_ the device, like EV_LED</span><br><span class="line"> *	or EV_SND. The device is expected to carry out the requested</span><br><span class="line"> *	action (turn on a LED, play sound, etc.) The call is protected</span><br><span class="line"> *	by @event_lock and must not sleep</span><br><span class="line"> * @grab: input handle that currently has the device grabbed (via</span><br><span class="line"> *	EVIOCGRAB ioctl). When a handle grabs a device it becomes sole</span><br><span class="line"> *	recipient for all input events coming from the device</span><br><span class="line"> * @event_lock: this spinlock is is taken when input core receives</span><br><span class="line"> *	and processes a new event for the device (in input_event()).</span><br><span class="line"> *	Code that accesses and&#x2F;or modifies parameters of a device</span><br><span class="line"> *	(such as keymap or absmin, absmax, absfuzz, etc.) after device</span><br><span class="line"> *	has been registered with input core must take this lock.</span><br><span class="line"> * @mutex: serializes calls to open(), close() and flush() methods</span><br><span class="line"> * @users: stores number of users (input handlers) that opened this</span><br><span class="line"> *	device. It is used by input_open_device() and input_close_device()</span><br><span class="line"> *	to make sure that dev-&gt;open() is only called when the first</span><br><span class="line"> *	user opens device and dev-&gt;close() is called when the very</span><br><span class="line"> *	last user closes the device</span><br><span class="line"> * @going_away: marks devices that are in a middle of unregistering and</span><br><span class="line"> *	causes input_open_device*() fail with -ENODEV.</span><br><span class="line"> * @sync: set to %true when there were no new events since last EV_SYN</span><br><span class="line"> * @dev: driver model&#39;s view of this device</span><br><span class="line"> * @h_list: list of input handles associated with the device. When</span><br><span class="line"> *	accessing the list dev-&gt;mutex must be held</span><br><span class="line"> * @node: used to place the device onto input_dev_list</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct input_dev &#123;</span><br><span class="line">	const char *name;</span><br><span class="line">	const char *phys;</span><br><span class="line">	const char *uniq;</span><br><span class="line">	struct input_id id;</span><br><span class="line"></span><br><span class="line">	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];</span><br><span class="line">       &#x2F;&#x2F;EV_SYN      同步事件，当使用input_event()函数后,就要使用这个上报个同步事件</span><br><span class="line">       &#x2F;&#x2F;EV_KEY       键盘事件</span><br><span class="line">       &#x2F;&#x2F;EV_REL       (relative)相对坐标事件，比如鼠标</span><br><span class="line">       &#x2F;&#x2F;EV_ABS       (absolute)绝对坐标事件，比如摇杆、触摸屏感应</span><br><span class="line">       &#x2F;&#x2F;EV_MSC      其他事件,功能</span><br><span class="line">       &#x2F;&#x2F;EV_LED       LED灯事件</span><br><span class="line">       &#x2F;&#x2F;EV_SND      (sound)声音事件</span><br><span class="line"></span><br><span class="line">       &#x2F;&#x2F;EV_REP       重复键盘按键事件</span><br><span class="line">       &#x2F;&#x2F;(内部会定义一个定时器,若有键盘按键事件一直按下&#x2F;松开,就重复定时,时间一到就上报事件)   </span><br><span class="line"></span><br><span class="line">       &#x2F;&#x2F;EV_FF         受力事件</span><br><span class="line">       &#x2F;&#x2F;EV_PWR      电源事件</span><br><span class="line">       &#x2F;&#x2F;EV_FF_STATUS  受力状态事件</span><br><span class="line">	unsigned long evbit[BITS_TO_LONGS(EV_CNT)];   &#x2F;&#x2F;输入事件类型</span><br><span class="line">	unsigned long keybit[BITS_TO_LONGS(KEY_CNT)]; &#x2F;&#x2F;定义按键类型中的code,比如L、H键</span><br><span class="line">	unsigned long relbit[BITS_TO_LONGS(REL_CNT)]; &#x2F;&#x2F;存放支持的相对坐标值</span><br><span class="line">	unsigned long absbit[BITS_TO_LONGS(ABS_CNT)]; &#x2F;&#x2F;存放支持的绝对坐标值</span><br><span class="line">	unsigned long mscbit[BITS_TO_LONGS(MSC_CNT)]; &#x2F;&#x2F;存放支持的其它事件,也就是功能</span><br><span class="line">	unsigned long ledbit[BITS_TO_LONGS(LED_CNT)]; &#x2F;&#x2F;存放支持的各种状态LED</span><br><span class="line">	unsigned long sndbit[BITS_TO_LONGS(SND_CNT)]; &#x2F;&#x2F;存放支持的各种声音</span><br><span class="line">	unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];   &#x2F;&#x2F;存放支持的受力设备</span><br><span class="line">	unsigned long swbit[BITS_TO_LONGS(SW_CNT)];  &#x2F;&#x2F;存放支持的开关功能</span><br><span class="line"></span><br><span class="line">	unsigned int hint_events_per_packet;</span><br><span class="line"></span><br><span class="line">	unsigned int keycodemax;</span><br><span class="line">	unsigned int keycodesize;</span><br><span class="line">	void *keycode;</span><br><span class="line"></span><br><span class="line">	int (*setkeycode)(struct input_dev *dev,</span><br><span class="line">			  const struct input_keymap_entry *ke,</span><br><span class="line">			  unsigned int *old_keycode);</span><br><span class="line">	int (*getkeycode)(struct input_dev *dev,</span><br><span class="line">			  struct input_keymap_entry *ke);</span><br><span class="line"></span><br><span class="line">	struct ff_device *ff;</span><br><span class="line"></span><br><span class="line">	unsigned int repeat_key;</span><br><span class="line">	struct timer_list timer;</span><br><span class="line"></span><br><span class="line">	int rep[REP_CNT];</span><br><span class="line"></span><br><span class="line">	struct input_mt_slot *mt;</span><br><span class="line">	int mtsize;</span><br><span class="line">	int slot;</span><br><span class="line">	int trkid;</span><br><span class="line"></span><br><span class="line">	struct input_absinfo *absinfo;</span><br><span class="line"></span><br><span class="line">	unsigned long key[BITS_TO_LONGS(KEY_CNT)]; &#x2F;&#x2F;映射设备当前按键的状态</span><br><span class="line">	unsigned long led[BITS_TO_LONGS(LED_CNT)];</span><br><span class="line">	unsigned long snd[BITS_TO_LONGS(SND_CNT)];</span><br><span class="line">	unsigned long sw[BITS_TO_LONGS(SW_CNT)];</span><br><span class="line"></span><br><span class="line">	int (*open)(struct input_dev *dev);</span><br><span class="line">	void (*close)(struct input_dev *dev);</span><br><span class="line">	int (*flush)(struct input_dev *dev, struct file *file);</span><br><span class="line">	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);</span><br><span class="line"></span><br><span class="line">	struct input_handle __rcu *grab;</span><br><span class="line"></span><br><span class="line">	spinlock_t event_lock;</span><br><span class="line">	struct mutex mutex;</span><br><span class="line"></span><br><span class="line">	unsigned int users;</span><br><span class="line">	bool going_away;</span><br><span class="line"></span><br><span class="line">	bool sync;</span><br><span class="line"></span><br><span class="line">	struct device dev;</span><br><span class="line"></span><br><span class="line">	struct list_head	h_list;</span><br><span class="line">	struct list_head	node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置流程"><a href="#配置流程" class="headerlink" title="配置流程"></a>配置流程</h2><blockquote>
+<p>1、给struct input_dev对象分配一块内存</p>
+<p>​      struct input_dev *input_allocate_device(void)</p>
+<p>2、填充struct input_dev对象</p>
+<p>比如，设置事件类型、事件类型的code</p>
+<pre><code>set_bit(EV_ABS, input_dev-&gt;evbit);
+input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
+/* For single touch */
+input_set_abs_params(input_dev, ABS_X, 0, data-&gt;max_x, 0, 0);
+input_set_abs_params(input_dev, ABS_Y, 0, data-&gt;max_y, 0, 0);
+input_set_abs_params(input_dev, ABS_PRESSURE, 0, 1, 0, 0);</code></pre><p>3、注册input_dev设备</p>
+<p>int input_register_device(struct input_dev *dev)</p>
+<p>4、配置中断，定义中断处理函数</p>
+<p>5、上报事件并同步</p>
+<p>void input_report_abs(struct input_dev *dev, unsigned int code, int value)</p>
+<p>void input_sync(struct input_dev *dev)</p>
+</blockquote>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><p>mXT2952T2驱动位于drivers/input/touchscreen/atmel_mxt_ts.c</p>
+<p>1、注册i2c 总线驱动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);</span><br><span class="line"></span><br><span class="line">static const struct of_device_id mxt_of_match[] &#x3D; &#123;</span><br><span class="line">	&#123; .compatible &#x3D; &quot;atmel,maxtouch&quot;, &#125;,</span><br><span class="line">	&#123;&#125;,</span><br><span class="line">&#125;;</span><br><span class="line">MODULE_DEVICE_TABLE(of, mxt_of_match);</span><br><span class="line"></span><br><span class="line">#ifdef CONFIG_ACPI</span><br><span class="line">static const struct acpi_device_id mxt_acpi_id[] &#x3D; &#123;</span><br><span class="line">	&#123; &quot;ATML0000&quot;, 0 &#125;,	&#x2F;* Touchpad *&#x2F;</span><br><span class="line">	&#123; &quot;ATML0001&quot;, 0 &#125;,	&#x2F;* Touchscreen *&#x2F;</span><br><span class="line">	&#123; &#125;</span><br><span class="line">&#125;;</span><br><span class="line">MODULE_DEVICE_TABLE(acpi, mxt_acpi_id);</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">static const struct i2c_device_id mxt_id[] &#x3D; &#123;</span><br><span class="line">	&#123; &quot;qt602240_ts&quot;, 0 &#125;,</span><br><span class="line">	&#123; &quot;atmel_mxt_ts&quot;, 0 &#125;,</span><br><span class="line">	&#123; &quot;atmel_mxt_tp&quot;, 0 &#125;,</span><br><span class="line">	&#123; &quot;maxtouch&quot;, 0 &#125;,</span><br><span class="line">	&#123; &quot;mXT224&quot;, 0 &#125;,</span><br><span class="line">	&#123; &#125;</span><br><span class="line">&#125;;</span><br><span class="line">MODULE_DEVICE_TABLE(i2c, mxt_id);</span><br><span class="line"></span><br><span class="line">static struct i2c_driver mxt_driver &#x3D; &#123;</span><br><span class="line">	.driver &#x3D; &#123;</span><br><span class="line">		.name	&#x3D; &quot;atmel_mxt_ts&quot;,</span><br><span class="line">		.owner	&#x3D; THIS_MODULE,</span><br><span class="line">&#x2F;&#x2F;		.of_match_table &#x3D; of_match_ptr(mxt_of_match),</span><br><span class="line">&#x2F;&#x2F;		.acpi_match_table &#x3D; ACPI_PTR(mxt_acpi_id),</span><br><span class="line">		.pm	&#x3D; &amp;mxt_pm_ops,</span><br><span class="line">	&#125;,</span><br><span class="line">	.probe		&#x3D; mxt_probe,</span><br><span class="line">	.remove		&#x3D; mxt_remove,</span><br><span class="line">	.id_table	&#x3D; mxt_id,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init mxt_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	return i2c_add_driver(&amp;mxt_driver);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit mxt_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	i2c_del_driver(&amp;mxt_driver);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_init(mxt_init);</span><br><span class="line">module_exit(mxt_exit);</span><br><span class="line">&#x2F;* Module information *&#x2F;</span><br><span class="line">MODULE_AUTHOR(&quot;Joonyoung Shim &lt;jy0922.shim@samsung.com&gt;&quot;);</span><br><span class="line">MODULE_DESCRIPTION(&quot;Atmel maXTouch Touchscreen driver&quot;);</span><br><span class="line">MODULE_LICENSE(&quot;GPL&quot;);</span><br></pre></td></tr></table></figure>
+
+<p>2、编写probe函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)</span><br><span class="line">&#123;</span><br><span class="line">	struct mxt_data *data;</span><br><span class="line">	const struct mxt_platform_data *pdata;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	pdata &#x3D; mxt_get_platform_data(client);</span><br><span class="line">	if (IS_ERR(pdata))</span><br><span class="line">		return PTR_ERR(pdata);</span><br><span class="line"></span><br><span class="line">	data &#x3D; kzalloc(sizeof(struct mxt_data), GFP_KERNEL);</span><br><span class="line">	if (!data)</span><br><span class="line">		return -ENOMEM;</span><br><span class="line"></span><br><span class="line">	snprintf(data-&gt;phys, sizeof(data-&gt;phys), &quot;i2c-%u-%04x&#x2F;input0&quot;,</span><br><span class="line">		 client-&gt;adapter-&gt;nr, client-&gt;addr);</span><br><span class="line"></span><br><span class="line">	data-&gt;client &#x3D; client;</span><br><span class="line"></span><br><span class="line">	data-&gt;pdata &#x3D; pdata;</span><br><span class="line">	i2c_set_clientdata(client, data);</span><br><span class="line"></span><br><span class="line">	if (data-&gt;pdata-&gt;cfg_name)</span><br><span class="line">		mxt_update_file_name(&amp;data-&gt;client-&gt;dev,</span><br><span class="line">				     &amp;data-&gt;cfg_name,</span><br><span class="line">				     data-&gt;pdata-&gt;cfg_name,</span><br><span class="line">				     strlen(data-&gt;pdata-&gt;cfg_name));</span><br><span class="line"></span><br><span class="line">	init_completion(&amp;data-&gt;chg_completion);</span><br><span class="line">	init_completion(&amp;data-&gt;reset_completion);</span><br><span class="line">	init_completion(&amp;data-&gt;crc_completion);</span><br><span class="line">	mutex_init(&amp;data-&gt;debug_msg_lock);</span><br><span class="line"></span><br><span class="line">	if (pdata-&gt;suspend_mode &#x3D;&#x3D; MXT_SUSPEND_REGULATOR) &#123;</span><br><span class="line">		error &#x3D; mxt_acquire_irq(data);</span><br><span class="line">		if (error)</span><br><span class="line">			goto err_free_mem;</span><br><span class="line"></span><br><span class="line">		error &#x3D; mxt_probe_regulators(data);</span><br><span class="line">		if (error)</span><br><span class="line">			goto err_free_irq;</span><br><span class="line"></span><br><span class="line">		disable_irq(data-&gt;irq);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	error &#x3D; sysfs_create_group(&amp;client-&gt;dev.kobj, &amp;mxt_fw_attr_group);</span><br><span class="line">	if (error) &#123;</span><br><span class="line">		dev_err(&amp;client-&gt;dev, &quot;Failure %d creating fw sysfs group\n&quot;,</span><br><span class="line">			error);</span><br><span class="line">		return error;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	error &#x3D; mxt_initialize(data);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_irq;</span><br><span class="line"></span><br><span class="line">	setup_timer(&amp;data-&gt;timer, mxt_heartbeat_timer, (unsigned long)data);</span><br><span class="line">	data-&gt;timer.expires &#x3D; jiffies + msecs_to_jiffies(3 * 1000);</span><br><span class="line">	add_timer(&amp;data-&gt;timer);</span><br><span class="line"></span><br><span class="line">	INIT_WORK(&amp;data-&gt;reset_task, mxt_heartbeat_reset_task);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line">err_free_irq:</span><br><span class="line">	if (data-&gt;irq)</span><br><span class="line">		free_irq(data-&gt;irq, data);</span><br><span class="line">err_free_mem:</span><br><span class="line">	kfree(data);</span><br><span class="line">	return error;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>mxt_initialize函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">static int mxt_initialize(struct mxt_data *data)</span><br><span class="line">&#123;</span><br><span class="line">	struct i2c_client *client &#x3D; data-&gt;client;</span><br><span class="line">	int recovery_attempts &#x3D; 0;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	while (1) &#123;</span><br><span class="line">		error &#x3D; mxt_read_info_block(data);</span><br><span class="line">		if (!error)</span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		&#x2F;* Check bootloader state *&#x2F;</span><br><span class="line">		error &#x3D; mxt_probe_bootloader(data, false);</span><br><span class="line">		if (error) &#123;</span><br><span class="line">			dev_info(&amp;client-&gt;dev, &quot;Trying alternate bootloader address\n&quot;);</span><br><span class="line">			error &#x3D; mxt_probe_bootloader(data, true);</span><br><span class="line">			if (error) &#123;</span><br><span class="line">				&#x2F;* Chip is not in appmode or bootloader mode *&#x2F;</span><br><span class="line">				return error;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		&#x2F;* OK, we are in bootloader, see if we can recover *&#x2F;</span><br><span class="line">		if (++recovery_attempts &gt; 1) &#123;</span><br><span class="line">			dev_err(&amp;client-&gt;dev, &quot;Could not recover from bootloader mode\n&quot;);</span><br><span class="line">			&#x2F;*</span><br><span class="line">			 * We can reflash from this state, so do not</span><br><span class="line">			 * abort initialization.</span><br><span class="line">			 *&#x2F;</span><br><span class="line">			data-&gt;in_bootloader &#x3D; true;</span><br><span class="line">			return 0;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		&#x2F;* Attempt to exit bootloader into app mode *&#x2F;</span><br><span class="line">		mxt_send_bootloader_cmd(data, false);</span><br><span class="line">		msleep(MXT_FW_RESET_TIME);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	error &#x3D; mxt_check_retrigen(data);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_object_table;</span><br><span class="line"></span><br><span class="line">	error &#x3D; mxt_acquire_irq(data);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_object_table;</span><br><span class="line"></span><br><span class="line">	error &#x3D; mxt_sysfs_init(data);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_object_table;</span><br><span class="line"></span><br><span class="line">	error &#x3D; mxt_debug_msg_init(data);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_object_table;</span><br><span class="line"></span><br><span class="line">	if (data-&gt;cfg_name) &#123;</span><br><span class="line">		error &#x3D; request_firmware_nowait(THIS_MODULE, true,</span><br><span class="line">					data-&gt;cfg_name, &amp;data-&gt;client-&gt;dev,</span><br><span class="line">					GFP_KERNEL, data, mxt_config_cb);</span><br><span class="line">		if (error) &#123;</span><br><span class="line">			dev_err(&amp;client-&gt;dev, &quot;Failed to invoke firmware loader: %d\n&quot;,</span><br><span class="line">				error);</span><br><span class="line">			goto err_free_object_table;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		error &#x3D; mxt_configure_objects(data, NULL);</span><br><span class="line">		if (error)</span><br><span class="line">			goto err_free_object_table;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line">err_free_object_table:</span><br><span class="line">	mxt_free_object_table(data);</span><br><span class="line">	return error;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>mxt_configure_objects(data, NULL)</p>
+<p>  –mxt_initialize_input_device（）//注册input_dev</p>
+<p>-mxt_initialize_input_device函数定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line">static int mxt_initialize_input_device(struct mxt_data *data)</span><br><span class="line">&#123;</span><br><span class="line">	const struct mxt_platform_data *pdata &#x3D; data-&gt;pdata;</span><br><span class="line">	struct device *dev &#x3D; &amp;data-&gt;client-&gt;dev;</span><br><span class="line">	struct input_dev *input_dev;</span><br><span class="line">	int error;</span><br><span class="line">	unsigned int num_mt_slots;</span><br><span class="line">	unsigned int mt_flags &#x3D; 0;</span><br><span class="line">	int i;</span><br><span class="line"></span><br><span class="line">	switch (data-&gt;multitouch) &#123;</span><br><span class="line">	case MXT_TOUCH_MULTI_T9:</span><br><span class="line">		num_mt_slots &#x3D; data-&gt;T9_reportid_max - data-&gt;T9_reportid_min + 1;</span><br><span class="line">		error &#x3D; mxt_read_t9_resolution(data);</span><br><span class="line">		if (error)</span><br><span class="line">			dev_warn(dev, &quot;Failed to initialize T9 resolution\n&quot;);</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case MXT_TOUCH_MULTITOUCHSCREEN_T100:</span><br><span class="line">		num_mt_slots &#x3D; data-&gt;num_touchids;</span><br><span class="line">		error &#x3D; mxt_read_t100_config(data);</span><br><span class="line">		if (error)</span><br><span class="line">			dev_warn(dev, &quot;Failed to read T100 config\n&quot;);</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	default:</span><br><span class="line">		dev_err(dev, &quot;Invalid multitouch object\n&quot;);</span><br><span class="line">		return -EINVAL;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Handle default values and orientation switch *&#x2F;</span><br><span class="line">	if (data-&gt;max_x &#x3D;&#x3D; 0)</span><br><span class="line">		data-&gt;max_x &#x3D; 1023;</span><br><span class="line"></span><br><span class="line">	if (data-&gt;max_y &#x3D;&#x3D; 0)</span><br><span class="line">		data-&gt;max_y &#x3D; 1023;</span><br><span class="line"></span><br><span class="line">	if (data-&gt;xy_switch)</span><br><span class="line">		swap(data-&gt;max_x, data-&gt;max_y);</span><br><span class="line"></span><br><span class="line">	printk( &quot;Touchscreen size X%uY%u\n&quot;, data-&gt;max_x, data-&gt;max_y);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Register input device *&#x2F;</span><br><span class="line">	input_dev &#x3D; input_allocate_device();</span><br><span class="line">	if (!input_dev)</span><br><span class="line">		return -ENOMEM;</span><br><span class="line"></span><br><span class="line">	if (data-&gt;pdata-&gt;input_name)</span><br><span class="line">		input_dev-&gt;name &#x3D; data-&gt;pdata-&gt;input_name;</span><br><span class="line">	else</span><br><span class="line">		input_dev-&gt;name &#x3D; &quot;Atmel_maXTouch_Touchscreen&quot;;</span><br><span class="line"></span><br><span class="line">	input_dev-&gt;phys &#x3D; data-&gt;phys;</span><br><span class="line">	input_dev-&gt;id.bustype &#x3D; BUS_I2C;</span><br><span class="line">	input_dev-&gt;dev.parent &#x3D; dev;</span><br><span class="line">	input_dev-&gt;open &#x3D; mxt_input_open;</span><br><span class="line">	input_dev-&gt;close &#x3D; mxt_input_close;</span><br><span class="line"></span><br><span class="line">	set_bit(EV_ABS, input_dev-&gt;evbit);</span><br><span class="line">	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);</span><br><span class="line"></span><br><span class="line">	&#x2F;* For single touch *&#x2F;</span><br><span class="line">	input_set_abs_params(input_dev, ABS_X, 0, data-&gt;max_x, 0, 0);</span><br><span class="line">	input_set_abs_params(input_dev, ABS_Y, 0, data-&gt;max_y, 0, 0);</span><br><span class="line">	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 1, 0, 0);</span><br><span class="line">	</span><br><span class="line">	&#x2F;* For T107 Active Stylus *&#x2F;</span><br><span class="line">	if (data-&gt;multitouch &#x3D;&#x3D; MXT_TOUCH_MULTITOUCHSCREEN_T100 &amp;&amp;</span><br><span class="line">	    data-&gt;T107_address) &#123;</span><br><span class="line">		error &#x3D; mxt_set_up_active_stylus(input_dev, data);</span><br><span class="line">		if (error)</span><br><span class="line">			dev_warn(dev, &quot;Failed to read T107 config\n&quot;);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;* For T15 Key Array *&#x2F;</span><br><span class="line">	if (data-&gt;T15_reportid_min) &#123;</span><br><span class="line">		data-&gt;t15_keystatus &#x3D; 0;</span><br><span class="line"></span><br><span class="line">		for (i &#x3D; 0; i &lt; data-&gt;pdata-&gt;t15_num_keys; i++)</span><br><span class="line">			input_set_capability(input_dev, EV_KEY,</span><br><span class="line">					data-&gt;pdata-&gt;t15_keymap[i]);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	input_set_drvdata(input_dev, data);</span><br><span class="line"></span><br><span class="line">	error &#x3D; input_register_device(input_dev);</span><br><span class="line">	if (error) &#123;</span><br><span class="line">		dev_err(dev, &quot;Error %d registering input device\n&quot;, error);</span><br><span class="line">		goto err_free_mem;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	data-&gt;input_dev &#x3D; input_dev;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line">err_free_mem:</span><br><span class="line">	input_free_device(input_dev);</span><br><span class="line">	return error;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>3、编写中断函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">static irqreturn_t mxt_interrupt(int irq, void *dev_id)</span><br><span class="line">&#123;</span><br><span class="line">	struct mxt_data *data &#x3D; dev_id;</span><br><span class="line"></span><br><span class="line">	complete(&amp;data-&gt;chg_completion);</span><br><span class="line"></span><br><span class="line">	if (data-&gt;in_bootloader) &#123;</span><br><span class="line">		if (data-&gt;flash &amp;&amp; &amp;data-&gt;flash-&gt;work)</span><br><span class="line">			cancel_delayed_work_sync(&amp;data-&gt;flash-&gt;work);</span><br><span class="line"></span><br><span class="line">		return IRQ_RETVAL(mxt_check_bootloader(data));</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (!data-&gt;object_table)</span><br><span class="line">		return IRQ_HANDLED;</span><br><span class="line"></span><br><span class="line">	if (data-&gt;T44_address) &#123;</span><br><span class="line">		return mxt_process_messages_t44(data);</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		return mxt_process_messages(data);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>中断函数处理过程</p>
+<p> mxt_process_messages_t44</p>
+<p>   –&gt;mxt_proc_message</p>
+<p>​          –&gt;mxt_proc_t100_message //上报事件</p>
+<p>看看mxt_proc_t100_message实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br></pre></td><td class="code"><pre><span class="line">static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)</span><br><span class="line">&#123;</span><br><span class="line">	struct device *dev &#x3D; &amp;data-&gt;client-&gt;dev;</span><br><span class="line">	struct input_dev *input_dev &#x3D; data-&gt;input_dev;</span><br><span class="line">	int id;</span><br><span class="line">	u8 status;</span><br><span class="line">	u8 type &#x3D; 0;</span><br><span class="line">	u16 x;</span><br><span class="line">	u16 y;</span><br><span class="line">	int distance &#x3D; 0;</span><br><span class="line">	int tool &#x3D; 0;</span><br><span class="line">	u8 major &#x3D; 0;</span><br><span class="line">	u8 pressure &#x3D; 0;</span><br><span class="line">	u8 orientation &#x3D; 0;</span><br><span class="line">	bool active &#x3D; false;</span><br><span class="line">	bool hover &#x3D; false;</span><br><span class="line"></span><br><span class="line">	id &#x3D; message[0] - data-&gt;T100_reportid_min - 2;</span><br><span class="line"></span><br><span class="line">	&#x2F;* ignore SCRSTATUS events *&#x2F;</span><br><span class="line">	if (id &lt; 0)</span><br><span class="line">		return;</span><br><span class="line"></span><br><span class="line">	status &#x3D; message[1];</span><br><span class="line">	x &#x3D; get_unaligned_le16(&amp;message[2]);</span><br><span class="line">	y &#x3D; get_unaligned_le16(&amp;message[4]);</span><br><span class="line"></span><br><span class="line">	if (status &amp; MXT_T100_DETECT) &#123;</span><br><span class="line">		type &#x3D; (status &amp; MXT_T100_TYPE_MASK) &gt;&gt; 4;</span><br><span class="line"></span><br><span class="line">		switch (type) &#123;</span><br><span class="line">		case MXT_T100_TYPE_HOVERING_FINGER:</span><br><span class="line">			tool &#x3D; MT_TOOL_FINGER;</span><br><span class="line">			distance &#x3D; MXT_DISTANCE_HOVERING;</span><br><span class="line">			hover &#x3D; true;</span><br><span class="line">			active &#x3D; true;</span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		case MXT_T100_TYPE_FINGER:</span><br><span class="line">		case MXT_T100_TYPE_GLOVE:</span><br><span class="line">			tool &#x3D; MT_TOOL_FINGER;</span><br><span class="line">			distance &#x3D; MXT_DISTANCE_ACTIVE_TOUCH;</span><br><span class="line">			hover &#x3D; false;</span><br><span class="line">			active &#x3D; true;</span><br><span class="line"></span><br><span class="line">			if (data-&gt;t100_aux_area)</span><br><span class="line">				major &#x3D; message[data-&gt;t100_aux_area];</span><br><span class="line"></span><br><span class="line">			if (data-&gt;t100_aux_ampl)</span><br><span class="line">				pressure &#x3D; message[data-&gt;t100_aux_ampl];</span><br><span class="line"></span><br><span class="line">			if (data-&gt;t100_aux_vect)</span><br><span class="line">				orientation &#x3D; message[data-&gt;t100_aux_vect];</span><br><span class="line"></span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		case MXT_T100_TYPE_PASSIVE_STYLUS:</span><br><span class="line">			tool &#x3D; MT_TOOL_PEN;</span><br><span class="line">			distance &#x3D; MXT_DISTANCE_ACTIVE_TOUCH;</span><br><span class="line">			hover &#x3D; false;</span><br><span class="line">			active &#x3D; true;</span><br><span class="line"></span><br><span class="line">			&#x2F;*</span><br><span class="line">			 * Passive stylus is reported with size zero so</span><br><span class="line">			 * hardcode.</span><br><span class="line">			 *&#x2F;</span><br><span class="line">			major &#x3D; MXT_TOUCH_MAJOR_DEFAULT;</span><br><span class="line"></span><br><span class="line">			if (data-&gt;t100_aux_ampl)</span><br><span class="line">				pressure &#x3D; message[data-&gt;t100_aux_ampl];</span><br><span class="line"></span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		case MXT_T100_TYPE_ACTIVE_STYLUS:</span><br><span class="line">			&#x2F;* Report input buttons *&#x2F;</span><br><span class="line">			input_report_key(input_dev, BTN_STYLUS,</span><br><span class="line">					 message[6] &amp; MXT_T107_STYLUS_BUTTON0);</span><br><span class="line">			input_report_key(input_dev, BTN_STYLUS2,</span><br><span class="line">					 message[6] &amp; MXT_T107_STYLUS_BUTTON1);</span><br><span class="line"></span><br><span class="line">			&#x2F;* stylus in range, but position unavailable *&#x2F;</span><br><span class="line">			if (!(message[6] &amp; MXT_T107_STYLUS_HOVER))</span><br><span class="line">				break;</span><br><span class="line"></span><br><span class="line">			tool &#x3D; MT_TOOL_PEN;</span><br><span class="line">			distance &#x3D; MXT_DISTANCE_ACTIVE_TOUCH;</span><br><span class="line">			active &#x3D; true;</span><br><span class="line">			major &#x3D; MXT_TOUCH_MAJOR_DEFAULT;</span><br><span class="line"></span><br><span class="line">			if (!(message[6] &amp; MXT_T107_STYLUS_TIPSWITCH)) &#123;</span><br><span class="line">				hover &#x3D; true;</span><br><span class="line">				distance &#x3D; MXT_DISTANCE_HOVERING;</span><br><span class="line">			&#125; else if (data-&gt;stylus_aux_pressure) &#123;</span><br><span class="line">				pressure &#x3D; message[data-&gt;stylus_aux_pressure];</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		case MXT_T100_TYPE_LARGE_TOUCH:</span><br><span class="line">			&#x2F;* Ignore suppressed touch *&#x2F;</span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		default:</span><br><span class="line">			dev_dbg(dev, &quot;Unexpected T100 type\n&quot;);</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * Values reported should be non-zero if tool is touching the</span><br><span class="line">	 * device</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	if (!pressure &amp;&amp; !hover)</span><br><span class="line">		pressure &#x3D; MXT_PRESSURE_DEFAULT;</span><br><span class="line"></span><br><span class="line">	&#x2F;&#x2F;input_mt_slot(input_dev, id);</span><br><span class="line"></span><br><span class="line">	if (active) &#123;</span><br><span class="line">&#x2F;&#x2F;		printk( &quot;[%u] type:%u x:%u y:%u a:%02X p:%02X v:%02X\n&quot;,</span><br><span class="line">&#x2F;&#x2F;			id, type, x, y, major, pressure, orientation);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;		input_mt_report_slot_state(input_dev, tool, 1);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_POSITION_X, x);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, major);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_PRESSURE, pressure);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_DISTANCE, distance);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_MT_ORIENTATION, orientation);</span><br><span class="line"></span><br><span class="line">		input_report_abs(input_dev, ABS_X, x);</span><br><span class="line">		input_report_abs(input_dev, ABS_Y, y);</span><br><span class="line">		input_report_key(input_dev, BTN_TOUCH, 1);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_PRESSURE, 1);</span><br><span class="line">		input_sync(input_dev);</span><br><span class="line"></span><br><span class="line">	&#125; else &#123;</span><br><span class="line">&#x2F;&#x2F;		printk( &quot;[%u] release\n&quot;, id);</span><br><span class="line"></span><br><span class="line">		&#x2F;* close out slot *&#x2F;</span><br><span class="line">&#x2F;&#x2F;		input_mt_report_slot_state(input_dev, 0, 0);</span><br><span class="line">		input_report_key(input_dev, BTN_TOUCH, 0);</span><br><span class="line">&#x2F;&#x2F;		input_report_abs(input_dev, ABS_PRESSURE, 0);</span><br><span class="line">		input_sync(input_dev);		</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	data-&gt;update_input &#x3D; true;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">~ # hexdump &#x2F;dev&#x2F;input&#x2F;event1</span><br><span class="line">0000000 45b4 386d 6bb2 000d 0003 0000 02e6 0000</span><br><span class="line">0000010 45b4 386d 6bb6 000d 0003 0001 01a5 0000</span><br><span class="line">0000020 45b4 386d 6bb9 000d 0001 014a 0001 0000</span><br><span class="line">0000030 45b4 386d 6bbb 000d 0000 0000 0000 0000</span><br><span class="line">0000040 45b4 386d 41ff 000e 0001 014a 0000 0000</span><br><span class="line">0000050 45b4 386d 4202 000e 0000 0000 0000 0000</span><br></pre></td></tr></table></figure>
+
+<p>参数解释：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ hexdump &#x2F;dev&#x2F;event1</span><br><span class="line"># 字节数|   秒    |   微秒   |type|code|  value       # 小端模式, 低位在前!</span><br><span class="line">0000000 04aa 0000 8555 000b 0003 0000 0138 0000     # input_report_abs(ts.dev, ABS_X, ts.xp);</span><br><span class="line">0000010 04aa 0000 8569 000b 0003 0001 020e 0000     # input_report_abs(ts.dev, ABS_Y, ts.yp);</span><br><span class="line">0000030 04aa 0000 8570 000b 0003 0018 0001 0000     # input_report_abs(ts.dev, ABS_PRESSURE, 1);</span><br><span class="line">0000020 04aa 0000 856e 000b 0001 014a 0001 0000     # input_report_key(ts.dev, BTN_TOUCH, 1);</span><br><span class="line">0000040 04aa 0000 8573 000b 0000 0000 0000 0000     # input_sync(ts.dev);</span><br></pre></td></tr></table></figure>
+
+<h2 id="q-amp-s"><a href="#q-amp-s" class="headerlink" title="q&amp;s"></a>q&amp;s</h2><p>1、mxt2952驱动，如何上报坐标轴的数据给event handlers？</p>
+<p>驱动初始化中先设置设备的事件类型和code，触摸屏要设置坐标范围，然后就可以通过void input_report_abs(struct input_dev *dev, unsigned int code, int value)函数上报数据</p>
+<p>2、输入设备产生的数据，用什么来描述？</p>
+<p>设备产生的数据，经过event handlers 封装成struct input_event对象，然后递交给应用层。struct input_event结构体定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">struct input_event &#123;</span><br><span class="line">	struct timeval time;</span><br><span class="line">	__u16 type;</span><br><span class="line">	__u16 code;</span><br><span class="line">	__s32 value;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>3、如何事件类型、code和value关系</p>
+<p>事件类型就是指各种输入设备，比如鼠标，键盘，触摸屏等</p>
+<p>code就是对事件类型在划分一个层次，比如键盘事件类型，键盘有很多按键，比如H、L 、U,这些按键就是code。</p>
+<p>value就是code的值</p>
+<p>4、如何理解设置事件类型的函数</p>
+<p>先看一下内核关于bit操作的宏定义在include/linux/bitops.h</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">#define BIT(nr)			(1UL &lt;&lt; (nr)) &#x2F;&#x2F;UL中的第几bit</span><br><span class="line">#define BIT_MASK(nr)		(1UL &lt;&lt; ((nr) % BITS_PER_LONG))</span><br><span class="line">#define BIT_WORD(nr)		((nr) &#x2F; BITS_PER_LONG) 表示bit在第几个long</span><br><span class="line">#define BITS_PER_BYTE		8</span><br><span class="line">#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long)) &#x2F;&#x2F;根据占用long的bit的数量，计算数组的长度</span><br></pre></td></tr></table></figure>
+
+<p>在include/linux/kernel.h定义：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) &#x2F; (d))</span><br></pre></td></tr></table></figure>
+
+<p>在看input_dev结构体中如何表示一组事件类型和code</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">unsigned long evbit[BITS_TO_LONGS(EV_CNT)];</span><br><span class="line">unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];</span><br><span class="line">unsigned long relbit[BITS_TO_LONGS(REL_CNT)];</span><br><span class="line">unsigned long absbit[BITS_TO_LONGS(ABS_CNT)];</span><br><span class="line">unsigned long mscbit[BITS_TO_LONGS(MSC_CNT)];</span><br><span class="line">unsigned long ledbit[BITS_TO_LONGS(LED_CNT)];</span><br><span class="line">unsigned long sndbit[BITS_TO_LONGS(SND_CNT)];</span><br><span class="line">unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];</span><br><span class="line">unsigned long swbit[BITS_TO_LONGS(SW_CNT)];</span><br></pre></td></tr></table></figure>
+
+<p>从上面看出，用一个unsigned long 中的bit表示事件类型和code,用数组存储事件类型和code，数组的大小根据占用了多少bit来计算。</p>
+<p>因此，设置事件类型可以使用下面的方式。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dev-&gt;keybit[BIT_WORD(BTN_TOUCH)] &#x3D; BIT(BTN_TOUCH);</span><br></pre></td></tr></table></figure>
+
+<p>或者</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">set_bit(EV_ABS, input_dev-&gt;evbit);</span><br></pre></td></tr></table></figure>
+
+<p>5、为什么要设置事件类型和code？</p>
+<p>首先，上报事件函数根据具体的事件类型和code,判断input core 是否支持该类型和code，如果支持，才做下一步上报数据的操作。看一个按键上报函数实现</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">&#123;</span><br><span class="line">	input_event(dev, EV_KEY, code, !!value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>所有上报事件函数，都会直接调用input_event()函数，定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">void input_event(struct input_dev *dev,</span><br><span class="line">		 unsigned int type, unsigned int code, int value)</span><br><span class="line">&#123;</span><br><span class="line">	unsigned long flags;</span><br><span class="line"></span><br><span class="line">	if (is_event_supported(type, dev-&gt;evbit, EV_MAX)) &#123;</span><br><span class="line"></span><br><span class="line">		spin_lock_irqsave(&amp;dev-&gt;event_lock, flags);</span><br><span class="line">		add_input_randomness(type, code, value);</span><br><span class="line">		input_handle_event(dev, type, code, value);</span><br><span class="line">		spin_unlock_irqrestore(&amp;dev-&gt;event_lock, flags);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br></pre></td><td class="code"><pre><span class="line">static void input_handle_event(struct input_dev *dev,</span><br><span class="line">			       unsigned int type, unsigned int code, int value)</span><br><span class="line">&#123;</span><br><span class="line">	int disposition &#x3D; INPUT_IGNORE_EVENT;</span><br><span class="line"></span><br><span class="line">	switch (type) &#123;</span><br><span class="line"></span><br><span class="line">	case EV_SYN:</span><br><span class="line">		switch (code) &#123;</span><br><span class="line">		case SYN_CONFIG:</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">		case SYN_REPORT:</span><br><span class="line">			if (!dev-&gt;sync) &#123;</span><br><span class="line">				dev-&gt;sync &#x3D; true;</span><br><span class="line">				disposition &#x3D; INPUT_PASS_TO_HANDLERS;</span><br><span class="line">			&#125;</span><br><span class="line">			break;</span><br><span class="line">		case SYN_MT_REPORT:</span><br><span class="line">			dev-&gt;sync &#x3D; false;</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_HANDLERS;</span><br><span class="line">			break;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_KEY:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;keybit, KEY_MAX) &amp;&amp;</span><br><span class="line">		    !!test_bit(code, dev-&gt;key) !&#x3D; value) &#123;</span><br><span class="line"></span><br><span class="line">			if (value !&#x3D; 2) &#123;</span><br><span class="line">				__change_bit(code, dev-&gt;key);</span><br><span class="line">				if (value)</span><br><span class="line">					input_start_autorepeat(dev, code);</span><br><span class="line">				else</span><br><span class="line">					input_stop_autorepeat(dev);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_HANDLERS;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_SW:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;swbit, SW_MAX) &amp;&amp;</span><br><span class="line">		    !!test_bit(code, dev-&gt;sw) !&#x3D; value) &#123;</span><br><span class="line"></span><br><span class="line">			__change_bit(code, dev-&gt;sw);</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_HANDLERS;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_ABS:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;absbit, ABS_MAX))</span><br><span class="line">			disposition &#x3D; input_handle_abs_event(dev, code, &amp;value);</span><br><span class="line"></span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_REL:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;relbit, REL_MAX) &amp;&amp; value)</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_HANDLERS;</span><br><span class="line"></span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_MSC:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;mscbit, MSC_MAX))</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line"></span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_LED:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;ledbit, LED_MAX) &amp;&amp;</span><br><span class="line">		    !!test_bit(code, dev-&gt;led) !&#x3D; value) &#123;</span><br><span class="line"></span><br><span class="line">			__change_bit(code, dev-&gt;led);</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_SND:</span><br><span class="line">		if (is_event_supported(code, dev-&gt;sndbit, SND_MAX)) &#123;</span><br><span class="line"></span><br><span class="line">			if (!!test_bit(code, dev-&gt;snd) !&#x3D; !!value)</span><br><span class="line">				__change_bit(code, dev-&gt;snd);</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_REP:</span><br><span class="line">		if (code &lt;&#x3D; REP_MAX &amp;&amp; value &gt;&#x3D; 0 &amp;&amp; dev-&gt;rep[code] !&#x3D; value) &#123;</span><br><span class="line">			dev-&gt;rep[code] &#x3D; value;</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">		&#125;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_FF:</span><br><span class="line">		if (value &gt;&#x3D; 0)</span><br><span class="line">			disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">		break;</span><br><span class="line"></span><br><span class="line">	case EV_PWR:</span><br><span class="line">		disposition &#x3D; INPUT_PASS_TO_ALL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (disposition !&#x3D; INPUT_IGNORE_EVENT &amp;&amp; type !&#x3D; EV_SYN)</span><br><span class="line">		dev-&gt;sync &#x3D; false;</span><br><span class="line"></span><br><span class="line">	if ((disposition &amp; INPUT_PASS_TO_DEVICE) &amp;&amp; dev-&gt;event)</span><br><span class="line">		dev-&gt;event(dev, type, code, value);</span><br><span class="line"></span><br><span class="line">	if (disposition &amp; INPUT_PASS_TO_HANDLERS)</span><br><span class="line">		input_pass_event(dev, type, code, value); &#x2F;&#x2F;类型和code符合，上报事件</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Pass event first through all filters and then, if event has not been</span><br><span class="line"> * filtered out, through all open handles. This function is called with</span><br><span class="line"> * dev-&gt;event_lock held and interrupts disabled.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void input_pass_event(struct input_dev *dev,</span><br><span class="line">			     unsigned int type, unsigned int code, int value)</span><br><span class="line">&#123;</span><br><span class="line">	struct input_handler *handler;</span><br><span class="line">	struct input_handle *handle;</span><br><span class="line"></span><br><span class="line">	rcu_read_lock();</span><br><span class="line"></span><br><span class="line">	handle &#x3D; rcu_dereference(dev-&gt;grab);</span><br><span class="line">	if (handle)</span><br><span class="line">		handle-&gt;handler-&gt;event(handle, type, code, value); &#x2F;&#x2F;调用event handler的event函数</span><br><span class="line">	else &#123;</span><br><span class="line">		bool filtered &#x3D; false;</span><br><span class="line"></span><br><span class="line">		list_for_each_entry_rcu(handle, &amp;dev-&gt;h_list, d_node) &#123;</span><br><span class="line">			if (!handle-&gt;open)</span><br><span class="line">				continue;</span><br><span class="line"></span><br><span class="line">			handler &#x3D; handle-&gt;handler;</span><br><span class="line">			if (!handler-&gt;filter) &#123;</span><br><span class="line">				if (filtered)</span><br><span class="line">					break;</span><br><span class="line"></span><br><span class="line">				handler-&gt;event(handle, type, code, value);</span><br><span class="line"></span><br><span class="line">			&#125; else if (handler-&gt;filter(handle, type, code, value))</span><br><span class="line">				filtered &#x3D; true;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	rcu_read_unlock();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>6、为什么上报事件后，一定需要同步？</p>
+<p>上报事件，实际上驱动把数据递交给event handlers ,然后event handlers 存在一个Buffer,需要同步，才把Buffer的数据递交给应用层。</p>
+<p>驱动程序上报事件，本质是调用handlers的event事件处理函数，定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Pass incoming event to all connected clients.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void evdev_event(struct input_handle *handle,</span><br><span class="line">			unsigned int type, unsigned int code, int value)</span><br><span class="line">&#123;</span><br><span class="line">	struct evdev *evdev &#x3D; handle-&gt;private;</span><br><span class="line">	struct evdev_client *client;</span><br><span class="line">	struct input_event event;</span><br><span class="line"></span><br><span class="line">	do_gettimeofday(&amp;event.time);</span><br><span class="line">	event.type &#x3D; type;</span><br><span class="line">	event.code &#x3D; code;</span><br><span class="line">	event.value &#x3D; value;</span><br><span class="line"></span><br><span class="line">	rcu_read_lock();</span><br><span class="line"></span><br><span class="line">	client &#x3D; rcu_dereference(evdev-&gt;grab);</span><br><span class="line">	if (client)</span><br><span class="line">		evdev_pass_event(client, &amp;event);</span><br><span class="line">	else</span><br><span class="line">		list_for_each_entry_rcu(client, &amp;evdev-&gt;client_list, node)</span><br><span class="line">			evdev_pass_event(client, &amp;event); &#x2F;&#x2F;把event事件存储起来</span><br><span class="line"></span><br><span class="line">	rcu_read_unlock();</span><br><span class="line"></span><br><span class="line">	if (type &#x3D;&#x3D; EV_SYN &amp;&amp; code &#x3D;&#x3D; SYN_REPORT) &#x2F;&#x2F;收到同步信号，就唤醒read去去读buffer</span><br><span class="line">		wake_up_interruptible(&amp;evdev-&gt;wait);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>evdev_pass_event()函数把event事件存储在buffer里面，函数定义如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">static void evdev_pass_event(struct evdev_client *client,</span><br><span class="line">			     struct input_event *event)</span><br><span class="line">&#123;</span><br><span class="line">	&#x2F;* Interrupts are disabled, just acquire the lock. *&#x2F;</span><br><span class="line">	spin_lock(&amp;client-&gt;buffer_lock);</span><br><span class="line"></span><br><span class="line">	client-&gt;buffer[client-&gt;head++] &#x3D; *event;</span><br><span class="line">	client-&gt;head &amp;&#x3D; client-&gt;bufsize - 1;</span><br><span class="line"></span><br><span class="line">	if (unlikely(client-&gt;head &#x3D;&#x3D; client-&gt;tail)) &#123;</span><br><span class="line">		&#x2F;*</span><br><span class="line">		 * This effectively &quot;drops&quot; all unconsumed events, leaving</span><br><span class="line">		 * EV_SYN&#x2F;SYN_DROPPED plus the newest event in the queue.</span><br><span class="line">		 *&#x2F;</span><br><span class="line">		client-&gt;tail &#x3D; (client-&gt;head - 2) &amp; (client-&gt;bufsize - 1);</span><br><span class="line"></span><br><span class="line">		client-&gt;buffer[client-&gt;tail].time &#x3D; event-&gt;time;</span><br><span class="line">		client-&gt;buffer[client-&gt;tail].type &#x3D; EV_SYN;</span><br><span class="line">		client-&gt;buffer[client-&gt;tail].code &#x3D; SYN_DROPPED;</span><br><span class="line">		client-&gt;buffer[client-&gt;tail].value &#x3D; 0;</span><br><span class="line"></span><br><span class="line">		client-&gt;packet_head &#x3D; client-&gt;tail;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (event-&gt;type &#x3D;&#x3D; EV_SYN &amp;&amp; event-&gt;code &#x3D;&#x3D; SYN_REPORT) &#123;</span><br><span class="line">		client-&gt;packet_head &#x3D; client-&gt;head;</span><br><span class="line">		kill_fasync(&amp;client-&gt;fasync, SIGIO, POLL_IN);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	spin_unlock(&amp;client-&gt;buffer_lock);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Input/" rel="tag"># Input</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/04/Linux/Driver/Input/linux%20input%E5%AD%90%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1/" rel="prev" title="linux input子系统设计">
+      <i class="fa fa-chevron-left"></i> linux input子系统设计
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/06/Linux/Driver/Input/input%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F%E5%BC%80%E5%8F%91/" rel="next" title="input子系统应用程序开发">
+      input子系统应用程序开发 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内核配置"><span class="nav-number">2.</span> <span class="nav-text">内核配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据结构分析"><span class="nav-number">3.</span> <span class="nav-text">数据结构分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#配置流程"><span class="nav-number">4.</span> <span class="nav-text">配置流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#代码"><span class="nav-number">5.</span> <span class="nav-text">代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#测试"><span class="nav-number">6.</span> <span class="nav-text">测试</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#q-amp-s"><span class="nav-number">7.</span> <span class="nav-text">q&amp;s</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

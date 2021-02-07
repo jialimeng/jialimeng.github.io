@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 本文转自：博客园–Leo.cheng【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;lcw&#x2F;p&#x2F;3294356.html】 【驱动】input子系统整体流程全面分析（触摸屏驱动为例）input输入子系统整体流程　　 　　input子系统在内核中的实现，包括输入子系统（Input Core），事件处理层（Event Handler）和设备驱动层。 　　在开头部分会从设备驱动层做为线索，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】input子系统整体流程全面分析（触摸屏驱动为例）">
+<meta property="og:url" content="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91input%E5%AD%90%E7%B3%BB%E7%BB%9F%E6%95%B4%E4%BD%93%E6%B5%81%E7%A8%8B%E5%85%A8%E9%9D%A2%E5%88%86%E6%9E%90%EF%BC%88%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E4%B8%BA%E4%BE%8B%EF%BC%89/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 本文转自：博客园–Leo.cheng【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;lcw&#x2F;p&#x2F;3294356.html】 【驱动】input子系统整体流程全面分析（触摸屏驱动为例）input输入子系统整体流程　　 　　input子系统在内核中的实现，包括输入子系统（Input Core），事件处理层（Event Handler）和设备驱动层。 　　在开头部分会从设备驱动层做为线索，">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://images0.cnblogs.com/blog/536940/201309/01112058-b025a20bc60a469cb1ae2def7eeeab84.png">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images0.cnblogs.com/blog/536940/201309/01112129-4e175a1a4f82477b8cb262b24359fd1a.png">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="article:published_time" content="2021-01-07T10:54:21.000Z">
+<meta property="article:modified_time" content="2021-01-07T11:02:09.913Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="Input">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://images0.cnblogs.com/blog/536940/201309/01112058-b025a20bc60a469cb1ae2def7eeeab84.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91input%E5%AD%90%E7%B3%BB%E7%BB%9F%E6%95%B4%E4%BD%93%E6%B5%81%E7%A8%8B%E5%85%A8%E9%9D%A2%E5%88%86%E6%9E%90%EF%BC%88%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E4%B8%BA%E4%BE%8B%EF%BC%89/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】input子系统整体流程全面分析（触摸屏驱动为例） | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91input%E5%AD%90%E7%B3%BB%E7%BB%9F%E6%95%B4%E4%BD%93%E6%B5%81%E7%A8%8B%E5%85%A8%E9%9D%A2%E5%88%86%E6%9E%90%EF%BC%88%E8%A7%A6%E6%91%B8%E5%B1%8F%E9%A9%B1%E5%8A%A8%E4%B8%BA%E4%BE%8B%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】input子系统整体流程全面分析（触摸屏驱动为例）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-07 18:54:21 / Modified: 19:02:09" itemprop="dateCreated datePublished" datetime="2021-01-07T18:54:21+08:00">2021-01-07</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/Input%E5%AD%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">Input子系统</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<p>本文转自：博客园–<a href="https://www.cnblogs.com/lcw/" target="_blank" rel="noopener">Leo.cheng</a>【<a href="https://www.cnblogs.com/lcw/p/3294356.html】" target="_blank" rel="noopener">https://www.cnblogs.com/lcw/p/3294356.html】</a></p>
+<h1 id="【驱动】input子系统整体流程全面分析（触摸屏驱动为例）"><a href="#【驱动】input子系统整体流程全面分析（触摸屏驱动为例）" class="headerlink" title="【驱动】input子系统整体流程全面分析（触摸屏驱动为例）"></a><a href="https://www.cnblogs.com/lcw/p/3294356.html" target="_blank" rel="noopener">【驱动】input子系统整体流程全面分析（触摸屏驱动为例）</a></h1><h2 id="input输入子系统整体流程"><a href="#input输入子系统整体流程" class="headerlink" title="input输入子系统整体流程"></a>input输入子系统整体流程</h2><p>　　</p>
+<p>　　input子系统在内核中的实现，包括输入子系统（Input Core），事件处理层（Event Handler）和设备驱动层。</p>
+<p>　　在开头部分会从设备驱动层做为线索，分析输入子系统和事件处理层是如何配合的，最后从用户角度出发，从“/dev/input/*”接口如何使用输入子系统提供的服务。</p>
+<p>　　既然需要详细分析，有一个这样的流程图能够帮助我们在被绕进代码的过程中，找到出口，你能够知道你现在位于代码框架的什么位置，不会忘记正在分析的代码的“身份”。</p>
+<p>　　<img src="https://images0.cnblogs.com/blog/536940/201309/01112058-b025a20bc60a469cb1ae2def7eeeab84.png" alt="img"></p>
+<h2 id="设备驱动层注册到input子系统"><a href="#设备驱动层注册到input子系统" class="headerlink" title="设备驱动层注册到input子系统"></a>设备驱动层注册到input子系统</h2><p>　　以S3C2440触摸屏的驱动代码代例，初始化函数定义了struct input_dev input结构体，它用于描述一个输入子系统设备。</p>
+<p>　　任何驱动设备如果想标明自己是输入设备，都应该通过初始化这样的结构体，并且调用input_allocate_device（）函数进行注册。</p>
+<p>　　了解这一过程，先看一下struct input_dev结构体的内容：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"> 1 struct input_dev &#123;  </span><br><span class="line"> 2   </span><br><span class="line"> 3     void *private;              &#x2F;&#x2F;输入设备私有指针，一般指向用于描述设备驱动层的设备结构  </span><br><span class="line"> 4   </span><br><span class="line"> 5     const char *name;           &#x2F;&#x2F;提供给用户的输入设备的名称  </span><br><span class="line"> 6     const char *phys;           &#x2F;&#x2F;提供给编程者的设备节点的名称  </span><br><span class="line"> 7     const char *uniq;           &#x2F;&#x2F;指定唯一的ID号，就像MAC地址一样  </span><br><span class="line"> 8     struct input_id id;         &#x2F;&#x2F;输入设备标识ID，用于和事件处理层进行匹配  </span><br><span class="line"> 9   </span><br><span class="line">10     unsigned long evbit[NBITS(EV_MAX)];     &#x2F;&#x2F;位图，记录设备支持的事件类型  </span><br><span class="line">11     unsigned long keybit[NBITS(KEY_MAX)];       &#x2F;&#x2F;位图，记录设备支持的按键类型  </span><br><span class="line">12     unsigned long relbit[NBITS(REL_MAX)];       &#x2F;&#x2F;位图，记录设备支持的相对坐标  </span><br><span class="line">13     unsigned long absbit[NBITS(ABS_MAX)];       &#x2F;&#x2F;位图，记录设备支持的绝对坐标  </span><br><span class="line">14     unsigned long mscbit[NBITS(MSC_MAX)];   &#x2F;&#x2F;位图，记录设备支持的其他功能  </span><br><span class="line">15     unsigned long ledbit[NBITS(LED_MAX)];       &#x2F;&#x2F;位图，记录设备支持的指示灯  </span><br><span class="line">16     unsigned long sndbit[NBITS(SND_MAX)];       &#x2F;&#x2F;位图，记录设备支持的声音或警报  </span><br><span class="line">17     unsigned long ffbit[NBITS(FF_MAX)];     &#x2F;&#x2F;位图，记录设备支持的作用力功能  </span><br><span class="line">18     unsigned long swbit[NBITS(SW_MAX)];     &#x2F;&#x2F;位图，记录设备支持的开关功能  </span><br><span class="line">19   </span><br><span class="line">20     unsigned int keycodemax;        &#x2F;&#x2F;设备支持的最大按键值个数  </span><br><span class="line">21     unsigned int keycodesize;       &#x2F;&#x2F;每个按键的字节大小  </span><br><span class="line">22     void *keycode;              &#x2F;&#x2F;指向按键池，即指向按键值数组首地址  </span><br><span class="line">23     int (*setkeycode)(struct input_dev *dev, int scancode, int keycode);    &#x2F;&#x2F;修改按键值  </span><br><span class="line">24     int (*getkeycode)(struct input_dev *dev, int scancode, int *keycode);   &#x2F;&#x2F;获取按键值  </span><br><span class="line">25   </span><br><span class="line">26     struct ff_device *ff;           &#x2F;&#x2F;用于强制更新输入设备的部分内容  </span><br><span class="line">27   </span><br><span class="line">28     unsigned int repeat_key;        &#x2F;&#x2F;重复按键的键值  </span><br><span class="line">29     struct timer_list timer;        &#x2F;&#x2F;设置当有连击时的延时定时器  </span><br><span class="line">30   </span><br><span class="line">31     int state;      &#x2F;&#x2F;设备状态  </span><br><span class="line">32   </span><br><span class="line">33     int sync;       &#x2F;&#x2F;同步事件完成标识，为1说明事件同步完成  </span><br><span class="line">34   </span><br><span class="line">35     int abs[ABS_MAX + 1];       &#x2F;&#x2F;记录坐标的值  </span><br><span class="line">36     int rep[REP_MAX + 1];       &#x2F;&#x2F;记录重复按键的参数值  </span><br><span class="line">37   </span><br><span class="line">38     unsigned long key[NBITS(KEY_MAX)];      &#x2F;&#x2F;位图，按键的状态  </span><br><span class="line">39     unsigned long led[NBITS(LED_MAX)];      &#x2F;&#x2F;位图，led的状态  </span><br><span class="line">40     unsigned long snd[NBITS(SND_MAX)];      &#x2F;&#x2F;位图，声音的状态  </span><br><span class="line">41     unsigned long sw[NBITS(SW_MAX)];            &#x2F;&#x2F;位图，开关的状态  </span><br><span class="line">42   </span><br><span class="line">43     int absmax[ABS_MAX + 1];                    &#x2F;&#x2F;位图，记录坐标的最大值  </span><br><span class="line">44     int absmin[ABS_MAX + 1];                    &#x2F;&#x2F;位图，记录坐标的最小值  </span><br><span class="line">45     int absfuzz[ABS_MAX + 1];                   &#x2F;&#x2F;位图，记录坐标的分辨率  </span><br><span class="line">46     int absflat[ABS_MAX + 1];                   &#x2F;&#x2F;位图，记录坐标的基准值  </span><br><span class="line">47   </span><br><span class="line">48     int (*open)(struct input_dev *dev);         &#x2F;&#x2F;输入设备打开函数  </span><br><span class="line">49     void (*close)(struct input_dev *dev);           &#x2F;&#x2F;输入设备关闭函数  </span><br><span class="line">50     int (*flush)(struct input_dev *dev, struct file *file); &#x2F;&#x2F;输入设备断开后刷新函数  </span><br><span class="line">51     int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);   &#x2F;&#x2F;事件处理  </span><br><span class="line">52   </span><br><span class="line">53     struct input_handle *grab;      &#x2F;&#x2F;类似私有指针，可以直接访问到事件处理接口event  </span><br><span class="line">54   </span><br><span class="line">55     struct mutex mutex;     &#x2F;&#x2F;用于open、close函数的连续访问互斥  </span><br><span class="line">56     unsigned int users;     &#x2F;&#x2F;设备使用计数  </span><br><span class="line">57   </span><br><span class="line">58     struct class_device cdev;   &#x2F;&#x2F;输入设备的类信息  </span><br><span class="line">59     union &#123;             &#x2F;&#x2F;设备结构体  </span><br><span class="line">60         struct device *parent;  </span><br><span class="line">61     &#125; dev;  </span><br><span class="line">62   </span><br><span class="line">63     struct list_head    h_list; &#x2F;&#x2F;handle链表  </span><br><span class="line">64     struct list_head    node;   &#x2F;&#x2F;input_dev链表  </span><br><span class="line">65 &#125;;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　就这样赤裸裸的看上面的结构体，会觉得摸不着头脑，但是有一点是确定的，我们在写输入设备驱动时会定义这样一个输入设备结构体，并调用input_allocate_device()函数，这个函数的功能是为新添加的输入设备分配内存，如果成功，将返回input_dev *的指针结构，因此在写驱动的时候应该接受返回值，作为驱动层获得了一个新的输入设备操作的接口。</p>
+<p>　　那么<strong>input_allocate_device()</strong>函数做了什么呢？打开函数看一下（input.c中实现）：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"> 1 struct input_dev *input_allocate_device(void)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3     struct input_dev *dev;  </span><br><span class="line"> 4   </span><br><span class="line"> 5 &#x2F;&#x2F;动态申请内存，使用GFP_KERNEL方式，注意GFP_KERNEL可能导致睡眠，不能在中断中调用这个函数  </span><br><span class="line"> 6     dev &#x3D; kzalloc(sizeof(struct input_dev), GFP_KERNEL);  </span><br><span class="line"> 7 &#x2F;&#x2F;分配成功执行的代码，进行成员的默认填充  </span><br><span class="line"> 8     if (dev) &#123;  </span><br><span class="line"> 9         dev-&gt;cdev.class &#x3D; &amp;input_class;          &#x2F;&#x2F;支持热插拔的结构体  </span><br><span class="line">10         dev-&gt;cdev.groups &#x3D; input_dev_attr_groups; &#x2F;&#x2F;描述设备的硬件信息和支持的事件类型  </span><br><span class="line">11         class_device_initialize(&amp;dev-&gt;cdev);     &#x2F;&#x2F;类设备初始化，添加进input类设备模型中  </span><br><span class="line">12         mutex_init(&amp;dev-&gt;mutex);             &#x2F;&#x2F;初始化互斥锁  </span><br><span class="line">13         INIT_LIST_HEAD(&amp;dev-&gt;h_list);        &#x2F;&#x2F;初始化handle链表  </span><br><span class="line">14         INIT_LIST_HEAD(&amp;dev-&gt;node);          &#x2F;&#x2F;初始化输入设备链表  </span><br><span class="line">15   </span><br><span class="line">16     &#125;  </span><br><span class="line">17 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　通过input_allocate_device()函数，我们设备驱动现在持有的input_dev里面就被赋予了input的“形象”，但是还需要我们去充实一下“内在”，因此，设备驱动程序，还需要为自己的设备增加自己的特性，才能创造独有的设备“形象”。</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"> 1 struct input_dev *input_dev &#x3D; input_allocate_device();  </span><br><span class="line"> 2 input_dev-&gt;name &#x3D; &quot;s3c2410 Touchscreen&quot;;  </span><br><span class="line"> 3 input_dev-&gt;phys &#x3D; &quot;s3c2410ts&#x2F;input0&quot;;  </span><br><span class="line"> 4 input_dev-&gt;id.bustype &#x3D; BUS_HOST;  </span><br><span class="line"> 5 input_dev-&gt;id.vendor &#x3D; 0x0001;  </span><br><span class="line"> 6 input_dev-&gt;id.product &#x3D; 0x0002;  </span><br><span class="line"> 7 input_dev-&gt;id.version &#x3D; 0x0100;  </span><br><span class="line"> 8 input_dev-&gt;evbit[0] &#x3D; BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);  </span><br><span class="line"> 9 input_dev-&gt;keybit[BIT_WORD(BTN_TOUCH)] &#x3D; BIT_MASK(BTN_TOUCH);   </span><br><span class="line">10 input_set_abs_params(input_dev, ABS_X, X_AXIS_MIN, X_AXIS_MAX, 0, 0);  </span><br><span class="line">11 input_set_abs_params(input_dev, ABS_Y, Y_AXIS_MIN, Y_AXIS_MAX, 0, 0);  </span><br><span class="line">12 input_set_abs_params(input_dev, ABS_PRESSURE, PRESSURE_MIN, PRESSURE_MAX, 0, 0);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　这部分完成了输入设备的初始化工作。但是这仅是初始化自己的“特点”，还需要通知输入子系统有这样一个新设备诞生了，这就需要调用输入子系统的注册函数input_register_device（input_dev）来完成。</p>
+<p>　　<strong>input_register_device()</strong>用于注册一个输入设备。那么<strong>注册过程是怎样的呢？这是一个重点，</strong>在下面的代码中进行注释分析：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"> 1 int input_register_device(struct input_dev *dev)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3     &#x2F;* 用于记录输入设备名称的索引值 *&#x2F;  </span><br><span class="line"> 4     static atomic_t input_no &#x3D; ATOMIC_INIT(0);  </span><br><span class="line"> 5     &#x2F;* 输入事件的处理接口指针，用于和设备的事件类型进行匹配 *&#x2F;  </span><br><span class="line"> 6     struct input_handler *handler;  </span><br><span class="line"> 7     const char *path;  </span><br><span class="line"> 8     int error;  </span><br><span class="line"> 9   </span><br><span class="line">10     &#x2F;* 默认所有的输入设备都支持EV_SYN同步事件 *&#x2F;  </span><br><span class="line">11     set_bit(EV_SYN, dev-&gt;evbit);  </span><br><span class="line">12   </span><br><span class="line">13     &#x2F;* </span><br><span class="line">14      * 如果设备驱动没有指定重复按键（连击），系统默认提供以下的支持 </span><br><span class="line">15      * 其中init_timer为连击产生的定时器，时间到调用input_repeat_key函数 </span><br><span class="line">16      * 上报，REP_DELAY用于设置重复按键的键值，REP_PERIOD设置延时时间 </span><br><span class="line">17      *&#x2F;  </span><br><span class="line">18     init_timer(&amp;dev-&gt;timer);  </span><br><span class="line">19     if (!dev-&gt;rep[REP_DELAY] &amp;&amp; !dev-&gt;rep[REP_PERIOD]) &#123;  </span><br><span class="line">20         dev-&gt;timer.data &#x3D; (long) dev;  </span><br><span class="line">21         dev-&gt;timer.function &#x3D; input_repeat_key;  </span><br><span class="line">22         dev-&gt;rep[REP_DELAY] &#x3D; 250;  </span><br><span class="line">23         dev-&gt;rep[REP_PERIOD] &#x3D; 33;  </span><br><span class="line">24     &#125;  </span><br><span class="line">25   </span><br><span class="line">26     &#x2F;* 如果设备驱动没有设置自己的获取键值的函数，系统默认 *&#x2F;  </span><br><span class="line">27     if (!dev-&gt;getkeycode)  </span><br><span class="line">28         dev-&gt;getkeycode &#x3D; input_default_getkeycode;  </span><br><span class="line">29   </span><br><span class="line">30     &#x2F;* 如果设备驱动没有指定按键重置函数，系统默认 *&#x2F;  </span><br><span class="line">31     if (!dev-&gt;setkeycode)  </span><br><span class="line">32         dev-&gt;setkeycode &#x3D; input_default_setkeycode;  </span><br><span class="line">33   </span><br><span class="line">34     &#x2F;* 重要，把设备挂到全局的input子系统设备链表input_dev_list上 *&#x2F;  </span><br><span class="line">35     list_add_tail(&amp;dev-&gt;node, &amp;input_dev_list);  </span><br><span class="line">36   </span><br><span class="line">37     &#x2F;* 动态获取input设备的ID号，名称为input*，其中后面的“*”动态获得，唯一的 *&#x2F;  </span><br><span class="line">38     snprintf(dev-&gt;cdev.class_id, sizeof(dev-&gt;cdev.class_id),  </span><br><span class="line">39          &quot;input%ld&quot;, (unsigned long) atomic_inc_return(&amp;input_no) - 1);  </span><br><span class="line">40   </span><br><span class="line">41     &#x2F;* 如果这个值没有设置，系统把输入设备挂入设备链表 *&#x2F;  </span><br><span class="line">42     if (!dev-&gt;cdev.dev)  </span><br><span class="line">43         dev-&gt;cdev.dev &#x3D; dev-&gt;dev.parent;  </span><br><span class="line">44   </span><br><span class="line">45     &#x2F;* 在&#x2F;sys目录下创建设备目录和文件 *&#x2F;  </span><br><span class="line">46     error &#x3D; class_device_add(&amp;dev-&gt;cdev);  </span><br><span class="line">47     if (error)  </span><br><span class="line">48         return error;  </span><br><span class="line">49   </span><br><span class="line">50     &#x2F;* 获取并打印设备的绝对路径名称 *&#x2F;  </span><br><span class="line">51     path &#x3D; kobject_get_path(&amp;dev-&gt;cdev.kobj, GFP_KERNEL);  </span><br><span class="line">52     printk(KERN_INFO &quot;input: %s as %s\n&quot;,  </span><br><span class="line">53         dev-&gt;name ? dev-&gt;name : &quot;Unspecified device&quot;, path ? path : &quot;N&#x2F;A&quot;);  </span><br><span class="line">54     kfree(path);  </span><br><span class="line">55   </span><br><span class="line">56     &#x2F;* 核心重点，input设备在增加到input_dev_list链表上之后，会查找 </span><br><span class="line">57      * input_handler_list事件处理链表上的handler进行匹配，这里的匹配 </span><br><span class="line">58      * 方式与设备模型的device和driver匹配过程很相似，所有的input </span><br><span class="line">59      * 都挂在input_dev_list上，所有类型的事件都挂在input_handler_list </span><br><span class="line">60      * 上，进行“匹配相亲”*&#x2F;  </span><br><span class="line">61     list_for_each_entry(handler, &amp;input_handler_list, node)  </span><br><span class="line">62         input_attach_handler(dev, handler);  </span><br><span class="line">63   </span><br><span class="line">64     input_wakeup_procfs_readers();  </span><br><span class="line">65   </span><br><span class="line">66     return 0;  </span><br><span class="line">67 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　上面的代码主要的功能有以下几个功能，也是设备驱动注册为输入设备委托内核做的事情：</p>
+<ul>
+<li><p>进一步初始化输入设备，例如连击事件；</p>
+</li>
+<li><p>注册输入设备到input类中；</p>
+</li>
+<li><p>把输入设备挂到输入设备链表input_dev_list中；</p>
+</li>
+<li><p>查找并匹配输入设备对应的事件处理层，通过input_handler_list链表</p>
+<p>　我们需要再分析下这个匹配的过程，但是需要注意的是下面分析的代码是我们暂时无法分析的，因为那样会使得情况变得更加复杂，当我们从应用层往下分析的时候一切都会明白。<strong>input_attach_handler</strong>匹配过程如下：</p>
+</li>
+</ul>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"> 1 const struct input_device_id *id;  </span><br><span class="line"> 2     int error;  </span><br><span class="line"> 3   </span><br><span class="line"> 4 &#x2F;* 如果handler的blacklist被赋值了并且则优先匹配 *&#x2F;  </span><br><span class="line"> 5     if (handler-&gt;blacklist &amp;&amp; input_match_device(handler-&gt;blacklist, dev))  </span><br><span class="line"> 6         return -ENODEV;  </span><br><span class="line"> 7   </span><br><span class="line"> 8     &#x2F;* 否则利用handler-&gt;id_table和dev进行匹配，后面讲述匹配什么和过程 *&#x2F;  </span><br><span class="line"> 9     id &#x3D; input_match_device(handler-&gt;id_table, dev);  </span><br><span class="line">10     if (!id)  </span><br><span class="line">11         return -ENODEV;  </span><br><span class="line">12   </span><br><span class="line">13     &#x2F;* 这是一根“红线”，虽然你可能觉的是黑色的，但不可否认，他们真的匹配上了 </span><br><span class="line">14          * 调用handler-&gt;connnect函数进行匹配，匹配详细过程后面讲述 </span><br><span class="line">15         *&#x2F;  </span><br><span class="line">16     error &#x3D; handler-&gt;connect(handler, dev, id);  </span><br><span class="line">17     if (error &amp;&amp; error !&#x3D; -ENODEV)  </span><br><span class="line">18         printk(KERN_ERR  </span><br><span class="line">19             &quot;input: failed to attach handler %s to device %s, &quot;  </span><br><span class="line">20             &quot;error: %d\n&quot;,  </span><br><span class="line">21             handler-&gt;name, kobject_name(&amp;dev-&gt;cdev.kobj), error);  </span><br><span class="line">22   </span><br><span class="line">23     return error;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　先来看下<strong>input_match_device()</strong>函数，看一下这个匹配的条件是什么，如何匹配的过程是怎样的，匹配的结果会是什么？</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"> 1 &#x2F;* 事件处理层中的对应flags如果设置或者driver_info被设置则进行匹配 *&#x2F;  </span><br><span class="line"> 2     for (; id-&gt;flags || id-&gt;driver_info; id++) &#123;  </span><br><span class="line"> 3         &#x2F;* 以下通过flags中设置的位来匹配设备的总线类型、经销商、生产ID和版本ID </span><br><span class="line"> 4           如果没有匹配上将进行MATCH_BIT匹配 *&#x2F;  </span><br><span class="line"> 5         if (id-&gt;flags &amp; INPUT_DEVICE_ID_MATCH_BUS)  </span><br><span class="line"> 6             if (id-&gt;bustype !&#x3D; dev-&gt;id.bustype)  </span><br><span class="line"> 7                 continue;  </span><br><span class="line"> 8   </span><br><span class="line"> 9         if (id-&gt;flags &amp; INPUT_DEVICE_ID_MATCH_VENDOR)  </span><br><span class="line">10             if (id-&gt;vendor !&#x3D; dev-&gt;id.vendor)  </span><br><span class="line">11                 continue;  </span><br><span class="line">12   </span><br><span class="line">13         if (id-&gt;flags &amp; INPUT_DEVICE_ID_MATCH_PRODUCT)  </span><br><span class="line">14             if (id-&gt;product !&#x3D; dev-&gt;id.product)  </span><br><span class="line">15                 continue;  </span><br><span class="line">16   </span><br><span class="line">17         if (id-&gt;flags &amp; INPUT_DEVICE_ID_MATCH_VERSION)  </span><br><span class="line">18             if (id-&gt;version !&#x3D; dev-&gt;id.version)  </span><br><span class="line">19                 continue;  </span><br><span class="line">20           </span><br><span class="line">21         &#x2F;* MATCH_BIT用于匹配设备驱动中是否设置了这些为，MATCH_BIT的宏 </span><br><span class="line">22         * 被定义在input.c中，我们在设备驱动中设置的事件类型会与事件链表中的 </span><br><span class="line">23         * 所有事件类型进行比较，匹配成功了将返回id，证明真的很合适，否则NULL </span><br><span class="line">24         *&#x2F;  </span><br><span class="line">25         MATCH_BIT(evbit,  EV_MAX);  </span><br><span class="line">26         MATCH_BIT(keybit, KEY_MAX);  </span><br><span class="line">27         MATCH_BIT(relbit, REL_MAX);  </span><br><span class="line">28         MATCH_BIT(absbit, ABS_MAX);  </span><br><span class="line">29         MATCH_BIT(mscbit, MSC_MAX);  </span><br><span class="line">30         MATCH_BIT(ledbit, LED_MAX);  </span><br><span class="line">31         MATCH_BIT(sndbit, SND_MAX);  </span><br><span class="line">32         MATCH_BIT(ffbit,  FF_MAX);  </span><br><span class="line">33         MATCH_BIT(swbit,  SW_MAX);  </span><br><span class="line">34   </span><br><span class="line">35         return id;  </span><br><span class="line">36     &#125;  </span><br><span class="line">37   </span><br><span class="line">38     return NULL;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　既然证明是合适的，接下来就应该登记注册，并公证了。还记得handler-&gt;connect(handler, dev, id)函数吧。</p>
+<p>　　当input_match_device（）找到最合适的事件处理层驱动时，便执行<strong>handler-&gt;connect</strong>函数进行公证了，看下面这部分代码（假如说找到了evdev类型的驱动，在input/evdev.c中）：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"> 1 struct evdev *evdev;  </span><br><span class="line"> 2     struct class_device *cdev;  </span><br><span class="line"> 3     dev_t devt;  </span><br><span class="line"> 4     int minor;  </span><br><span class="line"> 5     int error;  </span><br><span class="line"> 6   </span><br><span class="line"> 7     &#x2F;* EVDEV_MINORS为32，代表共能容纳32个evdev事件层设备，下面代码在找到空的地方，用于保存evdev事件层的数据，即上面定义的evdev *&#x2F;  </span><br><span class="line"> 8     for (minor &#x3D; 0; minor &lt; EVDEV_MINORS &amp;&amp; evdev_table[minor]; minor++);  </span><br><span class="line"> 9     &#x2F;* 这说明内核已经没办法再分配这种类型的设备了 *&#x2F;  </span><br><span class="line">10     if (minor &#x3D;&#x3D; EVDEV_MINORS) &#123;  </span><br><span class="line">11         printk(KERN_ERR &quot;evdev: no more free evdev devices\n&quot;);  </span><br><span class="line">12         return -ENFILE;  </span><br><span class="line">13     &#125;  </span><br><span class="line">14     &#x2F;* 开始给evdev事件层驱动分配空间了 *&#x2F;  </span><br><span class="line">15     evdev &#x3D; kzalloc(sizeof(struct evdev), GFP_KERNEL);  </span><br><span class="line">16     if (!evdev)  </span><br><span class="line">17         return -ENOMEM;  </span><br><span class="line">18   </span><br><span class="line">19     &#x2F;* 初始化client_list列表和evdev_wait队列，后面介绍 *&#x2F;  </span><br><span class="line">20     INIT_LIST_HEAD(&amp;evdev-&gt;client_list);  </span><br><span class="line">21     init_waitqueue_head(&amp;evdev-&gt;wait);  </span><br><span class="line">22   </span><br><span class="line">23     &#x2F;* 初始化evdev结构体，其中handle为输入设备和事件处理的关联接口 *&#x2F;  </span><br><span class="line">24     evdev-&gt;exist &#x3D; 1;  </span><br><span class="line">25     evdev-&gt;minor &#x3D; minor;  </span><br><span class="line">26     evdev-&gt;handle.dev &#x3D; dev;  </span><br><span class="line">27     evdev-&gt;handle.name &#x3D; evdev-&gt;name;  </span><br><span class="line">28     evdev-&gt;handle.handler &#x3D; handler;  </span><br><span class="line">29     evdev-&gt;handle.private &#x3D; evdev;  </span><br><span class="line">30     sprintf(evdev-&gt;name, &quot;event%d&quot;, minor);  </span><br><span class="line">31   </span><br><span class="line">32     &#x2F;* 重要，上层访问时通过次设备号找到事件处理的接口 *&#x2F;  </span><br><span class="line">33     evdev_table[minor] &#x3D; evdev;  </span><br><span class="line">34   </span><br><span class="line">35     &#x2F;* evdev事件设备的此设备号的基准值INPUT_MAJOR, EVDEV_MINOR_BASE *&#x2F;  </span><br><span class="line">36     devt &#x3D; MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),  </span><br><span class="line">37   </span><br><span class="line">38     &#x2F;* 创建用户事件驱动层设备访问接口&#x2F;dev&#x2F;input&#x2F;event* *&#x2F;  </span><br><span class="line">39     cdev &#x3D; class_device_create(&amp;input_class, &amp;dev-&gt;cdev, devt,  </span><br><span class="line">40                    dev-&gt;cdev.dev, evdev-&gt;name);  </span><br><span class="line">41     if (IS_ERR(cdev)) &#123;  </span><br><span class="line">42         error &#x3D; PTR_ERR(cdev);  </span><br><span class="line">43         goto err_free_evdev;  </span><br><span class="line">44     &#125;  </span><br><span class="line">45   </span><br><span class="line">46     &#x2F;* 提供&#x2F;sys目录的用户空间接口 *&#x2F;  </span><br><span class="line">47     error &#x3D; sysfs_create_link(&amp;input_class.subsys.kobj,  </span><br><span class="line">48                   &amp;cdev-&gt;kobj, evdev-&gt;name);  </span><br><span class="line">49     if (error)  </span><br><span class="line">50         goto err_cdev_destroy;  </span><br><span class="line">51   </span><br><span class="line">52     &#x2F;* input_dev设备驱动和handler事件处理层的关联，由handle完成 *&#x2F;  </span><br><span class="line">53     error &#x3D; input_register_handle(&amp;evdev-&gt;handle);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　通过上述代码的执行，最终，输入设备在<strong>input_register_handle()</strong>的关联下与已经匹配上的handler结合</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> 1 struct input_handler *handler &#x3D; handle-&gt;handler;  </span><br><span class="line"> 2     &#x2F;* 将d_node链接到输入设备的h_list，h_node链接到事件层的h_list链表上 </span><br><span class="line"> 3     * 因此，在handle中是输入设备和事件层的关联结构体，通过输入设备可以 </span><br><span class="line"> 4     * 找到对应的事件处理层接口，通过事件处理层也可找到匹配的输入设备 </span><br><span class="line"> 5     *&#x2F;  </span><br><span class="line"> 6     list_add_tail(&amp;handle-&gt;d_node, &amp;handle-&gt;dev-&gt;h_list);  </span><br><span class="line"> 7     list_add_tail(&amp;handle-&gt;h_node, &amp;handler-&gt;h_list);  </span><br><span class="line"> 8   </span><br><span class="line"> 9     &#x2F;* 如果start函数有定义则调用，但是evdev结构体中并未初始化这个函数 *&#x2F;  </span><br><span class="line">10     if (handler-&gt;start)  </span><br><span class="line">11         handler-&gt;start(handle);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　</p>
+<p>　　<strong>以上是输入设备驱动注册的全过程</strong>，牵涉的代码比较多，需要从宏观上理顺。</p>
+<p>　　<strong>纵观整个过程：</strong></p>
+<p>　　<strong>输入设备驱动最终的目的就是能够与事件处理层的事件驱动相互匹配，但是在drivers/input目录下有evdev.c事件驱动、mousedev.c事件驱动、joydev.c事件驱动等等，我们的输入设备产生的事件应该最终上报给谁，然后让事件驱动再去处理呢？</strong></p>
+<p>　　<strong>知道了这么个原因再看上面代码就会明白，其实evdev.c、mousedev.c等根据硬件输入设备的处理方式的不同抽象出了不同的事件处理接口帮助上层去调用，而我们写的设备驱动程序只不过是完成了硬件寄存器中数据的读写，但提交给用户的事件必须是经过事件处理层的封装和同步才能够完成的，事件处理层提供给用户一个统一的界面来操作。</strong></p>
+<p>　　由于以上的这些原因，才有了上述代码的关联过程，看一下整个关联注册的过程：</p>
+<p>　<br>　　<img src="https://images0.cnblogs.com/blog/536940/201309/01112129-4e175a1a4f82477b8cb262b24359fd1a.png" alt="img"></p>
+<p>　　通过上图我们可以看到input输入设备匹配关联的关键过程以及涉及到的关键函数和数据。</p>
+<p>　　以上主要是从input设备驱动程序的角度去看输入子系统的注册过程和三层之间的关联。</p>
+<p>　　下面将从应用层的角度分析事件的接受过程和处理过程以及三层之间是如何配合处理输入事件的。</p>
+<hr>
+<h2 id="从应用层的角度出发看input子系统"><a href="#从应用层的角度出发看input子系统" class="headerlink" title="从应用层的角度出发看input子系统"></a>从应用层的角度出发看input子系统</h2><p>　　以上部分已经借助input子系统把input设备驱动层与事件驱动层进行了关联，以s3c2440_ts.c（输入设备层驱动）和evdev.c（事件处理层驱动）为例，来分析这一过程。</p>
+<p>由于s3c2440_ts.c中上报的事件类型为按键、绝对值坐标，而evdev事件驱动程序是全匹配的，因此早在s3c2440_ts.c注册的过程中，就会创建设备节点/dev/input/event0（假设内核中没有其他的event类型的输入设备，这里就是event0）</p>
+<p>　　我们知道，应用层使用设备的第一步，是open(“/dev/event0”)，因此这里event0的主设备号成为关键，因为主设备号将表明你是什么设备，我们ls -l查看/dev/event0发现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">crw-r-----1 root root 13, 64 2012-07-26 14:32 &#x2F;dev&#x2F;input&#x2F;event0</span><br></pre></td></tr></table></figure>
+
+<p>　　由此可见主设备是13，输入命令cat /proc/devices查看主设备为13的是input设备，因此可以确定当我们执行open函数打开event0设备的时候，会调用input设备的open驱动函数，这个函数在input.c中，为了说明这一问题，需要<strong>从input驱动注册过程开始</strong>，还是input.c文件：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">1 &#x2F;* 输入设备初始化函数 *&#x2F;  </span><br><span class="line">2 static int __init input_init(void)  </span><br><span class="line">3 &#123;  </span><br><span class="line">4        class_register(&amp;input_class);  </span><br><span class="line">5        input_proc_init();  </span><br><span class="line">6        register_chrdev(INPUT_MAJOR,&quot;input&quot;, &amp;input_fops);  </span><br><span class="line">7 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　可以看到，输入设备初始化的过程首先建立了input类，初始化input在proc下的节点，然后注册input设备，设备名称为input，操作接口是input_fops，主设备号是INPUT_MAJOR=13。</p>
+<p>　　由以上可知，只要是主设备号为13的设备驱动程序，都是用input_fops接口，即当event0设备使用open函数打开时，会调用到input_fops接口中的open驱动函数，这个结构体的初始化为：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1 static const struct file_operations input_fops &#x3D; &#123;  </span><br><span class="line">2        .owner &#x3D; THIS_MODULE,  </span><br><span class="line">3        .open &#x3D; input_open_file,  </span><br><span class="line">4 &#125;;</span><br></pre></td></tr></table></figure>
+
+<p>　　可以看到，只实现了一个open功能字段，再看<strong>input_open_file</strong>的实现：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"> 1 static int input_open_file(struct inode *inode, struct file *file)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3        struct input_handler *handler &#x3D;input_table[iminor(inode) &gt;&gt; 5];  </span><br><span class="line"> 4        const struct file_operations *old_fops,*new_fops &#x3D; NULL;  </span><br><span class="line"> 5        if (!handler || !(new_fops &#x3D;fops_get(handler-&gt;fops)))  </span><br><span class="line"> 6               return -ENODEV;  </span><br><span class="line"> 7        old_fops &#x3D; file-&gt;f_op;  </span><br><span class="line"> 8        file-&gt;f_op &#x3D; new_fops;  </span><br><span class="line"> 9        new_fops-&gt;open(inode, file);  </span><br><span class="line">10 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　以上代码的功能为找到对应事件驱动层的fops，即进行fops的接口转换，指向对应设备的事件处理接口。</p>
+<p>　　其中input_table[iminor(inode)]&gt;&gt;5的input_table是一个全局的input_handler类型的数组，iminor(inode)取得次设备号，并且右移5位索引input_table表中对应的位置，为什么这样做呢？这是因为这个表格中填写的就是事件处理的指针，待会分析。</p>
+<p>　　继续查看下面的代码。if中将判断是否为空并且事件处理层中的fops有没有初始化，如果没有就不能进行接口转换，报出设备不存在的错误，如果设备存在则把input设备的f_op驱动接口指向input_table表中存在的接口，并调用其open函数。</p>
+<p>　　那么这个<strong>input_table里面到底存放了什么呢？</strong>我们还是拿触摸屏驱动来讲解。由于触摸屏驱动已经完成了和evdev.c事件处理层的匹配，且次设备号为64，设备名称为/dev/event0，这是我们通过分析驱动注册中获得的内容，既然input核心设备注册了，s3c2440触摸屏驱动也注册了，那会不会evdev设备也会注册了呢？答案是肯定的，要想知道input_table里面放了什么，必须要去查看<strong>evdev设备的注册过程</strong>，打开input/evdev.c查看它的注册过程：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> 1 static struct input_handler evdev_handler &#x3D; &#123;  </span><br><span class="line"> 2        .event &#x3D;   evdev_event,                               &#x2F;&#x2F;事件处理  </span><br><span class="line"> 3        .connect &#x3D;      evdev_connect,                    &#x2F;&#x2F;设备连接  </span><br><span class="line"> 4        .disconnect &#x3D;  evdev_disconnect,                &#x2F;&#x2F;注销连接  </span><br><span class="line"> 5        .fops &#x3D;           &amp;evdev_fops,                      &#x2F;&#x2F;驱动功能接口  </span><br><span class="line"> 6        .minor &#x3D;  EVDEV_MINOR_BASE,              &#x2F;&#x2F;evdev的值为64  </span><br><span class="line"> 7        .name &#x3D;          &quot;evdev&quot;,                              &#x2F;&#x2F;设备名称  </span><br><span class="line"> 8        .id_table &#x3D;      evdev_ids,                           &#x2F;&#x2F;用于匹配设备驱动的数组  </span><br><span class="line"> 9 &#125;;  </span><br><span class="line">10    </span><br><span class="line">11 static int __init evdev_init(void)  </span><br><span class="line">12 &#123;  </span><br><span class="line">13        return input_register_handler(&amp;evdev_handler);          &#x2F;&#x2F;evdev设备驱动注册  </span><br><span class="line">14 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　由以上的内容可以知道evdev_handler也被作为一个设备来操作，但是它属于input handler事件处理设备，然而我们在evdev_handler结构体的.fops字段又发现它的驱动接口为字符设备类型，在input中，如果input_table匹配到了evdev_handler，将会把file-&gt;f_op=&amp;evdev_fops，那么如果使用read、write等函数操作，将会调用到evdev_fops中的read、write。</p>
+<p>　　为了进一步查看<strong>input_table表中的内容是如何填充的</strong>，还需要查看这个注册的过程：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">1 int input_register_handler(struct input_handler *handler)  </span><br><span class="line">2 &#123;  </span><br><span class="line">3     ……  </span><br><span class="line">4            input_table[handler-&gt;minor&gt;&gt; 5] &#x3D; handler;  </span><br><span class="line">5     ……  </span><br><span class="line">6 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　当然这个注册过程并不是只有这么一句话，看到这条语句，相信应该知道什么意思了。</p>
+<p>　　在input的open函数执行之前，即我们的open代码打开之前，input_table中的字段已经被事件处理层填充了。</p>
+<p>　　由于evdev的次设备号在初始化的时候就设置成了64，因此这里相当于：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">input_table[2]&#x3D;&amp;evdev_handler；</span><br></pre></td></tr></table></figure>
+
+<p>　　回到input_open_file函数查看new_fops-&gt;open(inode, file)便知道了调用的是:</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">evdev_handler.evdev_fops.open（inode, file）；</span><br></pre></td></tr></table></figure>
+
+<p>　　</p>
+<p>　　在分析open函数之前，解释一下<strong>为什么要右移5位？</strong></p>
+<p>　　这说明一个问题，次设备号的低5位被忽略，这说明evdev的最大支持的输入设备驱动个数为2^5次方等于32个，你可能会看到你的/dev目录下面有event0、event1、event2等设备，他们的次设备号分别为64、65、66等等。但最大是64+32-1，因此input_table为这些输入设备增加的一个统一接口，通过上层打开设备时，只要次设备号在64+32-1之间的设备都会重新定位到evdev_handler中，即event*设备打开后执行的底层函数将被重新定义到evdev_handler中。</p>
+<p>　　相信上面的问题已经描述清楚，如果还是不明白，最起码应该知道的是，input设备中的open函数只是一个接口，通过次设备号才找到了真正的事件处理接口。接下来要看新的open接口的实现了，evdev_handler-&gt; fops-&gt;open实现如下：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"> 1 &#x2F;*evdev字符设备驱动接口 *&#x2F;  </span><br><span class="line"> 2 static const struct file_operations evdev_fops &#x3D; &#123;  </span><br><span class="line"> 3        .owner &#x3D; THIS_MODULE,  </span><br><span class="line"> 4        .read &#x3D;           evdev_read,  </span><br><span class="line"> 5        .write &#x3D;   evdev_write,  </span><br><span class="line"> 6        .poll &#x3D;            evdev_poll,  </span><br><span class="line"> 7        .open &#x3D;          evdev_open,  </span><br><span class="line"> 8        .release &#x3D; evdev_release,  </span><br><span class="line"> 9        .unlocked_ioctl &#x3D; evdev_ioctl,  </span><br><span class="line">10 #ifdef CONFIG_COMPAT  </span><br><span class="line">11        .compat_ioctl &#x3D;      evdev_ioctl_compat,  </span><br><span class="line">12 #endif  </span><br><span class="line">13        .fasync &#x3D; evdev_fasync,  </span><br><span class="line">14        .flush &#x3D;   evdev_flush  </span><br><span class="line">15 &#125;;  </span><br><span class="line">16 &#x2F;*evdev设备open函数的实现过程 *&#x2F;  </span><br><span class="line">17 static int evdev_open(struct inode *inode, struct file *file)  </span><br><span class="line">18 &#123;  </span><br><span class="line">19        struct evdev_client *client;  </span><br><span class="line">20        struct evdev *evdev;  </span><br><span class="line">21        &#x2F;* 如果是event0，对于evdev设备来说，次设备号当然是0 *&#x2F;  </span><br><span class="line">22        int i &#x3D; iminor(inode) - EVDEV_MINOR_BASE;  </span><br><span class="line">23        int error;  </span><br><span class="line">24        &#x2F;* 如果大于32，说明超出了evdev能够容纳的最大输入设备个数 *&#x2F;  </span><br><span class="line">25        if (i &gt;&#x3D; EVDEV_MINORS)  </span><br><span class="line">26               return -ENODEV;  </span><br><span class="line">27        &#x2F;* 由于evdev中能容纳32个输入设备，因此通过设备号event0中的0定位到是要处理的是哪一个输入设备，evdev_table中的内容在输入设备驱动注册时通过evdev_connect填充 *&#x2F;  </span><br><span class="line">28        evdev &#x3D; evdev_table[i];  </span><br><span class="line">29        &#x2F;* 判断是否设备接口存在，evdev_exist也是在evdev_connect填充为1 *&#x2F;  </span><br><span class="line">30        if (!evdev || !evdev-&gt;exist)  </span><br><span class="line">31               return -ENODEV;  </span><br><span class="line">32        &#x2F;* 存在则分配evdev中的client来处理event* *&#x2F;  </span><br><span class="line">33        client &#x3D; kzalloc(sizeof(struct evdev_client),GFP_KERNEL);  </span><br><span class="line">34        if (!client)  </span><br><span class="line">35               return -ENOMEM;  </span><br><span class="line">36    </span><br><span class="line">37        &#x2F;* 把event*中的接口指向evdev_table中对应项 *&#x2F;  </span><br><span class="line">38        client-&gt;evdev &#x3D; evdev;  </span><br><span class="line">39        &#x2F;* 把client-&gt;node链接到evdev子集中 *&#x2F;  </span><br><span class="line">40        list_add_tail(&amp;client-&gt;node,&amp;evdev-&gt;client_list);  </span><br><span class="line">41        &#x2F;* 如果open是第一个打开，则会执行input_open_device*&#x2F;  </span><br><span class="line">42        if (!evdev-&gt;open++ &amp;&amp;evdev-&gt;exist) &#123;  </span><br><span class="line">43               error &#x3D;input_open_device(&amp;evdev-&gt;handle);  </span><br><span class="line">44               if (error) &#123;  </span><br><span class="line">45                      list_del(&amp;client-&gt;node);  </span><br><span class="line">46                      kfree(client);  </span><br><span class="line">47                      return error;  </span><br><span class="line">48               &#125;  </span><br><span class="line">49        &#125;  </span><br><span class="line">50        &#x2F;* 将file私有指针指向client*&#x2F;  </span><br><span class="line">51        file-&gt;private_data &#x3D; client;  </span><br><span class="line">52        return 0;  </span><br><span class="line">53 &#125;  </span><br><span class="line">54 &#x2F;&#x2F;由上的代码可以看出，最终是要执行input_open_device去执行设备驱动程序中的代码，然而我们在定义设备驱动的时候并没有给input_dev中的open字段填充内容，因此可以看到input_open_device函数的执行过程：  </span><br><span class="line">55 if(!dev-&gt;users++ &amp;&amp; dev-&gt;open)  </span><br><span class="line">56               err &#x3D; dev-&gt;open(dev);  </span><br><span class="line">57    </span><br><span class="line">58        if (err)  </span><br><span class="line">59               handle-&gt;open--;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　上面截取了片段，并没有执行到open函数，open进行自减操作，表示没有调用过open，这个值主要是为了close中判断open为0时释放资源使用。</p>
+<p>　　不仅如此，我们在触摸屏驱动中也没有定义read、write，那当触摸屏上报事件时，是如何处理的呢？</p>
+<p>　　我们需要先到触摸屏驱动程序中找到上报事件的函数再做进一步分析。</p>
+<hr>
+<h2 id="输入设备上报事件的处理过程"><a href="#输入设备上报事件的处理过程" class="headerlink" title="输入设备上报事件的处理过程"></a>输入设备上报事件的处理过程</h2><p>　　触摸屏驱动程序<strong>上报事件的函数</strong>为：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1 input_report_abs(dev,ABS_X, s3c2440_ts-&gt;tc.xp);  </span><br><span class="line">2 input_report_abs(dev,ABS_Y, s3c2440_ts-&gt;tc.yp);  </span><br><span class="line">3 input_report_abs(dev,ABS_PRESSURE, s3c2440_ts-&gt;tc.pressure);  </span><br><span class="line">4 input_report_key(dev,BTN_TOUCH, s3c2440_ts-&gt;pendown);  </span><br><span class="line">5 input_sync(dev);</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<p>　　然而他们其实是<strong>input_event</strong>函数的封装，调用的都是input_event函数，这一函数在input.c中实现如下：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"> 1 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, intvalue)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3        struct input_handle *handle;  </span><br><span class="line"> 4    </span><br><span class="line"> 5        if (type &gt; EV_MAX || !test_bit(type,dev-&gt;evbit))  </span><br><span class="line"> 6               return;  </span><br><span class="line"> 7        switch (type) &#123;  </span><br><span class="line"> 8               case EV_SYN:  </span><br><span class="line"> 9                      switch (code) &#123;  </span><br><span class="line">10                             case SYN_CONFIG:  </span><br><span class="line">11                                    if(dev-&gt;event)  </span><br><span class="line">12                                           dev-&gt;event(dev,type, code, value);  </span><br><span class="line">13                                    break;  </span><br><span class="line">14                             case SYN_REPORT:  </span><br><span class="line">15                                    if(dev-&gt;sync)  </span><br><span class="line">16                                           return;  </span><br><span class="line">17                                    dev-&gt;sync&#x3D; 1;  </span><br><span class="line">18                                    break;  </span><br><span class="line">19                      &#125;  </span><br><span class="line">20                      break;  </span><br><span class="line">21               case EV_KEY:  </span><br><span class="line">22               case EV_SW:  </span><br><span class="line">23               case EV_ABS:  </span><br><span class="line">24               case EV_REL:  </span><br><span class="line">25               case EV_MSC:  </span><br><span class="line">26               case EV_LED:  </span><br><span class="line">27               case EV_SND:  </span><br><span class="line">28               case EV_REP:  </span><br><span class="line">29               case EV_FF:  </span><br><span class="line">30        &#125;  </span><br><span class="line">31    </span><br><span class="line">32        if (type !&#x3D; EV_SYN)  </span><br><span class="line">33               dev-&gt;sync &#x3D; 0;  </span><br><span class="line">34    </span><br><span class="line">35        if (dev-&gt;grab)  </span><br><span class="line">36               dev-&gt;grab-&gt;handler-&gt;event(dev-&gt;grab,type, code, value);  </span><br><span class="line">37        else  </span><br><span class="line">38               list_for_each_entry(handle,&amp;dev-&gt;h_list, d_node)  </span><br><span class="line">39                      if (handle-&gt;open)  </span><br><span class="line">40                             handle-&gt;handler-&gt;event(handle,type, code, value);  </span><br><span class="line">41 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　代码被做了精简，其中就是在匹配上报的事件，并根据事件的类型调用驱动程序中相应的函数来完成，但是由于我们并没有定义过这些函数，因此执行最后的<strong>handle_handler_event</strong>函数，由事件处理层evdev_event函数来完成事件的保存工作，具体过程如下：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">1 list_for_each_entry(client,&amp;evdev-&gt;client_list, node) &#123;  </span><br><span class="line">2     client-&gt;buffer[client-&gt;head].type&#x3D; type;  </span><br><span class="line">3     client-&gt;buffer[client-&gt;head].code&#x3D; code;  </span><br><span class="line">4     client-&gt;buffer[client-&gt;head].value&#x3D; value;  </span><br><span class="line">5     client-&gt;head&#x3D; (client-&gt;head + 1) &amp; (EVDEV_BUFFER_SIZE - 1);  </span><br><span class="line">6 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　这里列举了关键代码，即上报的事件被保存到了client_buffer中，其中client_buffer是一个循环缓冲区，client-&gt;head表示当前数据的位置，因此每次都写到client-&gt;head的位置，而读数据时需要到client_tail中读取。因为在open的时候，client已经被链入到了evdev-&gt;client_list中，因此通过可以通过list_for_each_entry重evdev-&gt;client_list中找到对应的client。</p>
+<p>　　事件的上报都会把数据保存到client-&gt;buffer中，以便上层通过read和write进行读去和写入。</p>
+<hr>
+<h2 id="通过设备节点读取输入事件"><a href="#通过设备节点读取输入事件" class="headerlink" title="通过设备节点读取输入事件"></a>通过设备节点读取输入事件</h2><p>　　还是以触摸屏驱动程序和evdev事件处理层驱动来分析：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"> 1 static ssize_t evdev_read(struct file *file, char __user *buffer, size_t count, loff_t*ppos)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3        struct evdev_client *client &#x3D;file-&gt;private_data;  </span><br><span class="line"> 4        struct evdev *evdev &#x3D; client-&gt;evdev;  </span><br><span class="line"> 5        int retval;  </span><br><span class="line"> 6    </span><br><span class="line"> 7        &#x2F;* 判断用户给的count是否能够容纳事件数据的大小*&#x2F;  </span><br><span class="line"> 8        if (count &lt; evdev_event_size())  </span><br><span class="line"> 9               return -EINVAL;  </span><br><span class="line">10    </span><br><span class="line">11        &#x2F;* 如果数据不为空并且设备存在并且是阻塞访问方式才能继续执行 *&#x2F;  </span><br><span class="line">12        if (client-&gt;head &#x3D;&#x3D; client-&gt;tail&amp;&amp; evdev-&gt;exist &amp;&amp; (file-&gt;f_flags &amp; O_NONBLOCK))  </span><br><span class="line">13               return -EAGAIN;  </span><br><span class="line">14    </span><br><span class="line">15        &#x2F;* 如果数据为空，设置进程等待底层驱动层上报事件到client-&gt;buffer中 *&#x2F;  </span><br><span class="line">16        retval &#x3D;wait_event_interruptible(evdev-&gt;wait,  </span><br><span class="line">17               client-&gt;head !&#x3D; client-&gt;tail|| !evdev-&gt;exist);  </span><br><span class="line">18        if (retval)  </span><br><span class="line">19               return retval;  </span><br><span class="line">20    </span><br><span class="line">21        if (!evdev-&gt;exist)  </span><br><span class="line">22               return -ENODEV;  </span><br><span class="line">23    </span><br><span class="line">24        &#x2F;* 循环读取数据 *&#x2F;  </span><br><span class="line">25        while (client-&gt;head !&#x3D; client-&gt;tail&amp;&amp; retval + evdev_event_size() &lt;&#x3D; count) &#123;  </span><br><span class="line">26    </span><br><span class="line">27               struct input_event *event &#x3D;(struct input_event *) client-&gt;buffer + client-&gt;tail;  </span><br><span class="line">28    </span><br><span class="line">29               if (evdev_event_to_user(buffer +retval, event))  </span><br><span class="line">30                      return -EFAULT;  </span><br><span class="line">31    </span><br><span class="line">32               client-&gt;tail &#x3D; (client-&gt;tail+ 1) &amp; (EVDEV_BUFFER_SIZE - 1);  </span><br><span class="line">33               retval +&#x3D; evdev_event_size();  </span><br><span class="line">34        &#125;  </span><br><span class="line">35    </span><br><span class="line">36        return retval;  </span><br><span class="line">37 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　这里如果没有数据，进程会睡眠，那由谁来唤醒呢？细心的话可以发现，当设备驱动层调用input_event上报事件调用相应的event函数进行事件写入时，是会唤醒阻塞等待的进程的。</p>
+<hr>
+<h2 id="通过设备节点写入输入事件"><a href="#通过设备节点写入输入事件" class="headerlink" title="通过设备节点写入输入事件"></a>通过设备节点写入输入事件</h2><p>　　写入过程：</p>
+<p><img src="https://images.cnblogs.com/OutliningIndicators/ExpandedBlockStart.gif" alt="img"></p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> 1 static ssize_t evdev_write(struct file *file, const char __user *buffer, size_t count,loff_t *ppos)  </span><br><span class="line"> 2 &#123;  </span><br><span class="line"> 3        &#x2F;* 循环写入，调用input_inject_event函数 *&#x2F;  </span><br><span class="line"> 4        while (retval &lt; count) &#123;  </span><br><span class="line"> 5    </span><br><span class="line"> 6               if (evdev_event_from_user(buffer +retval, &amp;event))  </span><br><span class="line"> 7                      return -EFAULT;  </span><br><span class="line"> 8               input_inject_event(&amp;evdev-&gt;handle,event.type, event.code, event.value);  </span><br><span class="line"> 9               retval +&#x3D; evdev_event_size();  </span><br><span class="line">10        &#125;  </span><br><span class="line">11    </span><br><span class="line">12        return retval;  </span><br><span class="line">13 &#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>　　上述代码中的event是input_event数组，包含了事件的类型、键值，通过input_inject_event把数据写入循环数组client-&gt;buffer中，input_inject_event调用的是input_event函数。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>　　对input子系统的整个过程做了分析，并从两个角度进行考虑.</p>
+<p>　　对于写输入设备驱动程序的来说，需要掌握的是设备应该上报事件的类型，这样才能匹配到对应的事件层驱动帮助你保存对应的数据.</p>
+<p>　　而对于设备上层开发者来说，应该先使用cat /proc/bus/input/devices查看你操作的设备类型和处理接口，以帮助你更好的对设备操作。</p>
+<hr>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="http://blog.csdn.net/ielife" target="_blank" rel="noopener">http://blog.csdn.net/ielife</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Input/" rel="tag"># Input</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/06/Linux/Driver/Input/input%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F%E5%BC%80%E5%8F%91/" rel="prev" title="input子系统应用程序开发">
+      <i class="fa fa-chevron-left"></i> input子系统应用程序开发
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/07/Linux/Driver/Input/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91input%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%85%A8%E9%9D%A2%E5%88%86%E6%9E%90/" rel="next" title="【转载】input子系统全面分析">
+      【转载】input子系统全面分析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#【驱动】input子系统整体流程全面分析（触摸屏驱动为例）"><span class="nav-number">1.</span> <span class="nav-text">【驱动】input子系统整体流程全面分析（触摸屏驱动为例）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#input输入子系统整体流程"><span class="nav-number">1.1.</span> <span class="nav-text">input输入子系统整体流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#设备驱动层注册到input子系统"><span class="nav-number">1.2.</span> <span class="nav-text">设备驱动层注册到input子系统</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#从应用层的角度出发看input子系统"><span class="nav-number">1.3.</span> <span class="nav-text">从应用层的角度出发看input子系统</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#输入设备上报事件的处理过程"><span class="nav-number">1.4.</span> <span class="nav-text">输入设备上报事件的处理过程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#通过设备节点读取输入事件"><span class="nav-number">1.5.</span> <span class="nav-text">通过设备节点读取输入事件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#通过设备节点写入输入事件"><span class="nav-number">1.6.</span> <span class="nav-text">通过设备节点写入输入事件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.7.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考"><span class="nav-number">1.8.</span> <span class="nav-text">参考</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

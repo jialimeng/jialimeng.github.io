@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 前言什么是2.4G？射频收发器工作在国际ISM频段2.400~2.4835Ghz范围。2.4G协议分为公有协议和私有协议。公有协议，比如，zigbee,ble协议。私有协议就是厂家自己定义的协议，只能跟自家的通信，常说私有2.4G协议，就是自己制定协议，运行2.4G Soc芯片上。本文总结2.4G soc  nRF24LE1射频收发器原理。 2.4G soc结构 MCU通过SPI接口控">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2.4G nRF24LE1原理">
+<meta property="og:url" content="http://yoursite.com/2020/11/19/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/2.4G%20nRF24LE1%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 前言什么是2.4G？射频收发器工作在国际ISM频段2.400~2.4835Ghz范围。2.4G协议分为公有协议和私有协议。公有协议，比如，zigbee,ble协议。私有协议就是厂家自己定义的协议，只能跟自家的通信，常说私有2.4G协议，就是自己制定协议，运行2.4G Soc芯片上。本文总结2.4G soc  nRF24LE1射频收发器原理。 2.4G soc结构 MCU通过SPI接口控">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_001.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_002.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_003.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_004.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_005.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_006.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_008.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_007.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_009.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20201119_010.png">
+<meta property="article:published_time" content="2020-11-19T08:45:49.000Z">
+<meta property="article:modified_time" content="2020-11-20T01:44:48.287Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="2.4G">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20201119_001.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/11/19/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/2.4G%20nRF24LE1%E5%8E%9F%E7%90%86/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2.4G nRF24LE1原理 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/19/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/2.4G%20nRF24LE1%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2.4G nRF24LE1原理
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-11-19 16:45:49" itemprop="dateCreated datePublished" datetime="2020-11-19T16:45:49+08:00">2020-11-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-11-20 09:44:48" itemprop="dateModified" datetime="2020-11-20T09:44:48+08:00">2020-11-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/2-4G/" itemprop="url" rel="index"><span itemprop="name">2.4G</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/2-4G/Nordic-Soc%E5%BC%80%E5%8F%91/" itemprop="url" rel="index"><span itemprop="name">Nordic Soc开发</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>什么是2.4G？射频收发器工作在国际ISM频段2.400~2.4835Ghz范围。2.4G协议分为公有协议和私有协议。公有协议，比如，zigbee,ble协议。私有协议就是厂家自己定义的协议，只能跟自家的通信，常说私有2.4G协议，就是自己制定协议，运行2.4G Soc芯片上。本文总结2.4G soc  nRF24LE1射频收发器原理。</p>
+<h2 id="2-4G-soc结构"><a href="#2-4G-soc结构" class="headerlink" title="2.4G soc结构"></a>2.4G soc结构</h2><p><img src="http://jiali.clouddn.com/20201119_001.png" alt=""></p>
+<p>MCU通过SPI接口控制RF transceiver，具体RF transceiver内部结构如下图</p>
+<p><img src="http://jiali.clouddn.com/20201119_002.png" alt=""></p>
+<p>MCU通SPI发送命令，来配置RF transceiver的寄存器。</p>
+<p> 2.4G soc nRF24LE1的封装如下图</p>
+<p><img src="http://jiali.clouddn.com/20201119_003.png" alt=""></p>
+<p>管脚定义如下表</p>
+<p><img src="http://jiali.clouddn.com/20201119_004.png" alt=""></p>
+<h2 id="射频收发器工作原理"><a href="#射频收发器工作原理" class="headerlink" title="射频收发器工作原理"></a>射频收发器工作原理</h2><p><strong>1、工作模式</strong></p>
+<ul>
+<li>掉电模式</li>
+<li>待机模式：待机模式-I和待机模式-II</li>
+<li>接收模式</li>
+<li>发射模式</li>
+</ul>
+<p>工作模式的寄存器配置如下表</p>
+<p><img src="http://jiali.clouddn.com/20201119_005.png" alt=""></p>
+<p><strong>2、Enhanced ShockBurst</strong></p>
+<p>MCU负责把读写FIFO，剩下的事情 由ShockBurst完成。 ShockBurst功能如下：</p>
+<ul>
+<li>根据数据的长度来设置1~32字节范围内的动态数据长度;</li>
+<li>自动打包和拆包;</li>
+<li>自动进行包的CRC校验:自动应答,自动重传;</li>
+<li>MultiCeiver1~6通道星形网络的数据管理</li>
+</ul>
+<p>在发送端，MCU把数据写入TX FIFO，ShockBurst从TX FIFO取出数据，封装成一个数据包，并发送出去，在接收端，将解调后的数据，拆包并经过CRC校验后，确定是正确的数据，就把数据移动到RX FIFO，产生数据达到RX FIFO中断，MCU判断中断读取RX FIFO数据。</p>
+<p>带ACK的ShockBurst处理过程如下：</p>
+<ol>
+<li><p>先从PTX 发送一个数据包到PRX,增强型ShockBurst将设置PTX 为接收并等待<br>ACK 包。</p>
+</li>
+<li><p>如果数据包被PRX 所接收,增强型ShockBurst将自动装配并发送一个应答包(ACK<br>包)给PTX 然后返回接收模式。</p>
+</li>
+<li><p>如果PTX 没有即时收到ACK 包,增强型ShockBurst将会在一个可编程的延时间隔后自动重发此数据包,然后将PTX 设为接收模式等待ACK 包。</p>
+<p>在增强型ShockBurst中可以设定重发的次数和重发的间隔参数,而后所有的工作均由增强型ShockBurst自动完成而无需MCU 的干预。</p>
+</li>
+</ol>
+<p>增强型ShockBurst包格式</p>
+<p><img src="http://jiali.clouddn.com/20201119_006.png" alt=""></p>
+<p>带ACK增强型ShockBurst时序图</p>
+<p><img src="http://jiali.clouddn.com/20201119_008.png" alt=""></p>
+<p>Tul是SPI发送数据到FIFI的时间，RFCE产生至少10us的脉冲，激活发射模式，再过130us开始发送数据，Toa是空中传输的时间，数据发送完毕，ShockBurst自动把发送模式转换为接收模式，等待ACK。PRX RX FIFO收到数据，产生中断，在中断函数中读取FIFO数据。PRX收到数据，ShockBurst把接收模式转换为发送模式，发送ACK.</p>
+<p><strong>3、收发通道和RF收发地址</strong></p>
+<p>在接收模式下，可以接收六路PIPE数据，PIPE叫逻辑通道，实际上，不是并行接收六路PIPE，而是串行。接收模式下，多路接收示意图如下</p>
+<p><img src="http://jiali.clouddn.com/20201119_007.png" alt=""></p>
+<p>从图可以看出， 2.4G soc nRF24LE1,只有一个TX_ADDR寄存器来配置发送地址，由于由六个接收通道，所以，就有六个接收地址配置寄存器RX_ADDR_P0<del>RX_ADDR_P5。默认使能的接收只有RX_ADDR_P0和RX_ADDR_P1通道，其他通道需要手动使能。如果没有设置动态数据长度，则需要配置RX_PW_P0</del>RX_PW_P5对应使能通道的数据长度。</p>
+<p><strong>注意：</strong></p>
+<p>发送地址和某个接收通道地址要一致。发送地址需要配置TX_ADDR寄存器，与某个PIPE地址要相同。</p>
+<p>数据通道地址配置如下图</p>
+<p><img src="http://jiali.clouddn.com/20201119_009.png" alt=""></p>
+<p>每个数据通道可配置最多5字节地址。数据通道0有一个5字节的独特地址,数据通道1~5使用与之相同的高4 字节地址,而所有6 个数据通道的最低地址字节是不同。</p>
+<p><strong>注意:必须确保所有的数据通道地址不相同。</strong></p>
+<p><strong>4、RF收发器数据FIFO</strong></p>
+<p>RF数据FIFO分为发送FIFO和接收FIFO。这两个FIFO在发射和接收模式下，都可以访问。数据FIFO最多能容纳3个payload，每个payload为1~32byte。MCU通过SPI接口发送SPI 命令来操作数据FIFO。发射模式下，写FIFO的命令：W_TX_PAYLOAD  和W_TX_PAYLOAD_NO_ACK 。接收模式下，写FIFO命令：W_ACK_PAYLOAD 。在发射模式和接收模式下，都可以使用R_RX_PAYLOAD命令读FIFO。</p>
+<p>FIFO结构图如下：</p>
+<p><img src="http://jiali.clouddn.com/20201119_010.png" alt=""></p>
+<p><strong>5、中断</strong></p>
+<p>The RF transceiver can send interrupts to the MCU. The interrupt (RFIRQ) is activated when TX_DS,RX_DR or MAX_RT are set high by the state machine in the STATUS register.RFIRQ is deactivated when the MCU writes ‘1’ to the interrupt source bit in the STATUS register.The interrupt mask in the CONFIG register is used to select the IRQ sources that are allowed to activate RFIRQ. By setting one of the mask bits high, the corresponding interrupt source is disabled. By default all interrupt sources are enabled.</p>
+<p><strong>Note:</strong> </p>
+<p>The 3 bit pipe information in the STATUS register is updated during the RFIRQ high to low transition. The pipe information is unreliable if the STATUS register is read during a RFIRQ high to low transition.</p>
+<h2 id="寄存器"><a href="#寄存器" class="headerlink" title="寄存器"></a>寄存器</h2><p>参考芯片手册。</p>
+<p><strong>参考：</strong></p>
+<p>《nRF24LE1 Specification》</p>
+<p>《nRF无线SOC单片机原理与高级应用》</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/2-4G/" rel="tag"># 2.4G</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/11/05/IoT/%E8%93%9D%E7%89%99/ble%E6%8A%80%E6%9C%AF/%E8%93%9D%E7%89%99%E8%BF%9E%E6%8E%A5%E4%BA%8B%E4%BB%B6/" rel="prev" title="蓝牙连接事件">
+      <i class="fa fa-chevron-left"></i> 蓝牙连接事件
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91MMC%20SD%20SDIO%E4%BB%8B%E7%BB%8D/" rel="next" title="【转载】MMC/SD/SDIO介绍">
+      【转载】MMC/SD/SDIO介绍 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-4G-soc结构"><span class="nav-number">2.</span> <span class="nav-text">2.4G soc结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#射频收发器工作原理"><span class="nav-number">3.</span> <span class="nav-text">射频收发器工作原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#寄存器"><span class="nav-number">4.</span> <span class="nav-text">寄存器</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

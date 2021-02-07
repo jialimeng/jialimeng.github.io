@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 前言nRF52382,有两个外部晶振，一个为32.768kHz,另一个为32MHz。程序是在高频时钟32MHz下运行，而低频时钟32.768kHz提供时基供调度使用。之所以提供两个外部时钟，是为了芯片进入休眠后，减少功耗。芯片进入休眠，关闭32Mhz时钟，使用低频时钟来保持程序调度，达到了减少功耗目的。nRF52 SDK,使用了RTC0、RTC1和timer0定时器，其中，RTC1提供">
+<meta property="og:type" content="article">
+<meta property="og:title" content="application timer深入分析">
+<meta property="og:url" content="http://yoursite.com/2020/09/30/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/application%20timer%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 前言nRF52382,有两个外部晶振，一个为32.768kHz,另一个为32MHz。程序是在高频时钟32MHz下运行，而低频时钟32.768kHz提供时基供调度使用。之所以提供两个外部时钟，是为了芯片进入休眠后，减少功耗。芯片进入休眠，关闭32Mhz时钟，使用低频时钟来保持程序调度，达到了减少功耗目的。nRF52 SDK,使用了RTC0、RTC1和timer0定时器，其中，RTC1提供">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://jiali.clouddn.com/20200930_001.png">
+<meta property="og:image" content="http://jiali.clouddn.com/20200930_002.png">
+<meta property="article:published_time" content="2020-09-30T05:33:59.000Z">
+<meta property="article:modified_time" content="2020-10-12T09:23:51.688Z">
+<meta property="article:author" content="David Meng">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://jiali.clouddn.com/20200930_001.png">
+
+<link rel="canonical" href="http://yoursite.com/2020/09/30/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/application%20timer%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>application timer深入分析 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/09/30/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/application%20timer%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          application timer深入分析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-09-30 13:33:59" itemprop="dateCreated datePublished" datetime="2020-09-30T13:33:59+08:00">2020-09-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-10-12 17:23:51" itemprop="dateModified" datetime="2020-10-12T17:23:51+08:00">2020-10-12</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/%E8%93%9D%E7%89%99/" itemprop="url" rel="index"><span itemprop="name">蓝牙</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/%E8%93%9D%E7%89%99/Nordic-Soc%E5%BC%80%E5%8F%91/" itemprop="url" rel="index"><span itemprop="name">Nordic Soc开发</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>nRF52382,有两个外部晶振，一个为32.768kHz,另一个为32MHz。程序是在高频时钟32MHz下运行，而低频时钟32.768kHz提供时基供调度使用。之所以提供两个外部时钟，是为了芯片进入休眠后，减少功耗。芯片进入休眠，关闭32Mhz时钟，使用低频时钟来保持程序调度，达到了减少功耗目的。nRF52 SDK,使用了RTC0、RTC1和timer0定时器，其中，RTC1提供软件定时，暴露给用户使用,RTC0和timer0是蓝牙协议栈内部使用，用户看不到。下面分析基于RTC1的app_timer软件定时器的实现过程。</p>
+<h2 id="app-timer-原理"><a href="#app-timer-原理" class="headerlink" title="app_timer 原理"></a>app_timer 原理</h2><p><strong>定时原理</strong></p>
+<p>app_timer软件定时器是根据实时计数器RTC1比较事件来实现定时。nRF52382 实时计数器RTC拥有一个24位的计数器。RTC启动后，app_timer,通过不断调整比较寄存器CC0的值，计数器的值与比较的值匹配后，产生中断，处理app_timer设置的回调函数。</p>
+<p>计数器的值与比较的值匹配，产生匹配事件，如下图所示：</p>
+<p><img src="http://jiali.clouddn.com/20200930_001.png" alt=""></p>
+<p>​                                                                                                                    COMPARE事件时序图</p>
+<p><strong>app_timer软件设计</strong></p>
+<p>软件定时器处理流程如下</p>
+<p><img src="http://jiali.clouddn.com/20200930_002.png" alt="20200930_002"></p>
+<h2 id="流程分析"><a href="#流程分析" class="headerlink" title="流程分析"></a>流程分析</h2><p>初始化过程分析</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">main</span><br><span class="line">|---&gt;timers_init()</span><br><span class="line">|   初始化app定时器</span><br><span class="line">	|---&gt;app_timer_init()</span><br><span class="line">	|   初始化RTC1，建立RTC1中断回调函数rtc_irq()</span><br><span class="line">	|---&gt;app_timer_create()</span><br><span class="line">	|   创建app超时事件处理回调函数,处理用户业务</span><br><span class="line">|---&gt;application_timers_start()</span><br><span class="line">|   启动创建的定时器</span><br><span class="line">    |---&gt;app_timer_start()</span><br><span class="line">    |    1、timer比较值</span><br><span class="line">    |    2、软件触发产生中断，提交timer请求</span><br><span class="line">        |---&gt;timer_req_schedule()</span><br><span class="line">        |    1、申请请求对象，然后放入FIFO</span><br><span class="line">        |    2、提交请求</span><br><span class="line">            |---&gt;timer_request_proc_trigger()</span><br><span class="line">            |   |---&gt; drv_rtc_irq_trigger()</span><br><span class="line">            |       |---&gt;NVIC_SetPendingIRQ(p_instance-&gt;irq)</span><br><span class="line">                    |   软件触发产生中断</span><br></pre></td></tr></table></figure>
+
+<p>RTC1 中断处理过程分析</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">drv_rtc_rtc_1_irq_handler</span><br><span class="line">|RTC1中断函数入口，在中断里面执行回调函数</span><br><span class="line">|---&gt;rtc_irq()</span><br><span class="line">    |---&gt;on_overflow_evt()</span><br><span class="line">    |    执行计数溢出事件</span><br><span class="line">    |---&gt;on_compare_evt()</span><br><span class="line">    |    执行CC0寄存器比较事件</span><br><span class="line">    |---&gt;on_compare1_evt()</span><br><span class="line">    |    执行CC1寄存器比较事件</span><br><span class="line">    |---&gt;timer_req_process()</span><br><span class="line">    |    处理app timer请求，并加入链表，标记为活动timer</span><br><span class="line">    |---&gt;rtc_update()</span><br><span class="line">    |    调度timer,并更新rtc1 CC0值</span><br><span class="line">        |---&gt;rtc_schedule()</span><br><span class="line">        |    比较值设置</span><br></pre></td></tr></table></figure>
+
+<h2 id="关键代码注释"><a href="#关键代码注释" class="headerlink" title="关键代码注释"></a>关键代码注释</h2><p><strong>app_timer_init()函数</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">ret_code_t app_timer_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    ret_code_t err_code;</span><br><span class="line">    drv_rtc_config_t config &#x3D; &#123;</span><br><span class="line">        .prescaler          &#x3D; APP_TIMER_CONFIG_RTC_FREQUENCY,&#x2F;&#x2F;分频系数</span><br><span class="line">        .interrupt_priority &#x3D; APP_TIMER_CONFIG_IRQ_PRIORITY&#x2F;&#x2F;优先级</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    err_code &#x3D; NRF_ATFIFO_INIT(m_req_fifo);</span><br><span class="line">    if (err_code !&#x3D; NRFX_SUCCESS)</span><br><span class="line">    &#123;</span><br><span class="line">        return err_code;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    err_code &#x3D; drv_rtc_init(&amp;m_rtc_inst, &amp;config, rtc_irq); &#x2F;&#x2F;设置回调函数rtc_irq,在中断入口函数会执行回调函数</span><br><span class="line">    if (err_code !&#x3D; NRFX_SUCCESS)</span><br><span class="line">    &#123;</span><br><span class="line">        return err_code;</span><br><span class="line">    &#125;</span><br><span class="line">    drv_rtc_overflow_enable(&amp;m_rtc_inst, true);</span><br><span class="line">	drv_rtc_compare_set(&amp;m_rtc_inst, 1, DRV_RTC_MAX_CNT &gt;&gt; 1, true);</span><br><span class="line">    if (APP_TIMER_KEEPS_RTC_ACTIVE)&#x2F;&#x2F;是否把RTC1设置为一直运行的状态</span><br><span class="line">    &#123;</span><br><span class="line">        drv_rtc_start(&amp;m_rtc_inst);&#x2F;&#x2F;启动RTC1计数器</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    m_global_active &#x3D; true;</span><br><span class="line">    return err_code;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">ret_code_t drv_rtc_init(drv_rtc_t const * const  p_instance,</span><br><span class="line">                        drv_rtc_config_t const * p_config,</span><br><span class="line">                        drv_rtc_handler_t        handler)</span><br><span class="line">&#123;</span><br><span class="line">    ASSERT(p_instance);</span><br><span class="line">    ASSERT(p_config);</span><br><span class="line">    ASSERT(handler);</span><br><span class="line"></span><br><span class="line">    ret_code_t err_code;</span><br><span class="line"></span><br><span class="line">    m_handlers[p_instance-&gt;instance_id] &#x3D; handler; &#x2F;&#x2F;存储回调函数</span><br><span class="line"></span><br><span class="line">    if (m_cb[p_instance-&gt;instance_id].state !&#x3D; NRFX_DRV_STATE_UNINITIALIZED)</span><br><span class="line">    &#123;</span><br><span class="line">        err_code &#x3D; NRF_ERROR_INVALID_STATE;</span><br><span class="line">        NRF_LOG_WARNING(&quot;RTC instance already initialized.&quot;);</span><br><span class="line">        return err_code;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    nrf_rtc_prescaler_set(p_instance-&gt;p_reg, p_config-&gt;prescaler);</span><br><span class="line">    NRFX_IRQ_PRIORITY_SET(p_instance-&gt;irq, p_config-&gt;interrupt_priority);</span><br><span class="line">    NRFX_IRQ_ENABLE(p_instance-&gt;irq);</span><br><span class="line"></span><br><span class="line">    m_cb[p_instance-&gt;instance_id].state &#x3D; NRFX_DRV_STATE_INITIALIZED;</span><br><span class="line">    m_cb[p_instance-&gt;instance_id].p_instance &#x3D; p_instance;</span><br><span class="line"></span><br><span class="line">    err_code &#x3D; NRF_SUCCESS;</span><br><span class="line">    NRF_LOG_INFO(&quot;RTC: initialized.&quot;);</span><br><span class="line">    return err_code;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;RTC回调函数，RTC1中断入口调用该函数</span><br><span class="line">static void rtc_irq(drv_rtc_t const * const  p_instance)</span><br><span class="line">&#123;</span><br><span class="line">    if (drv_rtc_overflow_pending(p_instance))&#x2F;&#x2F;发生溢出事件</span><br><span class="line">    &#123;</span><br><span class="line">        on_overflow_evt();</span><br><span class="line">    &#125;</span><br><span class="line">    if (drv_rtc_compare_pending(p_instance, 0))&#x2F;&#x2F;发生CC0比较事件</span><br><span class="line">    &#123;</span><br><span class="line">        on_compare_evt(p_instance);</span><br><span class="line">    &#125;</span><br><span class="line">    if (drv_rtc_compare_pending(p_instance, 1))&#x2F;&#x2F;发生CC1比较事件</span><br><span class="line">    &#123;</span><br><span class="line">        on_compare1_evt(p_instance);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    timer_req_process(p_instance);  &#x2F;&#x2F;处理请求</span><br><span class="line">    rtc_update(p_instance);  &#x2F;&#x2F;调度app timer，更新比较值</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>app_timer_start()函数</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">ret_code_t app_timer_start(app_timer_t * p_timer, uint32_t timeout_ticks, void * p_context)</span><br><span class="line">&#123;</span><br><span class="line">    ASSERT(p_timer);</span><br><span class="line">    app_timer_t * p_t &#x3D; (app_timer_t *) p_timer;</span><br><span class="line"></span><br><span class="line">    if (p_t-&gt;active)</span><br><span class="line">    &#123;</span><br><span class="line">        return NRF_SUCCESS;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    p_t-&gt;p_context &#x3D; p_context;</span><br><span class="line">    p_t-&gt;end_val &#x3D; get_now() + timeout_ticks;&#x2F;&#x2F;设置app timer 时间戳</span><br><span class="line"></span><br><span class="line">    if (p_t-&gt;repeat_period)</span><br><span class="line">    &#123;</span><br><span class="line">        p_t-&gt;repeat_period &#x3D; timeout_ticks; &#x2F;&#x2F;设置循环运行的周期</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return timer_req_schedule(TIMER_REQ_START, p_t);&#x2F;&#x2F;软件触发RTC1中断,发起timer请求</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * @brief Function for putting user request into the request queue</span><br><span class="line"> *&#x2F;</span><br><span class="line">static ret_code_t timer_req_schedule(app_timer_req_type_t type, app_timer_t * p_timer)</span><br><span class="line">&#123;</span><br><span class="line">    nrf_atfifo_item_put_t fifo_ctx;</span><br><span class="line">    timer_req_t * p_req;</span><br><span class="line">#if APP_TIMER_WITH_PROFILER</span><br><span class="line">    CRITICAL_REGION_ENTER();</span><br><span class="line">#endif</span><br><span class="line">    p_req &#x3D; nrf_atfifo_item_alloc(m_req_fifo, &amp;fifo_ctx);  &#x2F;&#x2F;申请请求对象资源</span><br><span class="line">#if APP_TIMER_WITH_PROFILER</span><br><span class="line">    if (p_req)</span><br><span class="line">    &#123;</span><br><span class="line">        ++m_current_user_op_queue_utilization;</span><br><span class="line">    &#125;</span><br><span class="line">    CRITICAL_REGION_EXIT();</span><br><span class="line">#endif &#x2F;* APP_TIMER_WITH_PROFILER *&#x2F;</span><br><span class="line">    if (p_req)</span><br><span class="line">    &#123;</span><br><span class="line">        p_req-&gt;type    &#x3D; type;</span><br><span class="line">        p_req-&gt;p_timer &#x3D; p_timer;</span><br><span class="line">        if (nrf_atfifo_item_put(m_req_fifo, &amp;fifo_ctx))&#x2F;&#x2F;加入FIFO</span><br><span class="line">        &#123;</span><br><span class="line">            timer_request_proc_trigger();&#x2F;&#x2F;软件触发RTC1中断</span><br><span class="line">        &#125;</span><br><span class="line">        else</span><br><span class="line">        &#123;</span><br><span class="line">            NRF_LOG_WARNING(&quot;Scheduling interrupted another scheduling.&quot;);</span><br><span class="line">        &#125;</span><br><span class="line">        return NRF_SUCCESS;</span><br><span class="line">    &#125;</span><br><span class="line">    else</span><br><span class="line">    &#123;</span><br><span class="line">        return NRF_ERROR_NO_MEM;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">static inline void timer_request_proc_trigger(void)</span><br><span class="line">&#123;</span><br><span class="line">    drv_rtc_irq_trigger(&amp;m_rtc_inst);</span><br><span class="line">&#125;</span><br><span class="line">void drv_rtc_irq_trigger(drv_rtc_t const * const p_instance)</span><br><span class="line">&#123;</span><br><span class="line">    NVIC_SetPendingIRQ(p_instance-&gt;irq);  &#x2F;&#x2F;这是stm32，中断操作接口，作用是软件设置Irq，产生中断</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>处理请求timer_req_process()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * @brief Function for processing user requests.</span><br><span class="line"> *</span><br><span class="line"> * Function is called only in the context of RTC interrupt.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void timer_req_process(drv_rtc_t const * const  p_instance)</span><br><span class="line">&#123;</span><br><span class="line">    nrf_atfifo_item_get_t fifo_ctx;</span><br><span class="line">    timer_req_t *         p_req &#x3D; nrf_atfifo_item_get(m_req_fifo, &amp;fifo_ctx);&#x2F;&#x2F;获取请求对象</span><br><span class="line"></span><br><span class="line">    while (p_req)</span><br><span class="line">    &#123;</span><br><span class="line">        switch (p_req-&gt;type)</span><br><span class="line">        &#123;</span><br><span class="line">            case TIMER_REQ_START:</span><br><span class="line">                if (!p_req-&gt;p_timer-&gt;active)</span><br><span class="line">                &#123;</span><br><span class="line">                    p_req-&gt;p_timer-&gt;active &#x3D; true;&#x2F;&#x2F;设置为活动状态</span><br><span class="line">                    nrf_sortlist_add(&amp;m_app_timer_sortlist, &amp;(p_req-&gt;p_timer-&gt;list_item));&#x2F;&#x2F;把请求timer加入链表</span><br><span class="line">                    NRF_LOG_INST_DEBUG(p_req-&gt;p_timer-&gt;p_log,&quot;Start request (expiring at %d&#x2F;0x%08x).&quot;,</span><br><span class="line">                                                  p_req-&gt;p_timer-&gt;end_val, p_req-&gt;p_timer-&gt;end_val);</span><br><span class="line">                &#125;</span><br><span class="line">                break;</span><br><span class="line">            case TIMER_REQ_STOP:</span><br><span class="line">                if (p_req-&gt;p_timer &#x3D;&#x3D; mp_active_timer)</span><br><span class="line">                &#123;</span><br><span class="line">                    mp_active_timer &#x3D; NULL;</span><br><span class="line">                &#125;</span><br><span class="line">                else</span><br><span class="line">                &#123;</span><br><span class="line">                    bool found &#x3D; nrf_sortlist_remove(&amp;m_app_timer_sortlist, &amp;(p_req-&gt;p_timer-&gt;list_item));</span><br><span class="line">                    if (!found)</span><br><span class="line">                    &#123;</span><br><span class="line">                         NRF_LOG_INFO(&quot;Timer not found on sortlist (stopping expired timer).&quot;);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                NRF_LOG_INST_DEBUG(p_req-&gt;p_timer-&gt;p_log,&quot;Stop request.&quot;);</span><br><span class="line">                break;</span><br><span class="line">            case TIMER_REQ_STOP_ALL:</span><br><span class="line">                sorted_list_stop_all();</span><br><span class="line">                m_global_active &#x3D; true;</span><br><span class="line">                NRF_LOG_INFO(&quot;Stop all request.&quot;);</span><br><span class="line">                break;</span><br><span class="line">            default:</span><br><span class="line">                break;</span><br><span class="line">        &#125;</span><br><span class="line">#if APP_TIMER_WITH_PROFILER</span><br><span class="line">        CRITICAL_REGION_ENTER();</span><br><span class="line">#endif</span><br><span class="line">        UNUSED_RETURN_VALUE(nrf_atfifo_item_free(m_req_fifo, &amp;fifo_ctx));</span><br><span class="line">#if APP_TIMER_WITH_PROFILER</span><br><span class="line">        if (m_max_user_op_queue_utilization &lt; m_current_user_op_queue_utilization)</span><br><span class="line">        &#123;</span><br><span class="line">            m_max_user_op_queue_utilization &#x3D; m_current_user_op_queue_utilization;</span><br><span class="line">        &#125;</span><br><span class="line">        --m_current_user_op_queue_utilization;</span><br><span class="line">        CRITICAL_REGION_EXIT();</span><br><span class="line">#endif &#x2F;* APP_TIMER_WITH_PROFILER *&#x2F;</span><br><span class="line">        p_req &#x3D; nrf_atfifo_item_get(m_req_fifo, &amp;fifo_ctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>rtc_update()函数,该函数是调度timer的核心功能，调度逻辑比较复杂</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * @brief Function updates RTC.</span><br><span class="line"> *</span><br><span class="line"> * Function is called at the end of RTC interrupt when all new user request and&#x2F;or timer expiration</span><br><span class="line"> * occured. It configures RTC if there is any pending timer, reconfigures if the are timers with</span><br><span class="line"> * shorted timeout than active one or stops RTC if there is no active timers.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void rtc_update(drv_rtc_t const * const  p_instance)</span><br><span class="line">&#123;</span><br><span class="line">	while(1)</span><br><span class="line">    &#123;     </span><br><span class="line">		app_timer_t * p_next &#x3D; sortlist_peek();&#x2F;&#x2F;探测链表是否为空，空则返回NULL，否则返回当前节点</span><br><span class="line">        bool rtc_reconf &#x3D; false;</span><br><span class="line">        if (p_next) &#x2F;&#x2F;Candidate for active timer&#x2F;&#x2F;存在timer</span><br><span class="line">        &#123;</span><br><span class="line">            if (mp_active_timer &#x3D;&#x3D; NULL)&#x2F;&#x2F;判断是否已经存在活动的timer,即下一次比较事件发生的timer</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;There is no active timer so candidate will become active timer.</span><br><span class="line">                rtc_reconf &#x3D; true;</span><br><span class="line">            &#125;</span><br><span class="line">            else if (p_next-&gt;end_val &lt; mp_active_timer-&gt;end_val)&#x2F;&#x2F;当前节点的定时时间与活动的timer定时时间比较</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;Candidate has shorter timeout than current active timer. Candidate will replace active timer.</span><br><span class="line">                &#x2F;&#x2F;Active timer is put back into sorted list.</span><br><span class="line">                rtc_reconf &#x3D; true;</span><br><span class="line">                if (mp_active_timer-&gt;active)</span><br><span class="line">                &#123;</span><br><span class="line">                    NRF_LOG_INST_DEBUG(mp_active_timer-&gt;p_log, &quot;Timer preempted.&quot;);</span><br><span class="line">                    nrf_sortlist_add(&amp;m_app_timer_sortlist, &amp;mp_active_timer-&gt;list_item);&#x2F;&#x2F;抢占活动的timer,即放在活动timer的前面</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            if (rtc_reconf)</span><br><span class="line">            &#123;</span><br><span class="line">                bool rerun;</span><br><span class="line">                p_next &#x3D; sortlist_pop();&#x2F;&#x2F;取出当前节点timer</span><br><span class="line">                NRF_LOG_INST_DEBUG(p_next-&gt;p_log, &quot;Activating timer (CC:%d&#x2F;%08x).&quot;, p_next-&gt;end_val, p_next-&gt;end_val);</span><br><span class="line">                if (rtc_schedule(p_next, &amp;rerun))&#x2F;&#x2F;重新设置比较值，返回true</span><br><span class="line">                &#123;</span><br><span class="line">                    if (!APP_TIMER_KEEPS_RTC_ACTIVE &amp;&amp; (mp_active_timer &#x3D;&#x3D; NULL))</span><br><span class="line">                    &#123;                     									</span><br><span class="line">						drv_rtc_start(p_instance);&#x2F;&#x2F;启动rtc1，这里每次重新设置比较值后，都要启动rtc1,不会清零counter计数器</span><br><span class="line">                    &#125;</span><br><span class="line">                    mp_active_timer &#x3D; p_next;&#x2F;&#x2F;把当前节点timer设置为活动timer,即下一次比较事件发生时，处理当前timer的回调函数，</span><br><span class="line"></span><br><span class="line">                    if (rerun &#x3D;&#x3D; false)  &#x2F;&#x2F;rtc_schedule返回true，这里rerun为false</span><br><span class="line">                    &#123;</span><br><span class="line">                        &#x2F;&#x2F;RTC was successfully updated and sortlist was not updated. Function can be terminated.</span><br><span class="line">                        break;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                else&#x2F;&#x2F;这里，说明调度过程，该timer定时已经到了，在rtc_schedule中已经处理timer回调函数，所以这里mp_active_timer为NULL</span><br><span class="line">                &#123;   &#x2F;&#x2F;比如，2个timer,timer1一个设置为500ms，timer2设置为1s.timer1两次定时到，重新调度，发现1s时间到，因此马上执行timer2</span><br><span class="line">                    &#x2F;&#x2F;If RTC driver indicated that timeout already occured a new candidate will be taken from sorted list.</span><br><span class="line">                    NRF_LOG_INST_DEBUG(p_next-&gt;p_log,&quot;Timer expired before scheduled to RTC.&quot;);</span><br><span class="line">                    mp_active_timer &#x3D; NULL;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            else</span><br><span class="line">            &#123;</span><br><span class="line">                &#x2F;&#x2F;RTC will not be updated. Function can terminate.</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        else &#x2F;&#x2F;No candidate for active timer.</span><br><span class="line">        &#123;</span><br><span class="line">            if (!APP_TIMER_KEEPS_RTC_ACTIVE &amp;&amp; (mp_active_timer &#x3D;&#x3D; NULL))</span><br><span class="line">            &#123;</span><br><span class="line">                drv_rtc_stop(p_instance);</span><br><span class="line">            &#125;</span><br><span class="line">            break;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>说明：</p>
+<p>存在一个情况：两个timer发起请求，一个时间短，一个时间长，如果时间长的先发起请求，那么时间短后发起的请求，则会抢占时间长的。因此时间短的定时会先到来。</p>
+<p>rtc_schedule函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * @brief Function is configuring RTC driver to trigger timeout interrupt for given timer.</span><br><span class="line"> *</span><br><span class="line"> * It is possible that RTC driver will indicate that timeout already occured. In that case timer</span><br><span class="line"> * expires and function indicates that RTC was not configured.</span><br><span class="line"> *</span><br><span class="line"> * @param          p_timer Timer instance.</span><br><span class="line"> * @param [in,out] p_rerun Flag indicating that sortlist reevaluation is required.</span><br><span class="line"> *</span><br><span class="line"> * @return True if RTC was successfully configured, false if timer already expired and RTC was not</span><br><span class="line"> *         configured.</span><br><span class="line"> *</span><br><span class="line"> *&#x2F;</span><br><span class="line">static bool rtc_schedule(app_timer_t * p_timer, bool * p_rerun)</span><br><span class="line">&#123;</span><br><span class="line">    ret_code_t ret &#x3D; NRF_ERROR_TIMEOUT;</span><br><span class="line">    *p_rerun &#x3D; false;</span><br><span class="line">    int64_t remaining &#x3D; (int64_t)(p_timer-&gt;end_val - get_now());&#x2F;&#x2F;timer结束时间戳和当前时间戳比较</span><br><span class="line">	&#x2F;&#x2F;如果remaining大于0，说明timer定时的时间没有到来，则设置CC0寄存器的值</span><br><span class="line">    if (remaining &gt; 0) &#123;</span><br><span class="line">        uint32_t cc_val &#x3D; ((uint32_t)remaining &gt; APP_TIMER_RTC_MAX_VALUE) ?</span><br><span class="line">                (app_timer_cnt_get() + APP_TIMER_RTC_MAX_VALUE) : p_timer-&gt;end_val;</span><br><span class="line"></span><br><span class="line">        ret &#x3D; drv_rtc_windowed_compare_set(&amp;m_rtc_inst, 0, cc_val, APP_TIMER_SAFE_WINDOW);&#x2F;&#x2F;设置比较值</span><br><span class="line">        NRF_LOG_DEBUG(&quot;Setting CC to 0x%08x (err: %d)&quot;, cc_val &amp; DRV_RTC_MAX_CNT, ret);</span><br><span class="line">        if (ret &#x3D;&#x3D; NRF_SUCCESS)</span><br><span class="line">        &#123;</span><br><span class="line">            return true;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    else</span><br><span class="line">    &#123;</span><br><span class="line">        drv_rtc_compare_disable(&amp;m_rtc_inst, 0);</span><br><span class="line">    &#125;</span><br><span class="line">&#x2F;&#x2F;如果ret &#x3D;&#x3D; NRF_ERROR_TIMEOUT，则表明当前节点timer的定时时间已经到了或者超时了，需要马上执行，不用再等下一次比较事件发生。</span><br><span class="line">    if (ret &#x3D;&#x3D; NRF_ERROR_TIMEOUT)</span><br><span class="line">    &#123;</span><br><span class="line">        *p_rerun &#x3D; timer_expire(p_timer);</span><br><span class="line">    &#125;</span><br><span class="line">    else</span><br><span class="line">    &#123;</span><br><span class="line">        NRF_LOG_ERROR(&quot;Unexpected error: %d&quot;, ret);				</span><br><span class="line">        ASSERT(0);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>定时时间到了处理函数timer_expire()</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * @brief Function called on timer expiration</span><br><span class="line"> * If end value is not reached it is assumed that it was partial expiration and time is put back</span><br><span class="line"> * into the list. Otherwise function calls user handler if timer was not stopped before. If timer</span><br><span class="line"> * is in repeated mode then timer is rescheduled.</span><br><span class="line"> *</span><br><span class="line"> * @param p_timer Timer instance.</span><br><span class="line"> *</span><br><span class="line"> * @return True if reevaluation of sortlist needed (becasue it was updated).</span><br><span class="line"> *&#x2F;</span><br><span class="line">static bool timer_expire(app_timer_t * p_timer)</span><br><span class="line">&#123;</span><br><span class="line">    ASSERT(p_timer-&gt;handler);</span><br><span class="line">    bool ret &#x3D; false;</span><br><span class="line"></span><br><span class="line">    if ((m_global_active &#x3D;&#x3D; true) &amp;&amp; (p_timer !&#x3D; NULL) &amp;&amp; (p_timer-&gt;active))</span><br><span class="line">    &#123;</span><br><span class="line">        if (get_now() &gt;&#x3D; p_timer-&gt;end_val) &#123;</span><br><span class="line">            &#x2F;* timer expired *&#x2F;</span><br><span class="line">            if (p_timer-&gt;repeat_period &#x3D;&#x3D; 0)</span><br><span class="line">            &#123;</span><br><span class="line">                p_timer-&gt;active &#x3D; false;</span><br><span class="line">            &#125;</span><br><span class="line">    #if APP_TIMER_CONFIG_USE_SCHEDULER</span><br><span class="line">            app_timer_event_t timer_event;</span><br><span class="line"></span><br><span class="line">            timer_event.timeout_handler &#x3D; p_timer-&gt;handler;</span><br><span class="line">            timer_event.p_context       &#x3D; p_timer-&gt;p_context;</span><br><span class="line">            uint32_t err_code &#x3D; app_sched_event_put(&amp;timer_event,</span><br><span class="line">                                                    sizeof(timer_event),</span><br><span class="line">                                                    scheduled_timeout_handler);</span><br><span class="line">            APP_ERROR_CHECK(err_code);</span><br><span class="line">    #else</span><br><span class="line">            NRF_LOG_DEBUG(&quot;Timer expired (context: %d)&quot;, (uint32_t)p_timer-&gt;p_context)</span><br><span class="line">            p_timer-&gt;handler(p_timer-&gt;p_context);&#x2F;&#x2F;执行app timer回调函数</span><br><span class="line">    #endif</span><br><span class="line">            &#x2F;* check active flag as it may have been stopped in the user handler *&#x2F;</span><br><span class="line">            if ((p_timer-&gt;repeat_period) &amp;&amp; (p_timer-&gt;active))</span><br><span class="line">            &#123;</span><br><span class="line">                p_timer-&gt;end_val +&#x3D; p_timer-&gt;repeat_period;&#x2F;&#x2F;更新时间戳</span><br><span class="line">                nrf_sortlist_add(&amp;m_app_timer_sortlist, &amp;p_timer-&gt;list_item);&#x2F;&#x2F;改变节点指向，放到链表末尾。</span><br><span class="line">                ret &#x3D; true;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        else</span><br><span class="line">        &#123;</span><br><span class="line">            nrf_sortlist_add(&amp;m_app_timer_sortlist, &amp;p_timer-&gt;list_item);</span><br><span class="line">            ret &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>参考：</p>
+<p><a href="http://wywiot.com/nordic-ble-soc-sw-primary-howtouse-apptimer/" target="_blank" rel="noopener">NORDIC BLE SOC 软件入门-APPTIMER的使用</a></p>
+<p><a href="https://www.cnblogs.com/iini/p/9347460.html" target="_blank" rel="noopener">定时模块app_timer用法及常见问题—nRF5 SDK模块系列二</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/09/03/ubuntu/%E7%A1%AC%E7%9B%98%E6%B5%8B%E8%AF%95/" rel="prev" title="硬盘测试">
+      <i class="fa fa-chevron-left"></i> 硬盘测试
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/10/09/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/Events%20-%20SoftDevice%20to%20application/" rel="next" title="Events - SoftDevice to application">
+      Events - SoftDevice to application <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#app-timer-原理"><span class="nav-number">2.</span> <span class="nav-text">app_timer 原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#流程分析"><span class="nav-number">3.</span> <span class="nav-text">流程分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#关键代码注释"><span class="nav-number">4.</span> <span class="nav-text">关键代码注释</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

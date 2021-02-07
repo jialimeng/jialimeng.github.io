@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="分区管理1、存储设备的默认区域包括一个用于存储数据的用户数据区域，两个可能的用于boot的boot区域分区和一个用于保护已验证身份的数据的重放保护的内存块RPMB区域分区，还有一个要我们自己分配的GPP区域  2、嵌入式设备还为主机提供了配置其他本地内存分区的可能性具有独立的地址空间，从逻辑地址0x00000000开始，用于不同的使用模型。因此，存储块区域可以分类如下：（1）两个引导区分区，其大小">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】eMMC分区管理（①介绍②命令限制③配置分区）">
+<meta property="og:url" content="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E5%88%86%E5%8C%BA%E7%AE%A1%E7%90%86%EF%BC%88%E2%91%A0%E4%BB%8B%E7%BB%8D%E2%91%A1%E5%91%BD%E4%BB%A4%E9%99%90%E5%88%B6%E2%91%A2%E9%85%8D%E7%BD%AE%E5%88%86%E5%8C%BA%EF%BC%89/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="分区管理1、存储设备的默认区域包括一个用于存储数据的用户数据区域，两个可能的用于boot的boot区域分区和一个用于保护已验证身份的数据的重放保护的内存块RPMB区域分区，还有一个要我们自己分配的GPP区域  2、嵌入式设备还为主机提供了配置其他本地内存分区的可能性具有独立的地址空间，从逻辑地址0x00000000开始，用于不同的使用模型。因此，存储块区域可以分类如下：（1）两个引导区分区，其大小">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200326185611446.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200326190259812.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200327112445193.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200327134738274.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70">
+<meta property="article:published_time" content="2020-12-25T03:02:47.000Z">
+<meta property="article:modified_time" content="2020-12-25T03:08:11.298Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="emmc">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/20200326185611446.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70">
+
+<link rel="canonical" href="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E5%88%86%E5%8C%BA%E7%AE%A1%E7%90%86%EF%BC%88%E2%91%A0%E4%BB%8B%E7%BB%8D%E2%91%A1%E5%91%BD%E4%BB%A4%E9%99%90%E5%88%B6%E2%91%A2%E9%85%8D%E7%BD%AE%E5%88%86%E5%8C%BA%EF%BC%89/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】eMMC分区管理（①介绍②命令限制③配置分区） | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E5%88%86%E5%8C%BA%E7%AE%A1%E7%90%86%EF%BC%88%E2%91%A0%E4%BB%8B%E7%BB%8D%E2%91%A1%E5%91%BD%E4%BB%A4%E9%99%90%E5%88%B6%E2%91%A2%E9%85%8D%E7%BD%AE%E5%88%86%E5%8C%BA%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】eMMC分区管理（①介绍②命令限制③配置分区）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-12-25 11:02:47 / Modified: 11:08:11" itemprop="dateCreated datePublished" datetime="2020-12-25T11:02:47+08:00">2020-12-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/" itemprop="url" rel="index"><span itemprop="name">storage</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/" itemprop="url" rel="index"><span itemprop="name">Flash Memory</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/mmc/" itemprop="url" rel="index"><span itemprop="name">mmc</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="分区管理"><a href="#分区管理" class="headerlink" title="分区管理"></a>分区管理</h2><p>1、存储设备的默认区域包括一个用于存储数据的<strong>用户数据区域</strong>，两个可能的用于boot的<strong>boot区域</strong>分区和一个用于保护已验证身份的数据的重放保护的内存块<strong>RPMB区域分区</strong>，还有一个要我们自己分配的GPP区域</p>
+<p><img src="https://img-blog.csdnimg.cn/20200326185611446.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>2、嵌入式设备还为主机提供了配置其他本地内存分区的可能性<br>具有独立的地址空间，从逻辑地址0x00000000开始，用于不同的使用模型。<br>因此，存储块区域可以分类如下：<br>（1）两个引导区分区，其大小为128 KB的倍数，可以在其中执行从e•MMC的引导<br>（2）通过受信任机制访问的一个RPMB分区，其大小定义为以下各项的倍数：<br>128 KB。<br>（3）四个通用区域分区，用于存储敏感数据或用于其他主机使用模型，<br>大小是写保护组的倍数。<br>每个通用区域分区都可以通过增强或扩展的技术功能（例如更好的可靠性）来实现，这些功能可以将它们与默认存储介质区分开。 如果设备支持增强存储媒体功能，则默认情况下，引导和RPMB区域分区应实现为增强存储媒体。</p>
+<p>3、引导区和RPMB区域分区的大小和属性由内存制造商定义（只读），而通用区域分区的大小和属性只能由主机在设备生命周期中进行一次编程（一次可编程）。<br>此外，主机可以自由配置用户数据区域中的一个网段，以实现为增强型存储介质，并根据写保护组来指定其起始位置和大小。 在设备生命周期内，该增强型用户数据区的属性只能编程一次（可以一次编程）。<br>可能的最终配置如下：</p>
+<p><img src="https://img-blog.csdnimg.cn/20200326190259812.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>主机对通用分区和增强型用户数据区域的配置可能会影响先前存储的数据（它们将被销毁）和设备初始化时间。 特别是，由于内部控制器可以执行操作来设置主机指定的配置，因此配置之后的第一个电源循环之后的初始化时间可能会超过规范定义的最大初始化时间。</p>
+<p>4、各分区的命令限制：<br>定义了可以发布到每个分区的命令的一些限制：<br>（1）引导分区<br>不允许使用命令class6（写保护）和class7（锁定设备）。<br>（2）RPMB分区<br>仅允许使用Class0，Class2和Class4类的命令。 仍然使用除CMD0，CMD6，CMD8，CMD12，CMD13，CMD15以外的任何其他命令或在6.6.22中定义的命令为非法命令。<br>（3）通用分区<br>允许使用命令class0、2、4、5、6。<br>可以为每个分区中的每个写保护组分别设置写保护。 因此，主机可以在每个写保护组中设置不同的写保护类型。<br>在增强型用户数据区中，可以发出用户数据区中允许的class的所有命令。</p>
+<p>5、扩展分区属性<br>每个通用分区可以具有不同的扩展分区属性。 属性类型列表包括：<br>（1）默认-未设置任何扩展属性<br>（2）系统代码–很少更新的分区，包含重要的系统文件（例如，包含<br>主机操作系统的可执行文件）<br>（3）非持久性-用于临时信息的分区（例如，交换文件以扩展主机虚拟内存空间）</p>
+<p><strong>单个分区不能同时为其设置增强和扩展属性。</strong></p>
+<p>6、配置分区<br>（1）扩展CSD寄存器中“属性”段的PARTITIONING_SUPPORT字段【160】中的 位0（PARTITIONING_EN）指示存储设备是否支持分区属性。 同一字段中的位1（ENH_ATTRIBUTE_EN）指示存储设备是否支持增强功能。位2（EXT_ATTRIBUTE_EN）指示存储设备是否支持“通用分区”中的扩展分区属性</p>
+<p><img src="https://img-blog.csdnimg.cn/20200327112445193.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"><br>（2）通用分区-最多4个分区的大小和属性。 要设置的EXT_CSD寄存器的Modes段中的字段是：<br>① <strong>GP_SIZE_MULT_GP0-GP_SIZE_MULT_GP3</strong>【154:143】设置大小：（此寄存器<strong>定义通用分区长度</strong>。通用分区长度应以<strong>大容量写保护分组为单位</strong>来表示）<br>②<strong>PARTITIONS_ATTRIBUTE</strong>设置<strong>增强属性</strong>【156】：（此寄存器用来设置哪个分区的增强属性。）<br>③ <strong>EXT_PARTITIONS_ATTRIBUTE</strong>设置<strong>扩展属性</strong>【53:52】：（此寄存器位设置通用分区的扩展属性）<br>（3）增强型用户数据区-区域的起始地址和属性。 要设置的EXT_CSD寄存器的Modes段中的字段是：<br>① ENH_START_ADDR【139:136】设置起始地址（此寄存器定义增强用户数据区的起始地址。<br>增强用户数据区段的起始地址在用户数据区内（对于大容量设备，以字节或扇区表示））<br>② ENH_SIZE_MULT【142:140】设置大小（此寄存器定义增强用户数据区长度。增强用户数据区长度应以大容量写保护分组为单位来表示。）<br>③ PARTITIONS_ATTRIBUTE【156】设置增强属性：（此寄存器用来设置哪个分区的增强属性。）</p>
+<p>增强用户数据区的起始地址要求与写保护分组对齐。它是分组地址，对于最大 2GB 容<br>量，以字节为单位，对于大于 2GB 的容量，以扇区为单位。设备将忽略小于分组大小的低<br>位，将增强用户数据区起始地址与所属写保护分组地址（按字节或扇区）对齐。</p>
+<p>增强用户数据区域的地址空间与剩下的用户数据区域的地址连续（增强用户数据区域与其余用户数据区域之间没有地址间隙。</p>
+<p>通用分区和增强型用户数据区的粒度以大容量写保护组大小为单位。<br>配置分区参数后，应将ERASE_GROUP_DEF【175】位置1。以表示将使用大容量擦除组大小和大容量写保护组大小。如果在设置ERASE_GROUP_DEF位之前将分区参数通过CMD6发送到设备，则从站将显示SWITCH_ERROR。</p>
+<p>如果先通过CMD6把分区参数发送给device，再设置ERASE_GROUP_DEF【175】位为1，device将显示将显示SWITCH_ERROR。</p>
+<p>一旦设备被分区且配置固定，所有的命令类 5 和 6 命令将被看作是对于大容量擦除分组和大容量写保护分组的。</p>
+<p>除了配置分区参数外，我们还得设置PARTITION_SETTING_COMPLETED【155】的bit0为1。（该位被置位则是告知设备，参数定义已经完成，设备可以启动其内部配置活动。若此位尚未置位时发生了突然掉电，则分区配置无效，给主机一个可以重新正确完成的机会）</p>
+<p><img src="https://img-blog.csdnimg.cn/20200327134738274.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDc3MzAwNg==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>主机应发出CMD13，以确保正确设置所有参数。 如果任何一个分区参数不正确，设备将引发SWITCH_ERROR。</p>
+<p>由于在设置PARTITION_SETTING_COMPLETED位之前，设备不会知道配置分区和用户区域的总大小，因此，如果配置分区和用户数据区域的总大小不适合设备的可用空间，则当主机设置PARTITION_SETTING_COMPLETED位时，设备可能会显示SWITCH_ERROR。在这种情况下，所有设置将在下一次电源循环后清除。所以主机需要再次在每个分区配置寄存器字节中设置正确的值</p>
+<p>The device will actually configure itself, according to the partition parameters in the Extended CSD, only<br>after a power cycle. Any valid commands issued after PARTITION_SETTING_COMPLETED bit is set<br>but before a power cycle takes place will be normally executed. Any previous incomplete partitioning<br>configuration sequence before this bit is set will be cancelled upon a power cycle.</p>
+<p>在一个电源周期下会配置分区，2 GB的设备的C_SIZE值和超过2GB的设备的SEC_COUNT值将被更改，以表示在配置后的用户数据区的大小，这个大小应该为配置分区之前的的用户数据区大小（对应2GB设备），而对于配置分区之前的2 GB以上的设备，即使分区大小减小到2 GB以下，SEC_COUNT也应始终表示配置分区之后的用户数据区的大小。）</p>
+<p>用户数据区域的大小包括用户区域中增强用户数据区域的大小。 因此，主机可能需要在电源关闭后读取这些值，以计算用户数据区域的大小。 配置分区后，访问模式应保持不变。</p>
+<p>如果主机上电后按照配置过程尝试使用CMD6更改通用分区和增强型用户数据区功能。设备将在没有执行任何内部动作的情况下将CMD 6响应的状态寄存器中的SWITCH_ERROR 断言（assert）。</p>
+<p>分区配置参数存储在扩展CSD寄存器的一次性可编程字段中。 即使尚未设置PARTITION_SETTING_COMPLETED，主机也可以通过CMD8读取它们，但是只有在随后的加电之后，分区的执行才会发生。由于它们是一次性可编程字段，因此建议在读取后避免更改这些参数。</p>
+<p>主机应遵循上图16中的流程图来配置通用区域分区和增强型用户数据区域的参数。 否则可能导致未定义的行为。</p>
+<p>注：本文转自【<a href="https://blog.csdn.net/weixin_44773006/article/details/105125490】" target="_blank" rel="noopener">https://blog.csdn.net/weixin_44773006/article/details/105125490】</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/emmc/" rel="tag"># emmc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E6%80%BB%E7%BA%BF%E5%8D%8F%E8%AE%AE/" rel="prev" title="【转载】eMMC总线协议">
+      <i class="fa fa-chevron-left"></i> 【转载】eMMC总线协议
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E4%B8%89%E6%98%9FeMMC%E8%8A%AF%E7%89%87KLM4G1FEPD-B031%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E/" rel="next" title="三星eMMC芯片KLM4G1FEPD-B031使用说明">
+      三星eMMC芯片KLM4G1FEPD-B031使用说明 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#分区管理"><span class="nav-number">1.</span> <span class="nav-text">分区管理</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

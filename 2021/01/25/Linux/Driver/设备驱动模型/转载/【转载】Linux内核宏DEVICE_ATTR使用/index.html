@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;Cqlismy&#x2F;p&#x2F;11454573.html】 Linux内核宏DEVICE_ATTR使用1、前言 在Linux驱动程序编写中，使用DEVICE_ATTR宏，可以定义一个struct device_attribute设备属性，并使用sysfs的API函数，便可以在设备目录下创建出属性文件，当我们在驱动程序中实现了show和store函数">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】Linux内核宏DEVICE_ATTR使用">
+<meta property="og:url" content="http://yoursite.com/2021/01/25/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E5%86%85%E6%A0%B8%E5%AE%8FDEVICE_ATTR%E4%BD%BF%E7%94%A8/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;Cqlismy&#x2F;p&#x2F;11454573.html】 Linux内核宏DEVICE_ATTR使用1、前言 在Linux驱动程序编写中，使用DEVICE_ATTR宏，可以定义一个struct device_attribute设备属性，并使用sysfs的API函数，便可以在设备目录下创建出属性文件，当我们在驱动程序中实现了show和store函数">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://common.cnblogs.com/images/copycode.gif">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1625033/201909/1625033-20190903181940815-665372849.png">
+<meta property="og:image" content="https://img2018.cnblogs.com/blog/1625033/201909/1625033-20190903181954484-1525330698.png">
+<meta property="article:published_time" content="2021-01-25T05:59:50.000Z">
+<meta property="article:modified_time" content="2021-01-25T06:02:00.602Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="bus">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://common.cnblogs.com/images/copycode.gif">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/25/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E5%86%85%E6%A0%B8%E5%AE%8FDEVICE_ATTR%E4%BD%BF%E7%94%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】Linux内核宏DEVICE_ATTR使用 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/25/Linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%E5%86%85%E6%A0%B8%E5%AE%8FDEVICE_ATTR%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】Linux内核宏DEVICE_ATTR使用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-25 13:59:50 / Modified: 14:02:00" itemprop="dateCreated datePublished" datetime="2021-01-25T13:59:50+08:00">2021-01-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9E%8B/" itemprop="url" rel="index"><span itemprop="name">设备驱动模型</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文转自：【<a href="https://www.cnblogs.com/Cqlismy/p/11454573.html】" target="_blank" rel="noopener">https://www.cnblogs.com/Cqlismy/p/11454573.html】</a></p>
+<h1 id="Linux内核宏DEVICE-ATTR使用"><a href="#Linux内核宏DEVICE-ATTR使用" class="headerlink" title="Linux内核宏DEVICE_ATTR使用"></a><a href="https://www.cnblogs.com/Cqlismy/p/11454573.html" target="_blank" rel="noopener">Linux内核宏DEVICE_ATTR使用</a></h1><p>1、前言</p>
+<p>在Linux驱动程序编写中，使用DEVICE_ATTR宏，可以定义一个struct device_attribute设备属性，并使用sysfs的API函数，便可以在设备目录下创建出属性文件，当我们在驱动程序中实现了show和store函数后，便可以使用cat和echo命令对创建出来的设备属性文件进行读写，从而达到控制设备的功能。</p>
+<p>2、宏DEVICE_ATTR定义</p>
+<p>在讲解DEVICE_ATTR宏之前，先了解一些基本的结构体，首先是struct attribute结构体，其定义在include/linux/device.h中，结构体定义如下所示：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">struct attribute &#123;</span><br><span class="line">    const char        *name;</span><br><span class="line">    umode_t            mode;</span><br><span class="line">#ifdef CONFIG_DEBUG_LOCK_ALLOC</span><br><span class="line">    bool            ignore_lockdep:1;</span><br><span class="line">    struct lock_class_key    *key;</span><br><span class="line">    struct lock_class_key    skey;</span><br><span class="line">#endif</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>该结构体有两个重要的成员，分别是name和mode，其中name代表属性的名称，一般表示为文件名，mode代表该属性的读写权限，也就是属性文件的读写权限。</p>
+<p>关于文件的权限详解，可以参考下面的链接：</p>
+<p><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/8658475" target="_blank" rel="noopener">https://blog.csdn.net/DLUTBruceZhang/article/details/8658475</a></p>
+<p>接下来要了解的结构体为struct device_attribute，该结构体的定义在include /linux/device.h，其定义如下：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;* interface for exporting device attributes *&#x2F;</span><br><span class="line">struct device_attribute &#123;</span><br><span class="line">    struct attribute    attr;</span><br><span class="line">    ssize_t (*show)(struct device *dev, struct device_attribute *attr,</span><br><span class="line">            char *buf);</span><br><span class="line">    ssize_t (*store)(struct device *dev, struct device_attribute *attr,</span><br><span class="line">             const char *buf, size_t count);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>该结构体其实是struct attribute结构体的进一步封装，并提供了两个函数指针，show函数用于读取设备的属性文件，而store则是用于写设备的属性文件，当我们在Linux的驱动程序中实现了这两个函数后，便可以使用cat和echo命令对设备属性文件进行读写操作。</p>
+<p>了解了一下基本的结构体，接下来，进一步分析宏DEVICE_ATTR的实现，在Linux内核源码中，宏DEVICE_ATTR的定义在include/linux/device.h文件中，如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define DEVICE_ATTR(_name, _mode, _show, _store) \</span><br><span class="line">    struct device_attribute dev_attr_##_name &#x3D; __ATTR(_name, _mode, _show, _store)</span><br></pre></td></tr></table></figure>
+
+<p>而__ATTR宏的定义在include/linux/sysfs.h文件中，如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">#define __ATTR(_name, _mode, _show, _store) &#123;                \</span><br><span class="line">    .attr &#x3D; &#123;.name &#x3D; __stringify(_name),                \</span><br><span class="line">         .mode &#x3D; VERIFY_OCTAL_PERMISSIONS(_mode) &#125;,        \</span><br><span class="line">    .show    &#x3D; _show,                        \</span><br><span class="line">    .store    &#x3D; _store,                        \</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过上面的宏展开可以发现，其实宏DEVICE_ATTR实现的功能就是定义了一个struct device_attribute结构体变量dev_attr_name，并对里面的成员进行初始化，包括struct attribute结构体里面的name和mode成员变量，然后还有实现属性文件读写的show和store函数赋值，非常简单。</p>
+<p>3、使用示例</p>
+<p>接下来对宏DEVICE_ATTR使用示例进行分析，该示例在内核中将100个字节虚拟成一个设备，在驱动中实现设备属性文件的读写函数，示例如下：</p>
+<p>首先是设备属性的定义，以及设备属性文件读写函数的实现：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">static ssize_t mydevice_show(struct device *dev, struct device_attribute *attr,</span><br><span class="line">        char *buf)</span><br><span class="line">&#123;</span><br><span class="line">    return sprintf(buf, &quot;%s\n&quot;, mybuf);</span><br><span class="line">&#125;</span><br><span class="line">static ssize_t mydevice_store(struct device *dev, struct device_attribute *attr,</span><br><span class="line">         const char *buf, size_t count)</span><br><span class="line">&#123;</span><br><span class="line">    sprintf(mybuf, &quot;%s&quot;, buf);</span><br><span class="line"></span><br><span class="line">    return count;</span><br><span class="line">&#125;</span><br><span class="line">static DEVICE_ATTR(mydevice, 0644, mydevice_show, mydevice_store);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>在上面的代码中，使用宏DEVICE_ATTR定义了一个mydevice的属性文件，而且这个属性文件的读写权限为：文件所拥有者可读写，组和其他人只能读。代码还实现了该属性文件的读写函数mydevice_show()和mydevice_store()，当在用户空间中使用cat和echo命令时，将会调用到驱动程序中实现的两个函数。</p>
+<p>接下来是模块的加载函数，当模块加载时将会被调用，该函数的实现代码如下：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">static int __init mydevice_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    struct device *mydevice;</span><br><span class="line">    </span><br><span class="line">    major &#x3D; register_chrdev(0, &quot;mydevice&quot;, &amp;myfops);</span><br><span class="line">    if (major &lt; 0) &#123;</span><br><span class="line">        ret &#x3D; major;</span><br><span class="line">        return ret;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    myclass &#x3D; class_create(THIS_MODULE, &quot;myclass&quot;);</span><br><span class="line">    if (IS_ERR(myclass)) &#123;</span><br><span class="line">        ret &#x3D; -EBUSY;</span><br><span class="line">        goto fail;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    mydevice &#x3D; device_create(myclass, NULL, MKDEV(major, 0), NULL, &quot;mydevice&quot;);</span><br><span class="line">    if (IS_ERR(mydevice)) &#123;</span><br><span class="line">        class_destroy(myclass);</span><br><span class="line">        ret &#x3D; -EBUSY;</span><br><span class="line">        goto fail;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ret &#x3D; sysfs_create_file(&amp;mydevice-&gt;kobj, &amp;dev_attr_mydevice.attr);</span><br><span class="line">    if (ret &lt; 0)</span><br><span class="line">        return ret;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line"></span><br><span class="line">fail:</span><br><span class="line">    unregister_chrdev(major, &quot;mydevice&quot;);</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>函数首先调用register_chrdev()完成一个主设备号的动态申请，设备的名称为mydevice，然后调用class_create()和device_create()在sysfs中动态创建出设备所属的类myclass和mydevice设备，需要注意的是，这两个函数调用后，要对返回的结果进行错误检测，最后，使用sysfs的API函数sysfs_create_file()在sysfs中创建出设备的属性文件，完成驱动模块的加载。</p>
+<p>接下来是该模块的卸载函数，函数的代码如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">static void __exit mydevice_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">    device_destroy(myclass, MKDEV(major, 0));</span><br><span class="line">    class_destroy(myclass);</span><br><span class="line">    unregister_chrdev(major, &quot;mydevice&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>模块的卸载函数与模块的加载函数是相对的操作，需要调用device_destory()和class_destory()对模块加载创建的myclass和mydevice进行销毁，然后调用unregister_chrdev()将动态分配的主设备号进行释放。</p>
+<p>驱动程序完整代码如下：</p>
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;linux&#x2F;module.h&gt;</span><br><span class="line">#include &lt;linux&#x2F;init.h&gt;</span><br><span class="line">#include &lt;linux&#x2F;sysfs.h&gt;</span><br><span class="line">#include &lt;linux&#x2F;string.h&gt;</span><br><span class="line">#include &lt;linux&#x2F;device.h&gt;</span><br><span class="line">#include &lt;linux&#x2F;fs.h&gt;</span><br><span class="line"></span><br><span class="line">static char mybuf[100] &#x3D; &quot;mydevice&quot;;</span><br><span class="line">static int major;</span><br><span class="line">static struct class *myclass;</span><br><span class="line"></span><br><span class="line">static ssize_t mydevice_show(struct device *dev, struct device_attribute *attr,</span><br><span class="line">        char *buf)</span><br><span class="line">&#123;</span><br><span class="line">    return sprintf(buf, &quot;%s\n&quot;, mybuf);</span><br><span class="line">&#125;</span><br><span class="line">static ssize_t mydevice_store(struct device *dev, struct device_attribute *attr,</span><br><span class="line">         const char *buf, size_t count)</span><br><span class="line">&#123;</span><br><span class="line">    sprintf(mybuf, &quot;%s&quot;, buf);</span><br><span class="line"></span><br><span class="line">    return count;</span><br><span class="line">&#125;</span><br><span class="line">static DEVICE_ATTR(mydevice, 0644, mydevice_show, mydevice_store);</span><br><span class="line"></span><br><span class="line">static struct file_operations myfops &#x3D; &#123;</span><br><span class="line">    .owner &#x3D; THIS_MODULE,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init mydevice_init(void)</span><br><span class="line">&#123;</span><br><span class="line">    int ret;</span><br><span class="line">    struct device *mydevice;</span><br><span class="line">    </span><br><span class="line">    major &#x3D; register_chrdev(0, &quot;mydevice&quot;, &amp;myfops);</span><br><span class="line">    if (major &lt; 0) &#123;</span><br><span class="line">        ret &#x3D; major;</span><br><span class="line">        return ret;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    myclass &#x3D; class_create(THIS_MODULE, &quot;myclass&quot;);</span><br><span class="line">    if (IS_ERR(myclass)) &#123;</span><br><span class="line">        ret &#x3D; -EBUSY;</span><br><span class="line">        goto fail;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    mydevice &#x3D; device_create(myclass, NULL, MKDEV(major, 0), NULL, &quot;mydevice&quot;);</span><br><span class="line">    if (IS_ERR(mydevice)) &#123;</span><br><span class="line">        class_destroy(myclass);</span><br><span class="line">        ret &#x3D; -EBUSY;</span><br><span class="line">        goto fail;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ret &#x3D; sysfs_create_file(&amp;mydevice-&gt;kobj, &amp;dev_attr_mydevice.attr);</span><br><span class="line">    if (ret &lt; 0)</span><br><span class="line">        return ret;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line"></span><br><span class="line">fail:</span><br><span class="line">    unregister_chrdev(major, &quot;mydevice&quot;);</span><br><span class="line">    return ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit mydevice_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">    device_destroy(myclass, MKDEV(major, 0));</span><br><span class="line">    class_destroy(myclass);</span><br><span class="line">    unregister_chrdev(major, &quot;mydevice&quot;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_init(mydevice_init);</span><br><span class="line">module_exit(mydevice_exit);</span><br><span class="line"></span><br><span class="line">MODULE_DESCRIPTION(&quot;A simplest driver&quot;);</span><br><span class="line">MODULE_LICENSE(&quot;GPL v2&quot;);</span><br><span class="line">MODULE_AUTHOR(&quot;HLY&quot;);</span><br></pre></td></tr></table></figure>
+
+<p><a href="javascript:void(0);"><img src="https://common.cnblogs.com/images/copycode.gif" alt="复制代码"></a></p>
+<p>4、测试结果</p>
+<p>将驱动程序进行编译后，将驱动模块进行加载，并查看创建出来的属性文件，使用cat和echo命令进行读写测试：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># make</span><br><span class="line"># insmod simple-device.ko</span><br><span class="line"># cd &#x2F;sys&#x2F;devices&#x2F;virtual&#x2F;myclass&#x2F;mydevice&#x2F;</span><br><span class="line"># ls –al .&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>结果如下所示，可以看到创建出来的属性文件mydevice：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1625033/201909/1625033-20190903181940815-665372849.png" alt="img"></p>
+<p>使用cat和echo命令进行文件读写测试：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># cat mydevice</span><br><span class="line"># echo &quot;I am a simplest driver.&quot; &gt; mydevice</span><br><span class="line"># cat mydevice</span><br></pre></td></tr></table></figure>
+
+<p>运行结果如下所示，可以看到，能使用cat和echo命令正常完成属性文件的读写了：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1625033/201909/1625033-20190903181954484-1525330698.png" alt="img"></p>
+<p>5、小节</p>
+<p>本文简单介绍了Linux内核中DEVICE_ATTR宏的实现，并使用一个简单的驱动程序示例来介绍了如何在Linux驱动程序中使用DEVICE_ATTR宏以及实现属性文件的读写函数。</p>
+<p>参考：</p>
+<p><a href="https://blog.csdn.net/hpu11/article/details/83113729" target="_blank" rel="noopener">https://blog.csdn.net/hpu11/article/details/83113729</a></p>
+<p><a href="https://blog.csdn.net/DLUTBruceZhang/article/details/8658475" target="_blank" rel="noopener">https://blog.csdn.net/DLUTBruceZhang/article/details/8658475</a></p>
+<p>《LINUX设备驱动程序（第三版）》</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/bus/" rel="tag"># bus</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/19/Linux/Driver/video/Linux%20framebuffer%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/" rel="prev" title="Linux framebuffer软件架构">
+      <i class="fa fa-chevron-left"></i> Linux framebuffer软件架构
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/25/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91I2C%E7%9A%84%E5%89%8D%E7%94%9F%E4%BB%8A%E4%B8%96/" rel="next" title="【转载】I2C的前生今世">
+      【转载】I2C的前生今世 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Linux内核宏DEVICE-ATTR使用"><span class="nav-number">1.</span> <span class="nav-text">Linux内核宏DEVICE_ATTR使用</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

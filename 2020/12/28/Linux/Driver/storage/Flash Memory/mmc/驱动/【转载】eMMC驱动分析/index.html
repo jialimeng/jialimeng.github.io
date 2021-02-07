@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文转自：【https:&#x2F;&#x2F;www.daimajiaoliu.com&#x2F;daima&#x2F;4794cd5a29003fc】 基于ATMEL-sama5d3芯片与Linux-3.6.9内核SD卡系列简介这些都是网上找出来的，权当作为开场白了。 MMC卡全称Multi Media Card，由西门子公司和SanDisk公司1997年推出的多媒体记忆卡标准。MMC卡尺寸为32mm x24mm x 1.4mm，它">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】eMMC驱动分析">
+<meta property="og:url" content="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E9%A9%B1%E5%8A%A8%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="本文转自：【https:&#x2F;&#x2F;www.daimajiaoliu.com&#x2F;daima&#x2F;4794cd5a29003fc】 基于ATMEL-sama5d3芯片与Linux-3.6.9内核SD卡系列简介这些都是网上找出来的，权当作为开场白了。 MMC卡全称Multi Media Card，由西门子公司和SanDisk公司1997年推出的多媒体记忆卡标准。MMC卡尺寸为32mm x24mm x 1.4mm，它">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-12-28T03:51:17.000Z">
+<meta property="article:modified_time" content="2020-12-28T03:56:23.203Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="emmc">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E9%A9%B1%E5%8A%A8%E5%88%86%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】eMMC驱动分析 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E9%A9%B1%E5%8A%A8%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】eMMC驱动分析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-12-28 11:51:17 / Modified: 11:56:23" itemprop="dateCreated datePublished" datetime="2020-12-28T11:51:17+08:00">2020-12-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/" itemprop="url" rel="index"><span itemprop="name">storage</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/" itemprop="url" rel="index"><span itemprop="name">Flash Memory</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/mmc/" itemprop="url" rel="index"><span itemprop="name">mmc</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文转自：【<a href="https://www.daimajiaoliu.com/daima/4794cd5a29003fc】" target="_blank" rel="noopener">https://www.daimajiaoliu.com/daima/4794cd5a29003fc】</a></p>
+<h1 id="基于ATMEL-sama5d3芯片与Linux-3-6-9内核"><a href="#基于ATMEL-sama5d3芯片与Linux-3-6-9内核" class="headerlink" title="基于ATMEL-sama5d3芯片与Linux-3.6.9内核"></a>基于ATMEL-sama5d3芯片与Linux-3.6.9内核</h1><h2 id="SD卡系列简介"><a href="#SD卡系列简介" class="headerlink" title="SD卡系列简介"></a>SD卡系列简介</h2><p>这些都是网上找出来的，权当作为开场白了。</p>
+<p>MMC卡全称Multi Media Card，由西门子公司和SanDisk公司1997年推出的多媒体记忆卡标准。MMC卡尺寸为32mm x24mm x 1.4mm，它将存贮单元和控制器一同做到了卡上，智能的控制器使得MMC保证兼容性和灵活性。MMC卡具有MMC和SPI两种工作模式，MMC模式是默认工作模式，具有MMC的全部特性。而SPI模式则是MMC协议的一个子集，主要用于低速系统。</p>
+<p>SD卡全称Secure Digital Memory Card，由松下、东芝和SanDisk公司于1999年8月共同开发的新一代记忆卡标准，已完全兼容MMC标准。SD卡比MMC卡多了一个进行数据著作权保护的暗号认证功能，读写速度比MMC卡快4倍。尺寸为32mm x 24mm x2.1mm，长宽和MMC卡一样，只是比MMC卡厚了0.7mm，以容纳更大容量的存贮单元。SD卡与MMC卡保持向上兼容，也就是说，MMC卡可以被新的设有SD卡插槽的设备存取，但是SD卡却不可以被设有MMC插槽的设备存取。</p>
+<p>SDIO全称Secure Digital Input and Output Card，SDIO是在SD标准上定义了一种外设接口，它使用SD的I/O接口来连接外围设备，并通过SD上的I/O数据接口与这些外围设备传输数据。现在已经有很多手持设备支持SDIO功能，而且许多SDIO外设也被开发出来，目前常见的SDIO外设有：WIFI Card、GPS Card、 Bluetooth Card等等。</p>
+<p>eMMC全称Embedded Multi MediaCard，是MMC协会所制定的内嵌式存储器标准规格，主要应用于智能手机和移动嵌入式产品等。eMMC是一种嵌入式非易失性存储系统，由闪存和闪存控制器两部分组成，它的一个明显优势是在封装中集成了一个闪存控制器，它采用JEDEC标准BGA封装，并采用统一闪存接口管理闪存。eMMC结构由一个嵌入式存储解决方案组成，带有MMC接口、快闪存储设备及主控制器，所有这些由一个小型BGA封装。由于采用标准封装，eMMC也很容易升级，并不用改变硬件结构。</p>
+<h2 id="MMC-SD通信协议"><a href="#MMC-SD通信协议" class="headerlink" title="MMC/SD通信协议"></a>MMC/SD通信协议</h2><p>卡的状态与模式：</p>
+<p>工作条件检测：</p>
+<p>发送CMD0(reset)；</p>
+<p>发送CMD8，用于取得SD卡支持的工作电压。</p>
+<p>在版本2.0中，发送ACMD41，必须先发送CMD8，有应答则是高容量SD卡。</p>
+<p>ACMD41是给卡的控制器一个识别卡是否能在给定电压下工作的机制。</p>
+<p>卡根据CMD8的参数检测控制器的电压，如果电压不可以，卡处于Idle状态；如果电压可以，发送回执(check voltage, check pattern)，控制器分析回传的CMD8参数校验是否可以在给定的电压下工作。</p>
+<p>在ACMD41之后，控制器与卡之间的工作电压将确定。</p>
+<p>初始化：</p>
+<p>开始于收到ACMD41。</p>
+<p>响应CMD8的卡为SDHC卡，ACMD41的HCS部分为1；不响应CMD8的则是普通SD卡；</p>
+<p>作为ACMD41的回应，SDHC卡会带有CCS=1。</p>
+<p>控制器发送CMD2，处于Ready状态的卡，发送自己的CID作为响应，然后卡进入Identification状态。</p>
+<p>控制器发送CMD3，SD卡会发送一个相对地址（RCA）作为响应。卡进入等待状态。</p>
+<p>数据传输模式：</p>
+<p>CMD7：选择某个卡进入Transfer状态。</p>
+<p>CMD9：获取卡的CSD(card specific data)，包括块长度、卡的容量等。</p>
+<p>CMD12：停止命令。</p>
+<p>CMD17：块读命令。</p>
+<p>CMD18：多块读命令。</p>
+<p>ACMD51：发送scr(SD Configuration Register)</p>
+<p>CMD24：块写命令。</p>
+<p>CMD25：多块写命令。</p>
+<p>CMD32：擦除的起始地址。</p>
+<p>CMD33：擦除的截止地址。</p>
+<p>CMD38：擦除命令。</p>
+<p>仅仅看SPEC上的通信协议可能略有枯燥，结合代码就比较好理解了。关于SD卡的初始化过程参见：<a href="http://www.cnblogs.com/fengeryi/p/3469782.html" target="_blank" rel="noopener">http://www.cnblogs.com/fengeryi/p/3469782.html</a></p>
+<p>这个博客详细描述了SD卡的初始化（mmc_sd_init_card()）。MMC卡的初始化是mmc_init_card()，大致过程相似，比SD卡的函数长不少，但实际的代码干的事情貌似比SD的那些简单一些。这里我们用到的是MMC卡，它的初始化后面会涉及到的。</p>
+<p>关于eMMC的原理图部分：</p>
+<p>现在的内核使用设备树文件，来描述ARM平台上的相关硬件设备资源。对于设备树（Device Tree）这个东西资料还不是很多，网上有宋宝华写的有关设备树的文章，挺值得参考的。</p>
+<p>按我自己的理解，设备树文件就是用一种类似于C语言的东西来描述具体平台相关的硬件资源。这些文件使用特定的编译器编译为.dtb文件，在uboot加载内核的时候，将dtb文件提供给内核，内核便获知了具体的硬件设置；而不再是以前那样，各种各样的硬件信息统统编译进内核。</p>
+<p>所使用的硬件资源，来自于设备树文件sama5d3.dtsi（arch/arm/boot/dts/sama5d3.dtsi）与MMC设置有关的寄存器地址：0xf0000000；长度0x600。中断号21，触发模式：4（上升沿触发）。中断优先级为0 。拥有的DMA资源是dma0，寄存器的配置为0x10002200 。</p>
+<p>关于设备树文件含义的一些说明，在源码目录中的Document/devicetree/bindings/下有TXT类型的描述文档。</p>
+<h2 id="MMC驱动的层次结构"><a href="#MMC驱动的层次结构" class="headerlink" title="MMC驱动的层次结构"></a>MMC驱动的层次结构</h2><p>CARD层  具体的块设备驱动</p>
+<p>CORE层  为card层提供操作接口，为host层注册提供机制</p>
+<p>HOST层  MMC/SD/SDIO的控制器驱动层</p>
+<p>我觉得之所以将整个的驱动分为三层，是为了驱动能够更好的移植到其他的硬件平台上去。CARD层是通用的MMC块设备驱动，这些代码只要是Linux都可以用的；而HOST层里的代码则是与具体平台有关的，进去看文件与函数的名字就可以猜到——我们这里HOST层中的函数常常是”atmci”开头，意思是ATMEL的媒体控制接口，这是因为我们的平台是ATMEL的ARM芯片；而CORE层，则是提供了MMC/SD的核心机制，并且为CARD层屏蔽了HOST层中具体硬件的差异。基于这些有但不完全的原因，MMC/SD的驱动自然而然的分出了三层，也就是drivers/mmc下的三个文件夹。</p>
+<h2 id="Linux内核中的面向对象的思想与实现"><a href="#Linux内核中的面向对象的思想与实现" class="headerlink" title="Linux内核中的面向对象的思想与实现"></a>Linux内核中的面向对象的思想与实现</h2><p>在个人学习Linux驱动的过程中，感觉如果只是按照一个一个函数的调用，不断的来回跳，即便是能看懂单个函数的意思，对于整个体系依然是云里雾里，不知内核写了神马东西。若是按照面向对象的思想去理解这些代码，我发现内核的东西就比较容易懂了。</p>
+<p>内核虽然是用面向过程的C语言写出来的，但处处体现着面向对象的思想，甚至可以称为一种编程哲学（PS.那些把内核写出来的牛人们，实在太牛了）。Linux不仅仅把设备全部抽象为文件，这种宏观的抽象对象的方法在内核代码里也是比比皆是。个人感觉看代码是在自己脑子里把程序要处理的东西，都抽象为一件件具体的物品，对理解内核代码的来龙去脉，很有帮助。</p>
+<p>Linux内核中用面向过程的C语言实现了面向对象的程序架构。一种面向对象的语言，拥有三方面的特性：封装、继承、多态。Linux内核用C语言的基本特性实现了这三种面向对象的特性：使用结构体实现了封装；而某一结构体成员中含有其他结构体的实例，这样实现了一个结构体对另一个结构体的继承；多态的实现则是使用了成员是函数指针的结构体，通过对该结构体中同一个函数指针赋不同的值，调用同一个成员，实际上就会调用不同的函数。当然这些只是我个人的理解了，不一定完全正确。</p>
+<p>这种编程思想在驱动中的实现，则主要体现在驱动中对”总线””驱动””设备”这三种结构体处理上：</p>
+<p>可以看出来，在驱动的整体框架代码中都是在描述这三个结构体的关系，而功能的实现常常被封装起来。</p>
+<p>各种的驱动（device_driver）继承于device_driver结构体；</p>
+<p>各种的设备（device）继承于device结构体；</p>
+<p>各种的总线（bus）都是bus_type的实例化。</p>
+<p>而上述这些都是直接或间接继承于基类kobject。Linux内核通过对kobject的操作，实现了对各部分（包括设备、驱动等）的管理。</p>
+<p>驱动与设备在内核中的管理通过总线来实现，对于内核来说，驱动和设备是平级的，因为他们在内核看来都是一个个的继承于kobject的结构体。这一点与我们平常感觉驱动是依附在设备上的直观感觉不同。因为这些都是在代码里体现的，都是虚拟的0与1，驱动和设备以及总线，在内核看来自然差不多了，都是kobject。</p>
+<p>在驱动或设备进行probe时，都是沿着总线上的设备和驱动进行匹配的。Linux使用总线的概念来管理设备与驱动的功用。总线就是挂着一串有着相似功用的东西的一根线，同种类的设备与驱动是挂在同一根总线上的，就像拴在一根线上的蚂蚱。在内核看来：这一根上拴的都是绿蚂蚱，那一根上拴的都是黄蚂蚱……想找哪一种蚂蚱，就把哪根线扯出来，再具体看自己是想要上面具体的哪一只蚂蚱。</p>
+<p>初始化过程中，添加一个设备主要的工作是初始化继承于device的设备结构体，并把它添加到对应的总线上去。在总线上将去匹配挂在该总线上的驱动。</p>
+<p>添加一个驱动的过程与此类似。</p>
+<h2 id="MMC-SD驱动的流程"><a href="#MMC-SD驱动的流程" class="headerlink" title="MMC/SD驱动的流程"></a>MMC/SD驱动的流程</h2><p>在Linux启动过程中，加载的有关MMC的模块有3个，分别来自：</p>
+<p>/drivers/mmc/core/core.c中的subsys_initcall（优先级4）</p>
+<p>/drivers/mmc/card/block.c中的module_init（宏定义来自device_initcall）（优先级6）</p>
+<p>/drivers/mmc/host/atmel-mci.c中的late_initcall（优先级7）</p>
+<p>优先级的数字越小越是优先。描述各种加载优先级的宏，定义在include/linux/init.h中。</p>
+<p>在core.c的init中注册了mmc_bus_type总线。</p>
+<p>在block.c的init中调用了mmc_blk_init() → mmc_bus_register_driver()，向mmc_bus_type总线注册了mmc的块设备驱动，并有去尝试probe的动作；但是驱动并没有匹配到设备，因为此时对应的设备还没有注册到总线上，Linux此时并不知道设备的存在，因为到此late_initcall还没有执行到，所以并没有进行probe。</p>
+<p>在atmel-mci.c的init调用了platform_driver_register()，完成主机的驱动与设备的注册，之后的一系列操作调用到了mmc_attach_mmc() → mmc_add_card()向总线注册了卡设备，并匹配到了之前的卡驱动。后面会继续详细说的。</p>
+<p>在代码里可以看到，整个MMC的驱动涉及了两个总线：platform_bus_type总线和mmc_bus_type总线。因为内核将MMC/SD卡控制器抽象为一个platform总线设备，将MMC/SD卡（块设备）抽象为mmc总线设备。</p>
+<p>插曲：{</p>
+<p>嗯，上面说到了好多次”总线”，这里再补充说明一下：这”总线”并不是实实在在存在的物理上的电路线；当然对于I2C、SPI等类型的设备，它们有自己的i2c_bus_type和spi_bus_type，它们也的确有看得见摸得着的、用于连接控制器与物理设备的电线存在；但是内核是不理会任何电气特性的，内核认得的东西都是虚拟抽象出来的概念对象。I2C、SPI使用不同方式进行通信，内核对这些不同的方式（通信协议）有不同的处理与管理的方法，因此归纳为不同的”总线”，这个”总线”的概念与物理的”电线”没有逻辑依赖关系。</p>
+<p>我看宋宝华的《Linux设备驱动开发详解》有关于platform的讲解，但是我一些内容理解有偏差：”在S3C6410处理器中，把内部集成的I2C、RTC、SPI、LCD、看门狗等控制器都归纳为platform_device”。我当时看了，以为platform总线是比i2c总线更为广泛的概念：i2c总线来自于platform总线。但是当我接触的sama5d3的Linux代码时，发现我之前理解的那样是有问题的，platform总线与i2c总线都是struct bus_type类型的实例，是平级的。Linux引入platform总线是为了描述那些不属于常见总线（常见的，比如i2c、spi等等）的设备的一种虚拟总线。</p>
+<p>不过，对于”平级”的说法，是我这个初学者的个人看法哈<del>我发现在Linux启动的时候对platform总线是有”特别照顾”的，Linux启动时，系统会加载属于platform总线的设备。是不是i2c这样平台上自带的设备也会搭载这个顺风车？我就不是很清楚了，因为我还没有研究过Linux的I2C驱动。个人感觉应该会，毕竟都是平台（platform）上自带的嘛</del>那么《Linux设备驱动开发详解》我理解的没错只是因为知识不够，所以理解不透啦<del>！哈哈</del>我是新手啊~求别喷呀。</p>
+<p>}</p>
+<p>整个代码运行的大致流程如下：</p>
+<p>从控制器的INIT到块设备的probe。橙色方框描述的是要依赖的一些功能。</p>
+<p>下面开始一段一段的说了……</p>
+<h3 id="函数atmci-init"><a href="#函数atmci-init" class="headerlink" title="函数atmci_init()"></a>函数atmci_init()</h3><p>（drivers/mmc/host/atmel-mci.c）</p>
+<p>在这里的初始化直接对platform_driver的控制器驱动进行了probe。</p>
+<p>下面将调用到platfrom_driver_register()。向platform总线注册驱动。凡是在总线注册了的驱动或设备，才是内核所能操作的。这其实是依赖有关于kobject的k_list。</p>
+<p>platform_driver_probe() 与 platform_driver_register()</p>
+<p>一般来说设备是不能被热插拔的，所以可以将probe()函数放在init中，来节省driver运行时候的内存开销。</p>
+<p>一个驱动注册用platform_driver_probe()，在功能和使用上与platform_driver_register()是一样的。唯一的区别是它不能被以后其他的设备probe。也就是说，这个驱动只能和一个设备绑定。而这些的实现就是上图529——534行的代码，可以看看上面的那段注释。</p>
+<h3 id="函数platform-driver-register"><a href="#函数platform-driver-register" class="headerlink" title="函数platform_driver_register()"></a>函数platform_driver_register()</h3><p>（drivers/base/platform.c）</p>
+<p>将struct platform_driver类型的drv中的driver（struct device_driver类型）的probe成员、remove成员、shutdown成员，填入platform驱动的函数；然后调用driver_register()函数，将驱动注册到总线。</p>
+<p>就是将drv变成platform driver。（重载了platform的操作函数，之后的调用者只管使用，并不关心是哪种总线的驱动。）</p>
+<h3 id="函数driver-register"><a href="#函数driver-register" class="headerlink" title="函数driver_register()"></a>函数driver_register()</h3><p>将驱动添加到总线。</p>
+<p>在driver_register()中主要的就是调用：</p>
+<p>  bus_add_driver(drv);</p>
+<p>完成驱动向总线的添加。这方面的实现主要是：</p>
+<p>  driver_attach(drv);</p>
+<p>在总线的设备列表（klist_devices）中遍历，尝试匹配这个驱动。</p>
+<p>如果driver_probe_device()返回0，并且dev→driver被设置，就是找到了这个驱动匹配的设备。（这是我翻译的上图中的一句注释）</p>
+<h3 id="函数bus-for-each-dev"><a href="#函数bus-for-each-dev" class="headerlink" title="函数bus_for_each_dev()"></a>函数bus_for_each_dev()</h3><p>可以看出该函数里面最终是调用了__driver_attach(dev,data)</p>
+<p>dev来自于klist_devices的设备；</p>
+<p>data就是drv。</p>
+<p>那这里之前都是注册driver的，运行到这里要在总线上为driver匹配device了。这里是找到设备的，因为我当时打印的Log发现能够继续向下运行，没见有找不到设备的样子。那么这个dev是什么时候加到总线上的？我当时找了很久，没找到。也的确不是前面涉及的那些代码添加的设备，是在Linux系统加载的时候把platform设备加到对应的总线上的。</p>
+<p>在init/main.c中</p>
+<p>kernel_init()→do_basic_setup()→driver_init()→platform_bus_init()初始化platform总线。在这里目前只找到这些可以确定的信息了。</p>
+<p>在这个函数中，将由__driver_attach(dev, drv)来具体地实现设备与驱动的匹配。</p>
+<h3 id="函数-driver-attach"><a href="#函数-driver-attach" class="headerlink" title="函数__driver_attach()"></a>函数__driver_attach()</h3><p>（drivers/base/dd.c）</p>
+<p>driver_match_device(drv, dev)中调用了drv→bus→match(dev, drv)。</p>
+<p>这个match是platform_match()进行设备名字与驱动名字的比较，相同或者drv→bus→match为空将返回1。</p>
+<p>如果dev→driver之前没有被设置，将执行driver_probe_device()。</p>
+<p>__driver_attach()</p>
+<p>→ driver_probe_device()</p>
+<p>→ really_probe()</p>
+<p>{</p>
+<p>…</p>
+<p>if(dev→bus →probe){</p>
+<p>ret = dev→bus→probe(dev);</p>
+<p>…</p>
+<p>} else if {</p>
+<p>ret = drv→probe(dev);</p>
+<p>…</p>
+<p>}</p>
+<p>…</p>
+<p>}</p>
+<p>在这里将会执行drv→probe(dev)（这个probe在platform_driver_register()中被赋值）即platform_drv_probe()，这个函数中调用的其实是drv→probe(dev)。在这里的probe就是atmci_probe()了。</p>
+<p>以上调用过程的总结：</p>
+<p>在最开始传入的是struct platform_driver *atmci_driver（代表了MMC/SD控制器驱动）。然后使用由Linux kernel提供的platform机制对改驱动进行注册。</p>
+<p>完成系统内的注册后，将交给atmci_probe()来处理具体平台相关的工作。</p>
+<p>这里对probe函数的处理，就类似于面向对象的”重载”。因为不管是什么样的platform驱动都会调用platform_drv_probe()，此处则是重载到了atmci_probe()。</p>
+<h3 id="函数atmci-probe"><a href="#函数atmci-probe" class="headerlink" title="函数atmci_probe()"></a>函数atmci_probe()</h3><p>这个函数的操作主要是围绕struct atmel_mci *host展开的。这个结构体的含义应该是对控制器状态的描述。</p>
+<p>可以分为两段：</p>
+<p>第一段是获取资源。第二段是初始化slot。</p>
+<p>获取内存资源；</p>
+<p>从设备树的节点里读取信息到platform_data；</p>
+<p>设置引脚模式；</p>
+<p>获取中断资源；</p>
+<p>初始化struct atmel_mci host中的锁和队列；</p>
+<p>设置中断处理函数、数据传输方式，等。</p>
+<p>atmci_init_slot()函数：设置硬件的相关信息，最后用这些信息初始化struct mmc_host *mmc硬件（表示mmc的控制器）。</p>
+<p>主要包含mmc_alloc_host()为控制器结构体分配空间，并初始化控制器结构体；</p>
+<p>和mmc_add_host()初始化host硬件。</p>
+<h3 id="函数mmc-add-host"><a href="#函数mmc-add-host" class="headerlink" title="函数mmc_add_host()"></a>函数mmc_add_host()</h3><p>在atmci_probe()中调用的atmci_init_slot()，其前半段是获取资源设置相关信息，即函数mmc_alloc_host()。后半段则是使用这些信息去初始化MMC控制器的硬件，使之能够工作，即mmc_add_host()函数。</p>
+<p>在mmc_add_host()中主要起作用的是mmc_start_host()</p>
+<h3 id="函数mmc-detect-change"><a href="#函数mmc-detect-change" class="headerlink" title="函数mmc_detect_change()"></a>函数mmc_detect_change()</h3><p>（drivers/mmc/core/core.c）</p>
+<p>当有卡插入或移除时，应调用这个函数，MMC层将确定现有的卡正常工作，并且初始化新插入的卡。</p>
+<p>最主要的是mmc_schedule_delayed_work(&amp;host→detect, delay)</p>
+<p>→ queue_delayed_work(workqueue, work, delay)</p>
+<p>→ queue_work(wq, &amp;dwork→work)</p>
+<p>mmc_schedule_delayed_work(&amp;host→detect, delay)的意思是，把&amp;host→detect作为一个work传给了queue_delayed_work()。</p>
+<p>这个函数将一个工作（work）添加到workqueue这个工作队列中。</p>
+<p>在工作队列中，不久将会调用host→detect描述的函数。</p>
+<p>那这个detect指向的是哪一个函数？在mmc_alloc_host()中有：</p>
+<p>INIT_DELAYED_WORK(&amp;host→detect, mmc_rescan);</p>
+<p>含义为：初始化一个工作mmc_rescan，由detect指向它。</p>
+<p>所以在工作队列workqueue中mmc_rescan()函数将被执行。在这个函数中将调用mmc_rescan_try_freq()，接下来将会是卡的检测与初始化。</p>
+<p>以上阶段的总结：</p>
+<p>struct atmci_mci 代表了MMC控制器的接口状态。并非内核中MMC控制器本身，而是其parent device。</p>
+<p>在内核看来每一个卡槽（slot）由一个MMC控制器（struct mmc_host）来代表。嗯嗯，我是这样理解的。</p>
+<h3 id="函数mmc-rescan"><a href="#函数mmc-rescan" class="headerlink" title="函数mmc_rescan()"></a>函数mmc_rescan()</h3><p>调用函数mmc_rescan_try_freq() （drivers/mmc/core/core.c）</p>
+<p>首先发送CMD0，即mmc_go_idle()；</p>
+<p>然后发送CMD8，即mmc_send_if_cond()；（其实后面还会在发送这些命令的。）</p>
+<p>接下来依次探测SDIO、SD、MMC。</p>
+<p>我们这里是eMMC，所以进入mmc_attach_mmc()：</p>
+<h3 id="函数mmc-attach-mmc"><a href="#函数mmc-attach-mmc" class="headerlink" title="函数mmc_attach_mmc()"></a>函数mmc_attach_mmc()</h3><p>（drivers/mmc/core/mmc.c）</p>
+<p>mmc_init_card()对一个卡（struct mmc_card card）进行初始化。</p>
+<p>mmc_add_card()将卡设备添加到内核。</p>
+<h3 id="函数mmc-init-card"><a href="#函数mmc-init-card" class="headerlink" title="函数mmc_init_card()"></a>函数mmc_init_card()</h3><p>下面的两个图是极简版的代码（原版的代码好像有460多行，挺长的），有好多重要的东西省掉了，仅仅是为了结合代码标注一下CMD。</p>
+<p>CMD0：让卡进入idle状态。</p>
+<p>CMD1：让卡发送OCR。</p>
+<p>CMD2：向卡询问CID。</p>
+<p>CMD3：设置卡的相对地址。</p>
+<p>CMD9：获取卡的CSD。</p>
+<p>CMD7：选择一个卡。</p>
+<p>CMD8：获取扩展的CSD。</p>
+<p>主机与卡之间的协调设置。（如：分区、掉电通知、高速等等）</p>
+<p>CMD6：为选定的卡修改模式或更改EXT_CSD。（这个命令在mmc_switch()中的，上面的图中被省略了。）</p>
+<p>总之，mmc_init_card()完成了对卡的应有的全部初始化工作，包括传输速度、总线宽度等等，但是要更改这些设置是不在这个函数中改的，这里全都是MMC/SD卡协议的落实。真正要改的话是在HOST层中改一些数据，而不是在这里的CORE层中改。在后面会说到如何更改传输速度和总线宽度的。</p>
+<h3 id="函数mmc-add-card"><a href="#函数mmc-add-card" class="headerlink" title="函数mmc_add_card()"></a>函数mmc_add_card()</h3><p>（drivers/mmc/core/bus.c）</p>
+<p>mmc_init_card()之后，调用mmc_add_card()，作用是将这个card设备添加到内核，内部调用了device_add将card→dev添加到内核中。</p>
+<p>device_add(&amp;card→dev)</p>
+<p>→ bus_probe_device(dev)</p>
+<p>→ device_attach(dev)</p>
+<p>→ bus_for_each_drv(dev→bus, NULL, dev, __device_attach)</p>
+<p><strong>device_attach()与之前的</strong>driver_attach()基本一样。</p>
+<p>我们传入的dev是&amp;card→dev，这个在mmc_alloc_card()中被赋值为mmc_bus_type。（mmc.c-866; bus.c-250）</p>
+<p>如前面所说的那样，在上图中的driver_match_device()将调用dev的match函数（mmc_bus_match()）而这个函数始终返回1（里面什么都没写，除了一句”return 1;”）。</p>
+<p>所以执行driver_probe_device()。这里将调用really_probe()执行mmc_bus_type结构体中的probe成员（mmc_bus_probe()）。</p>
+<h3 id="函数mmc-bus-probe"><a href="#函数mmc-bus-probe" class="headerlink" title="函数mmc_bus_probe()"></a>函数mmc_bus_probe()</h3><p>（drivers/mmc/core/bus.c）</p>
+<p>在to_mmc_driver()，将返回含有dev→driver的mmc_driver的指针。这个结构体中的probe()则是mmc_blk_probe()函数。</p>
+<p>在mmc_dev_to_card()，将返回含有dev的mmc_card的指针。</p>
+<p>在这个始终返回1的match，可以看出：挂在这条总线上的driver都会如此运行，也就是说都会来执行mmc_blk_probe()函数。（之所以要始终返回1，是为了，全部的设备都去匹配MMC的块设备驱动。）</p>
+<p>现在，则是由CORE层转入了CARD层了。 struct mmc_driver， mmc_blk_probe()都是在 drivers/mmc/card/block.c中定义的。</p>
+<h3 id="函数mmc-blk-probe"><a href="#函数mmc-blk-probe" class="headerlink" title="函数mmc_blk_probe()"></a>函数mmc_blk_probe()</h3><p>（drivers/mmc/card/block.c）</p>
+<p>mmc_blk_alloc()为块设备分配空间，并初始化请求队列。</p>
+<p>mmc_add_disk()中调用了add_disk()l函数，说明之前一定有alloc_disk和初始化队列的动作。</p>
+<p>其中因为调用了add_disk()，磁盘设备将被”激活”，并随时会调用它提供的方法。</p>
+<p>请求队列就是在mmc_blk_alloc()函数完成的。而其中的主要成分就是mmc_blk_alloc_req()。</p>
+<h3 id="函数mmc-blk-alloc-req"><a href="#函数mmc-blk-alloc-req" class="headerlink" title="函数mmc_blk_alloc_req()"></a>函数mmc_blk_alloc_req()</h3><p>（drivers/mmc/card/block.c）</p>
+<p>下图红线标注的依次是：</p>
+<p>allco_disk()分配gendisk结构体；</p>
+<p>初始化请求队列；</p>
+<p>绑定请求函数。</p>
+<p>下面是初始化major、fops、queue等。</p>
+<p>MMC卡驱动走的块设备驱动的套路：</p>
+<p>1.alloc_disk()分配了gendisk结构体。并初始化了major，fops，queue。</p>
+<p>2.mmc_init_queue()初始化了队列，并将mmc_blk_issue_rq()绑定为请求函数。</p>
+<p>3.调用add_disk()将块设备加到内核。</p>
+<h3 id="函数add-disk"><a href="#函数add-disk" class="headerlink" title="函数add_disk()"></a>函数add_disk()</h3><p>由mmc_add_disk()调用的内核函数。</p>
+<p>其完成的任务：</p>
+<p>1.验证设备号。   blk_alloc_devt(&amp;disk→part0, &amp;devt);</p>
+<p>2.注册bolck_device   register_disk(disk);</p>
+<p>3.注册请求队列   blk_register_queue(disk);</p>
+<p>mmc_blk_probe()</p>
+<p>→ mmc_blk_alloc()</p>
+<p>→ mmc_blk_alloc_req()</p>
+<p>→ alloc_disk()</p>
+<p>&amp; mmc_init_queue()</p>
+<p>&amp; mmc_add_disk()</p>
+<p>→ add_disk()</p>
+<p>add_disk()的调用标志着一个块设备驱动将被激活。</p>
+<p>MMC驱动的加载过程也到此结束。</p>
+<p>以上阶段的总结：</p>
+<h2 id="对卡插入的支持"><a href="#对卡插入的支持" class="headerlink" title="对卡插入的支持"></a>对卡插入的支持</h2><p>函数atmci_init_slot() （drivers/mmc/host/atmel-mci.c）</p>
+<p>在中断处理函数atmci_detect_interrupt()中，调用了mod_timer()，这个函数会重新注册定时器到内核，而不管定时器函数是否被运行过。在注册定时器到内核的函数setup_timer()中的回调函数（atmci_detect_change()）中，最终调用了mmc_detect_change()。如前所述，此函数会引起<strong>函数mmc_rescan()</strong>的调用，这个函数就是检测卡是否插入的。</p>
+<p>也就是说，detect引脚有中断，就会重新注册定时器到内核，经过一段时间，将运行定时器的回调函数，最终进行了插卡的检测。</p>
+<p>不过我们这里是eMMC，是直接焊在板子上的，不会有什么插卡的动作；在这里只是提一下。</p>
+<h2 id="MMC-SD卡读写"><a href="#MMC-SD卡读写" class="headerlink" title="MMC/SD卡读写"></a>MMC/SD卡读写</h2><h3 id="读写在内核中的处理层次"><a href="#读写在内核中的处理层次" class="headerlink" title="读写在内核中的处理层次"></a>读写在内核中的处理层次</h3><p>过程概述：</p>
+<p>Linux系统调用（SCI）的实现机制，实际上是多路汇聚以及分解。汇聚点是0x80中断入口，所有的系统调用从用户空间汇聚到0x80中断，中断处理程序运行时，将根据不同的系统调用号分别处理。</p>
+<p>例如，当调用read时，库函数在保存read的SCI号及参数后，陷入0x80中断。这时库函数的工作结束，从用户空间进入到内核空间。</p>
+<p>0x80中断处理程序，根据系统调用号查询系统调用表。</p>
+<p>以read为例，read对应的是sys_read，传递参数并运行sys_read。</p>
+<p>最终将一个请求（request）传递给块设备驱动处理。</p>
+<p>对应的块设备处理函数为mmc_blk_issue_rq()（drivers/mmc/card/block.c 在上文提到过，被绑定的请求函数）</p>
+<p>请求的调用层次，见下图（图中第一项多写了一个”e”）：</p>
+<h3 id="驱动层上的读写"><a href="#驱动层上的读写" class="headerlink" title="驱动层上的读写"></a>驱动层上的读写</h3><p>（将会对上图进行一些说明）</p>
+<p>在函数mmc_blk_alloc_req中，调用的mmc_init_queue拉起了一个内核线程，这个线程主要的作用是把上层IO的request一个个地向具体的driver发送。</p>
+<p>这个线程叫做”mmcdq”，函数mmc_queue_thread是实际做事情的。</p>
+<p>线程mmcqd的工作非常简单，在blk_fetch_request(q)获取一个request后，最终通过调用mq→issue_fn(mq, req)向底层发送request。</p>
+<p>这个函数便是mmc_blk_issue_rq。大部分request通过</p>
+<p>ret = mmc_blk_issue_rw_rq(mq, req);</p>
+<p>来发送。</p>
+<p>之后会调用到mmc的core部分。</p>
+<p>mmc_blk_issue_rw_rq()</p>
+<p>→ mmc_start_req()</p>
+<p>→ __mmc_start_req()</p>
+<p>→ mmc_start_request()</p>
+<p>→ host→ops→request(host, mrq)</p>
+<p>== atmci_request()</p>
+<p>→ atmci_queue_request(host, slot, mrq)</p>
+<p>→ atmci_start_request(host, slot)</p>
+<p>函数atmci_request() （drivers/mmc/host/atmel-mci.c）</p>
+<p>atmci_request()</p>
+<p>→ atmci_queue_request()</p>
+<p>→ atmci_start_request()</p>
+<p>如上图所示在atmel-mci.c, atmci_probe()中就对DMA操作函数进行准备了。</p>
+<p>对atmci_start_request()的过程画了一个流程图：</p>
+<p>以上过程的总结：</p>
+<h2 id="修改MMC的传输速度"><a href="#修改MMC的传输速度" class="headerlink" title="修改MMC的传输速度"></a>修改MMC的传输速度</h2><p>函数atmci_init_slot() （drivers/mmc/host/atmel-mci.c）</p>
+<h3 id="关于时钟-55MHz与44MHz"><a href="#关于时钟-55MHz与44MHz" class="headerlink" title="关于时钟 55MHz与44MHz"></a>关于时钟 55MHz与44MHz</h3><p>（因为发现软件上设置的是55MHz，实际测出来是44MHz）</p>
+<p>mmc_set_clock()→atmci_set_ios()。52MHz最终由atmci_set_ios()处理。</p>
+<p>这是cpu的spec上的相关说明，其中：</p>
+<p>{CLKDIV, CLKODD} + 2 == (CLKDIV * 2 + CLKODD) + 2</p>
+<p>drivers/mmc/host/atmel-mci.c</p>
+<p>atmci_set_ios()</p>
+<p>上图红线标出的三个宏定义为：</p>
+<p>#define DIV_ROUND_UP(n, d)  (((n) + (d) - 1) / (d))</p>
+<p>#define ATMCI_MR_CLKDIV(x)  ((x) &lt;&lt; 0)</p>
+<p>#define ATMCI_MR_CLKODD(x)  ((x) &lt;&lt; 16)</p>
+<p>那么，接下来我们按照代码中的描述，自己计算一下：</p>
+<p>(132M + 52M - 1) / 52M = 3</p>
+<p>clkdiv = 3 - 2 = 1</p>
+<p>1 &gt;&gt; 1 = 0</p>
+<p>1 &amp; 1 = 1</p>
+<p>mode_reg = (0 &lt;&lt; 0) | (1 &lt;&lt; 16)</p>
+<p>所以写入HSMCI_MR寄存器的是：CLKODD置1；CLKDIV是00000000。</p>
+<p>根据cpu的spec，得：</p>
+<p>CLKDIV * 2 + CLKODD + 2 </p>
+<p>= 0 * 2 + 1 + 2</p>
+<p>= 3 （3分频）</p>
+<p>132MHz / 3 = 44MHz</p>
+<p>所以传入的52MHz，实际获得的是44MHz。之前低速的26MHz，实际获得的是22MHz。</p>
+<p>在atmci_set_ios()中的这些处理，是因为bus_hz具体是多少，写程序的人是不知道的，这个是由具体的硬件来决定的（在这里就是132MHz）。所以，不能保证设置52MHz，硬件就能真的分频出52MHz，于是设计了上面的运算：根据实际的总线时钟大小（132MHz），和软件中设定的时钟（52/26MHz）；计算出一个接近设定的时钟，而且能由总线时钟分频出来的一个值（44/22MHz）。</p>
+<h2 id="我在更改过程中遇到的一些错误"><a href="#我在更改过程中遇到的一些错误" class="headerlink" title="我在更改过程中遇到的一些错误"></a>我在更改过程中遇到的一些错误</h2><h3 id="错误1"><a href="#错误1" class="headerlink" title="错误1"></a>错误1</h3><p>drivers/mmc/core/mmc.c</p>
+<p>mmc_init_card()</p>
+<p>导致不能启动。</p>
+<p>我刚开始改的时候，直接去找时钟在哪里设定的，然后去改那个值。就做出了上图的更改，这样是片面的；因为52MHz同时需要对高速的支持，控制器与卡之间也要保持协调。</p>
+<h3 id="错误2"><a href="#错误2" class="headerlink" title="错误2"></a>错误2</h3><p>高速8bit模式下，数据传输可能出错（windows循环冗余检查出错）</p>
+<p>出现条件：线路与示波器测试头接触时，很可能出现。这个错误只会出现在硬件测量的时候，如果安静地让它去复制，就不会出错，一切正常。</p>
+<p>在4bit模式下的数据传输过程中没有出现这个情况。</p>
+<p>解决方法：CPU的HSMCI_CFG寄存器HSMODE置位。</p>
+<p>嗯嗯，这个驱动就这样粗略地整理完了……</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/emmc/" rel="tag"># emmc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%20EMMC%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%88%86%E6%9E%90-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B/" rel="prev" title="【转载】Linux EMMC子系统分析-初始化流程">
+      <i class="fa fa-chevron-left"></i> 【转载】Linux EMMC子系统分析-初始化流程
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/29/Linux/Driver/storage/Flash%20Memory/mmc/MMC%20tools%20introduction/" rel="next" title="MMC tools introduction">
+      MMC tools introduction <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#基于ATMEL-sama5d3芯片与Linux-3-6-9内核"><span class="nav-number">1.</span> <span class="nav-text">基于ATMEL-sama5d3芯片与Linux-3.6.9内核</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#SD卡系列简介"><span class="nav-number">1.1.</span> <span class="nav-text">SD卡系列简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MMC-SD通信协议"><span class="nav-number">1.2.</span> <span class="nav-text">MMC&#x2F;SD通信协议</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MMC驱动的层次结构"><span class="nav-number">1.3.</span> <span class="nav-text">MMC驱动的层次结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Linux内核中的面向对象的思想与实现"><span class="nav-number">1.4.</span> <span class="nav-text">Linux内核中的面向对象的思想与实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MMC-SD驱动的流程"><span class="nav-number">1.5.</span> <span class="nav-text">MMC&#x2F;SD驱动的流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#函数atmci-init"><span class="nav-number">1.5.1.</span> <span class="nav-text">函数atmci_init()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数platform-driver-register"><span class="nav-number">1.5.2.</span> <span class="nav-text">函数platform_driver_register()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数driver-register"><span class="nav-number">1.5.3.</span> <span class="nav-text">函数driver_register()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数bus-for-each-dev"><span class="nav-number">1.5.4.</span> <span class="nav-text">函数bus_for_each_dev()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数-driver-attach"><span class="nav-number">1.5.5.</span> <span class="nav-text">函数__driver_attach()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数atmci-probe"><span class="nav-number">1.5.6.</span> <span class="nav-text">函数atmci_probe()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-add-host"><span class="nav-number">1.5.7.</span> <span class="nav-text">函数mmc_add_host()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-detect-change"><span class="nav-number">1.5.8.</span> <span class="nav-text">函数mmc_detect_change()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-rescan"><span class="nav-number">1.5.9.</span> <span class="nav-text">函数mmc_rescan()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-attach-mmc"><span class="nav-number">1.5.10.</span> <span class="nav-text">函数mmc_attach_mmc()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-init-card"><span class="nav-number">1.5.11.</span> <span class="nav-text">函数mmc_init_card()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-add-card"><span class="nav-number">1.5.12.</span> <span class="nav-text">函数mmc_add_card()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-bus-probe"><span class="nav-number">1.5.13.</span> <span class="nav-text">函数mmc_bus_probe()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-blk-probe"><span class="nav-number">1.5.14.</span> <span class="nav-text">函数mmc_blk_probe()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数mmc-blk-alloc-req"><span class="nav-number">1.5.15.</span> <span class="nav-text">函数mmc_blk_alloc_req()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#函数add-disk"><span class="nav-number">1.5.16.</span> <span class="nav-text">函数add_disk()</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对卡插入的支持"><span class="nav-number">1.6.</span> <span class="nav-text">对卡插入的支持</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MMC-SD卡读写"><span class="nav-number">1.7.</span> <span class="nav-text">MMC&#x2F;SD卡读写</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#读写在内核中的处理层次"><span class="nav-number">1.7.1.</span> <span class="nav-text">读写在内核中的处理层次</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#驱动层上的读写"><span class="nav-number">1.7.2.</span> <span class="nav-text">驱动层上的读写</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#修改MMC的传输速度"><span class="nav-number">1.8.</span> <span class="nav-text">修改MMC的传输速度</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#关于时钟-55MHz与44MHz"><span class="nav-number">1.8.1.</span> <span class="nav-text">关于时钟 55MHz与44MHz</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#我在更改过程中遇到的一些错误"><span class="nav-number">1.9.</span> <span class="nav-text">我在更改过程中遇到的一些错误</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#错误1"><span class="nav-number">1.9.1.</span> <span class="nav-text">错误1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#错误2"><span class="nav-number">1.9.2.</span> <span class="nav-text">错误2</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="[TOC] 本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;schips&#x2F;p&#x2F;linux-subsystem-i2c-0-about.html】 内核版本：v4.14 构成在Linux的I2C架构如图：  Linux-i2c子系统框图 内核空间部分可以分为：i2c设备驱动、i2c核心以及i2c总线驱动。  i2c核心：框架的实现；提供i2c总线驱动和设备驱动的注册、注销方法；i2c通信">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】Linux I2C子系统分析：0-整体框架介绍">
+<meta property="og:url" content="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%20I2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%88%86%E6%9E%90%EF%BC%9A0-%E6%95%B4%E4%BD%93%E6%A1%86%E6%9E%B6%E4%BB%8B%E7%BB%8D/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="[TOC] 本文转自：【https:&#x2F;&#x2F;www.cnblogs.com&#x2F;schips&#x2F;p&#x2F;linux-subsystem-i2c-0-about.html】 内核版本：v4.14 构成在Linux的I2C架构如图：  Linux-i2c子系统框图 内核空间部分可以分为：i2c设备驱动、i2c核心以及i2c总线驱动。  i2c核心：框架的实现；提供i2c总线驱动和设备驱动的注册、注销方法；i2c通信">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://img2020.cnblogs.com/blog/2120938/202010/2120938-20201013152732525-1054325417.png">
+<meta property="article:published_time" content="2021-01-15T08:25:41.000Z">
+<meta property="article:modified_time" content="2021-01-15T08:37:29.681Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="i2c">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img2020.cnblogs.com/blog/2120938/202010/2120938-20201013152732525-1054325417.png">
+
+<link rel="canonical" href="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%20I2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%88%86%E6%9E%90%EF%BC%9A0-%E6%95%B4%E4%BD%93%E6%A1%86%E6%9E%B6%E4%BB%8B%E7%BB%8D/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】Linux I2C子系统分析：0-整体框架介绍 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Linux%20I2C%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%88%86%E6%9E%90%EF%BC%9A0-%E6%95%B4%E4%BD%93%E6%A1%86%E6%9E%B6%E4%BB%8B%E7%BB%8D/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】Linux I2C子系统分析：0-整体框架介绍
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2021-01-15 16:25:41 / Modified: 16:37:29" itemprop="dateCreated datePublished" datetime="2021-01-15T16:25:41+08:00">2021-01-15</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/i2c%E6%80%BB%E7%BA%BF%E9%A9%B1%E5%8A%A8/" itemprop="url" rel="index"><span itemprop="name">i2c总线驱动</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<p>本文转自：【<a href="https://www.cnblogs.com/schips/p/linux-subsystem-i2c-0-about.html】" target="_blank" rel="noopener">https://www.cnblogs.com/schips/p/linux-subsystem-i2c-0-about.html】</a></p>
+<p>内核版本：v4.14</p>
+<h2 id="构成"><a href="#构成" class="headerlink" title="构成"></a>构成</h2><p>在Linux的I2C架构如图：</p>
+<p><a href="https://img2020.cnblogs.com/blog/2120938/202010/2120938-20201013152732525-1054325417.png" target="_blank" rel="noopener"><img src="https://img2020.cnblogs.com/blog/2120938/202010/2120938-20201013152732525-1054325417.png" alt="Linux-i2c子系统框图"></a></p>
+<p>Linux-i2c子系统框图</p>
+<p>内核空间部分可以分为：i2c设备驱动、i2c核心以及i2c总线驱动。</p>
+<ul>
+<li><strong>i2c核心</strong>：框架的实现；提供i2c总线驱动和设备驱动的注册、注销方法；i2c通信方法（algorithm）上层的，与具体适配器无关的代码以及探测设备、检测设备地址的上层代码等。这一部分的工作由内核开发者完成。</li>
+<li><strong>i2c总线驱动</strong>：具体控制器的实现；i2c总线驱动是对i2c硬件体系结构中适配器端的实现，说白了，就是怎么操作i2c模块工作。适配器可由CPU控制，甚至直接集成到cpu里面（ algorithm driver<br>adapter driver）</li>
+<li><strong>i2c设备</strong>：对i2c硬件体系结构中设备端的实现，比如说板上的EEPROM设备等。设备一般挂接在cpu控制的i2c适配器上，通过i2c适配器与cpu交换数据。（ chip drivers, 包括多种类型，如RTC, EEPROM, I/O expander, hardware monitoring, sound, video等）</li>
+</ul>
+<p>名词解释：</p>
+<ul>
+<li>i2c-adapter（适配器）：指的是CPU实际的I2C控制器（例如I2C0，I2C1）；</li>
+<li>i2c-device（设备）：指的是I2C总线上的从设备（例如某片EEPROM，某个触摸屏）；</li>
+<li>i2c algorithm（算法、实现方法）：这里指的是对i2c设备一套对应的通信方法。</li>
+</ul>
+<p>分层的好处：</p>
+<ul>
+<li>让工程师们各司其职，只关心自己应该实现的部分</li>
+<li>不需要为每一个i2c控制器编写所有从设备的控制代码，只需要分别完成n个控制器的控制接口，m个从设备的访问实现，即可实现任意的控制器访问任意的从设备（假设硬件连接支持）</li>
+</ul>
+<h2 id="原型"><a href="#原型" class="headerlink" title="原型"></a>原型</h2><p>以下原型均定义在<code>include/linux/i2c.h</code>中，随着内核版本的不同有差异，但差异不大。</p>
+<h3 id="i2c-设备驱动"><a href="#i2c-设备驱动" class="headerlink" title="i2c 设备驱动"></a>i2c 设备驱动</h3><p><strong>i2c_driver：</strong>代表一个i2c设备驱动；</p>
+<p>i2c 设备驱动要使用i2c_driver 和i2c_client数据结构并填充i2c_driver中的成员函数</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * struct i2c_driver - represent an I2C device driver</span></span><br><span class="line"><span class="comment"> * @class: What kind of i2c device we instantiate (for detect)</span></span><br><span class="line"><span class="comment"> * @attach_adapter: Callback for bus addition (deprecated)</span></span><br><span class="line"><span class="comment"> * @probe: Callback for device binding - soon to be deprecated</span></span><br><span class="line"><span class="comment"> * @probe_new: New callback for device binding</span></span><br><span class="line"><span class="comment"> * @remove: Callback for device unbinding</span></span><br><span class="line"><span class="comment"> * @shutdown: Callback for device shutdown</span></span><br><span class="line"><span class="comment"> * @alert: Alert callback, for example for the SMBus alert protocol</span></span><br><span class="line"><span class="comment"> * @command: Callback for bus-wide signaling (optional)</span></span><br><span class="line"><span class="comment"> * @driver: Device driver model driver</span></span><br><span class="line"><span class="comment"> * @id_table: List of I2C devices supported by this driver</span></span><br><span class="line"><span class="comment"> * @detect: Callback for device detection</span></span><br><span class="line"><span class="comment"> * @address_list: The I2C addresses to probe (for detect)</span></span><br><span class="line"><span class="comment"> * @clients: List of detected clients we created (for i2c-core use only)</span></span><br><span class="line"><span class="comment"> * @disable_i2c_core_irq_mapping: Tell the i2c-core to not do irq-mapping</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * The driver.owner field should be set to the module owner of this driver.</span></span><br><span class="line"><span class="comment"> * The driver.name field should be set to the name of this driver.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * For automatic device detection, both @detect and @address_list must</span></span><br><span class="line"><span class="comment"> * be defined. @class should also be set, otherwise only devices forced</span></span><br><span class="line"><span class="comment"> * with module parameters will be created. The detect function must</span></span><br><span class="line"><span class="comment"> * fill at least the name field of the i2c_board_info structure it is</span></span><br><span class="line"><span class="comment"> * handed upon successful detection, and possibly also the flags field.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * If @detect is missing, the driver will still work fine for enumerated</span></span><br><span class="line"><span class="comment"> * devices. Detected devices simply won't be supported. This is expected</span></span><br><span class="line"><span class="comment"> * for the many I2C/SMBus devices which can't be detected reliably, and</span></span><br><span class="line"><span class="comment"> * the ones which can always be enumerated in practice.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * The i2c_client structure which is handed to the @detect callback is</span></span><br><span class="line"><span class="comment"> * not a real i2c_client. It is initialized just enough so that you can</span></span><br><span class="line"><span class="comment"> * call i2c_smbus_read_byte_data and friends on it. Don't do anything</span></span><br><span class="line"><span class="comment"> * else with it. In particular, calling dev_dbg and friends on it is</span></span><br><span class="line"><span class="comment"> * not allowed.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_driver</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="class"><span class="keyword">class</span>;</span> <span class="comment">// 表示我们将注册的是那种设备（探测时用）</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Notifies the driver that a new bus has appeared. You should avoid</span></span><br><span class="line"><span class="comment">	 * using this, it will be removed in a near future.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="keyword">int</span> (*attach_adapter)(struct i2c_adapter *) __deprecated; <span class="comment">// 添加总线时，告诉驱动的回调函数（以后可能要弃用）</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Standard driver model interfaces */</span></span><br><span class="line">	<span class="keyword">int</span> (*probe)(struct i2c_client *, <span class="keyword">const</span> struct i2c_device_id *); <span class="comment">// 绑定设备时的回调函数</span></span><br><span class="line">	<span class="keyword">int</span> (*<span class="built_in">remove</span>)(struct i2c_client *); <span class="comment">// 解除绑定时调用的回调函数</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* New driver model interface to aid the seamless removal of the</span></span><br><span class="line"><span class="comment">	 * current probe()'s, more commonly unused than used second parameter.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="keyword">int</span> (*probe_new)(struct i2c_client *); <span class="comment">// 新的设备绑定回调函数</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* driver model interfaces that don't relate to enumeration  */</span></span><br><span class="line">	<span class="keyword">void</span> (*<span class="built_in">shutdown</span>)(struct i2c_client *); <span class="comment">// 设备关闭时调用的回调函数</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Alert callback, for example for the SMBus alert protocol.</span></span><br><span class="line"><span class="comment">	 * The format and meaning of the data value depends on the protocol.</span></span><br><span class="line"><span class="comment">	 * For the SMBus alert protocol, there is a single bit of data passed</span></span><br><span class="line"><span class="comment">	 * as the alert response's low bit ("event flag").</span></span><br><span class="line"><span class="comment">	 * For the SMBus Host Notify protocol, the data corresponds to the</span></span><br><span class="line"><span class="comment">	 * 16-bit payload data reported by the slave device acting as master.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="keyword">void</span> (*alert)(struct i2c_client *, <span class="keyword">enum</span> i2c_alert_protocol protocol,</span><br><span class="line">		      <span class="keyword">unsigned</span> <span class="keyword">int</span> data); <span class="comment">// 警告回调函数（例如SMBus警报协议）</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* a ioctl like command that can be used to perform specific functions</span></span><br><span class="line"><span class="comment">	 * with the device.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="keyword">int</span> (*command)(struct i2c_client *client, <span class="keyword">unsigned</span> <span class="keyword">int</span> cmd, <span class="keyword">void</span> *arg); <span class="comment">// 类似于ioctl 的命令控制函数</span></span><br><span class="line"></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">device_driver</span> <span class="title">driver</span>;</span> <span class="comment">// 设备驱动模型中的驱动</span></span><br><span class="line">	<span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_device_id</span> *<span class="title">id_table</span>;</span> <span class="comment">// 这个i2c驱动支持的设备链表</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Device detection callback for automatic device creation */</span></span><br><span class="line">	<span class="keyword">int</span> (*detect)(struct i2c_client *, struct i2c_board_info *); <span class="comment">// 检测设备的回调函数；</span></span><br><span class="line">	<span class="keyword">const</span> <span class="keyword">unsigned</span> short *address_list; <span class="comment">// 要探测的I2C地址（用于检测）</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">clients</span>;</span> <span class="comment">// 我们创建的检测到的clients（仅供i2c核心使用）</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">bool</span> disable_i2c_core_irq_mapping;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>例如：RTC设备的驱动</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* drivers/rtc/rtc-ds1307.c */</span></span><br><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_driver</span> <span class="title">ds1307_driver</span> = &#123;</span></span><br><span class="line">    .driver = &#123;</span><br><span class="line">        .name   = <span class="string">"rtc-ds1307"</span>,</span><br><span class="line">        .of_match_table = of_match_ptr(ds1307_of_match),</span><br><span class="line">        .acpi_match_table = ACPI_PTR(ds1307_acpi_ids),</span><br><span class="line">    &#125;,</span><br><span class="line">    .probe      = ds1307_probe,</span><br><span class="line">    .id_table   = ds1307_id,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="i2c-客户端"><a href="#i2c-客户端" class="headerlink" title="i2c 客户端"></a>i2c 客户端</h3><p><strong>i2c_client</strong>：代表一个连接到i2c_bus总线上的从设备。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * struct i2c_client - represent an I2C slave device</span></span><br><span class="line"><span class="comment"> * @flags: </span></span><br><span class="line"><span class="comment"> 	- I2C_CLIENT_TEN ： the device uses a ten bit chip address; 表示i2c从设备使用的芯片地址为10bit</span></span><br><span class="line"><span class="comment">	- I2C_CLIENT_PEC ： it uses SMBus Packet Error Checking；   表示设备使用SMBus错误检查</span></span><br><span class="line"><span class="comment"> * @addr: Address used on the I2C bus connected to the parent adapter.</span></span><br><span class="line"><span class="comment"> * @name: Indicates the type of the device, usually a chip name that's</span></span><br><span class="line"><span class="comment"> *	generic enough to hide second-sourcing and compatible revisions.</span></span><br><span class="line"><span class="comment"> * @adapter: manages the bus segment hosting this I2C device</span></span><br><span class="line"><span class="comment"> * @dev: Driver model device node for the slave.</span></span><br><span class="line"><span class="comment"> * @irq: indicates the IRQ generated by this device (if any)</span></span><br><span class="line"><span class="comment"> * @detected: member of an i2c_driver.clients list or i2c-core's</span></span><br><span class="line"><span class="comment"> *	userspace_devices list</span></span><br><span class="line"><span class="comment"> * @slave_cb: Callback when I2C slave mode of an adapter is used. The adapter</span></span><br><span class="line"><span class="comment"> *	calls it to pass on slave events to the slave driver.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * An i2c_client identifies a single device (i.e. chip) connected to an</span></span><br><span class="line"><span class="comment"> * i2c bus. The behaviour exposed to Linux is defined by the driver</span></span><br><span class="line"><span class="comment"> * managing the device.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_client</span> &#123;</span></span><br><span class="line">	<span class="keyword">unsigned</span> short flags;	 <span class="comment">// 一个标示，丰富这个设备的特殊细节</span></span><br><span class="line">	<span class="keyword">unsigned</span> short addr;		<span class="comment">/* chip address - <span class="doctag">NOTE:</span> 7bit；addresses are stored in the _LOWER_ 7 bits	 */</span> <span class="comment">// 从设备在连接到相应适配器总线上使用的地址；默认使用低七位。</span></span><br><span class="line">	<span class="keyword">char</span> name[I2C_NAME_SIZE]; <span class="comment">// 设备的名字；</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">i2c_adapter</span> *<span class="title">adapter</span>;</span>	<span class="comment">/* the adapter we sit on	*/</span> <span class="comment">// 挂接设备的适配器；</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">device</span> <span class="title">dev</span>;</span>		<span class="comment">/* the device structure		*/</span> <span class="comment">// 访问设备的驱动；</span></span><br><span class="line">	<span class="keyword">int</span> irq;			<span class="comment">/* irq issued by device		*/</span> <span class="comment">// 表明由设备产生的中断；</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">detected</span>;</span> <span class="comment">// 一个i2c_driver支持的client的数量或i2c-core的用户空间设备的链表。</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> IS_ENABLED(CONFIG_I2C_SLAVE)</span></span><br><span class="line">	<span class="keyword">i2c_slave_cb_t</span> slave_cb;	<span class="comment">/* callback for slave mode	*/</span> <span class="comment">// 从模式下的回调函数</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>i2c_client的信息通常在BSP的板文件中通过i2c_board_info填充， 如下面的代码就定义了一个I2C设备的ID为“wm8580”、 地址为0x1b、 的i2c_client：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_board_info</span> <span class="title">i2c_devs0</span>[] __<span class="title">initdata</span> = &#123;</span></span><br><span class="line">    &#123;</span><br><span class="line">        I2C_BOARD_INFO(<span class="string">"wm8580"</span>, <span class="number">0x1b</span>),</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_board_info</span> &#123;</span></span><br><span class="line">	<span class="keyword">char</span>		type[I2C_NAME_SIZE];</span><br><span class="line">	<span class="keyword">unsigned</span> short	flags;</span><br><span class="line">	<span class="keyword">unsigned</span> short	addr;</span><br><span class="line">	<span class="keyword">void</span>		*platform_data;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">dev_archdata</span>	*<span class="title">archdata</span>;</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_OF</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">device_node</span> *<span class="title">of_node</span>;</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">	<span class="keyword">int</span>		irq;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="i2c适配器"><a href="#i2c适配器" class="headerlink" title="i2c适配器"></a>i2c适配器</h3><p>i2c_adapter：一个用于标识物理总线（也就是i2c总线）连同访问它必要的算法的一个结构</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * i2c_adapter is the structure used to identify a physical i2c bus along</span></span><br><span class="line"><span class="comment"> * with the access algorithms necessary to access it.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_adapter</span> &#123;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">module</span> *<span class="title">owner</span>;</span></span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="class"><span class="keyword">class</span>;</span>		  <span class="comment">/* classes to allow probing for */</span></span><br><span class="line">	<span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_algorithm</span> *<span class="title">algo</span>;</span> <span class="comment">/* the algorithm to access the bus */</span></span><br><span class="line">	<span class="keyword">void</span> *algo_data;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/* data fields that are valid for all devices	*/</span></span><br><span class="line">	<span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_lock_operations</span> *<span class="title">lock_ops</span>;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rt_mutex</span> <span class="title">bus_lock</span>;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">rt_mutex</span> <span class="title">mux_lock</span>;</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> timeout;			<span class="comment">/* in jiffies */</span></span><br><span class="line">	<span class="keyword">int</span> retries;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">device</span> <span class="title">dev</span>;</span>		<span class="comment">/* the adapter device */</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">int</span> nr;</span><br><span class="line">	<span class="keyword">char</span> name[<span class="number">48</span>];</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">completion</span> <span class="title">dev_released</span>;</span></span><br><span class="line"></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">mutex</span> <span class="title">userspace_clients_lock</span>;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">userspace_clients</span>;</span></span><br><span class="line"></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">i2c_bus_recovery_info</span> *<span class="title">bus_recovery_info</span>;</span></span><br><span class="line">	<span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">i2c_adapter_quirks</span> *<span class="title">quirks</span>;</span></span><br><span class="line"></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">irq_domain</span> *<span class="title">host_notify_domain</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>i2c_algorithm中的关键函数master_xfer() 用于产生I2C访问周期需要的信号， 以i2c_msg（即I2C消息） 为单位（i2c_msg中的成员表明了I2C的传输地址、 方向、 缓冲区、 缓冲区长度等信息） 。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * struct i2c_msg - an I2C transaction segment beginning with START</span></span><br><span class="line"><span class="comment"> * @addr: Slave address, either seven or ten bits.  When this is a ten</span></span><br><span class="line"><span class="comment"> *	bit address, I2C_M_TEN must be set in @flags and the adapter</span></span><br><span class="line"><span class="comment"> *	must support I2C_FUNC_10BIT_ADDR.</span></span><br><span class="line"><span class="comment"> * @flags: I2C_M_RD is handled by all adapters.  No other flags may be</span></span><br><span class="line"><span class="comment"> *	provided unless the adapter exported the relevant I2C_FUNC_*</span></span><br><span class="line"><span class="comment"> *	flags through i2c_check_functionality().</span></span><br><span class="line"><span class="comment"> * @len: Number of data bytes in @buf being read from or written to the</span></span><br><span class="line"><span class="comment"> *	I2C slave address.  For read transactions where I2C_M_RECV_LEN</span></span><br><span class="line"><span class="comment"> *	is set, the caller guarantees that this buffer can hold up to</span></span><br><span class="line"><span class="comment"> *	32 bytes in addition to the initial length byte sent by the</span></span><br><span class="line"><span class="comment"> *	slave (plus, if used, the SMBus PEC); and this value will be</span></span><br><span class="line"><span class="comment"> *	incremented by the number of block data bytes received.</span></span><br><span class="line"><span class="comment"> * @buf: The buffer into which data is read, or from which it's written.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * An i2c_msg is the low level representation of one segment of an I2C</span></span><br><span class="line"><span class="comment"> * transaction.  It is visible to drivers in the @i2c_transfer() procedure,</span></span><br><span class="line"><span class="comment"> * to userspace from i2c-dev, and to I2C adapter drivers through the</span></span><br><span class="line"><span class="comment"> * @i2c_adapter.@master_xfer() method.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Except when I2C "protocol mangling" is used, all I2C adapters implement</span></span><br><span class="line"><span class="comment"> * the standard rules for I2C transactions.  Each transaction begins with a</span></span><br><span class="line"><span class="comment"> * START.  That is followed by the slave address, and a bit encoding read</span></span><br><span class="line"><span class="comment"> * versus write.  Then follow all the data bytes, possibly including a byte</span></span><br><span class="line"><span class="comment"> * with SMBus PEC.  The transfer terminates with a NAK, or when all those</span></span><br><span class="line"><span class="comment"> * bytes have been transferred and ACKed.  If this is the last message in a</span></span><br><span class="line"><span class="comment"> * group, it is followed by a STOP.  Otherwise it is followed by the next</span></span><br><span class="line"><span class="comment"> * @i2c_msg transaction segment, beginning with a (repeated) START.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Alternatively, when the adapter supports I2C_FUNC_PROTOCOL_MANGLING then</span></span><br><span class="line"><span class="comment"> * passing certain @flags may have changed those standard protocol behaviors.</span></span><br><span class="line"><span class="comment"> * Those flags are only for use with broken/nonconforming slaves, and with</span></span><br><span class="line"><span class="comment"> * adapters which are known to support the specific mangling options they</span></span><br><span class="line"><span class="comment"> * need (one or more of IGNORE_NAK, NO_RD_ACK, NOSTART, and REV_DIR_ADDR).</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_msg</span> &#123;</span></span><br><span class="line">	__u16 addr;	<span class="comment">/* slave address			*/</span></span><br><span class="line">	__u16 flags;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_RD		0x0001	<span class="comment">/* read data, from slave to master */</span></span></span><br><span class="line">					<span class="comment">/* I2C_M_RD is guaranteed to be 0x0001! */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_TEN		0x0010	<span class="comment">/* this is a ten bit chip address */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_RECV_LEN		0x0400	<span class="comment">/* length will be first received byte */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_NO_RD_ACK		0x0800	<span class="comment">/* if I2C_FUNC_PROTOCOL_MANGLING */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_IGNORE_NAK	0x1000	<span class="comment">/* if I2C_FUNC_PROTOCOL_MANGLING */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_REV_DIR_ADDR	0x2000	<span class="comment">/* if I2C_FUNC_PROTOCOL_MANGLING */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_NOSTART		0x4000	<span class="comment">/* if I2C_FUNC_NOSTART */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> I2C_M_STOP		0x8000	<span class="comment">/* if I2C_FUNC_PROTOCOL_MANGLING */</span></span></span><br><span class="line">	__u16 len;		<span class="comment">/* msg length				*/</span></span><br><span class="line">	__u8 *buf;		<span class="comment">/* pointer to msg data			*/</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="i2c通信方法"><a href="#i2c通信方法" class="headerlink" title="i2c通信方法"></a>i2c通信方法</h3><p>i2c_algorithm是为一类使用相同总线算法寻址的一个接口。</p>
+<ul>
+<li>当适配器不能使用i2c访问设备时，把master_xfer设置为NULL</li>
+<li>如果一个适配器可以做SMBus访问时，设置smbus_xfer；如果把smbus_xfer设置成NULL，SMBus协议使用通用I2C模拟的消息。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * struct i2c_algorithm - represent I2C transfer method</span></span><br><span class="line"><span class="comment"> * @master_xfer: </span></span><br><span class="line"><span class="comment">     Issue a set of i2c transactions to the given I2C adapter defined by the </span></span><br><span class="line"><span class="comment">     msgs array, with num messages available to transfer via the adapter </span></span><br><span class="line"><span class="comment">     specified by adap.</span></span><br><span class="line"><span class="comment"> * @smbus_xfer: </span></span><br><span class="line"><span class="comment">  	 Issue smbus transactions to the given I2C adapter. If this is not present,</span></span><br><span class="line"><span class="comment">     then the bus layer will try and convert the SMBus calls into I2C transfers</span></span><br><span class="line"><span class="comment">     instead.</span></span><br><span class="line"><span class="comment"> * @functionality: Return the flags that this algorithm/adapter pair supports</span></span><br><span class="line"><span class="comment"> *   from the I2C_FUNC_* flags.</span></span><br><span class="line"><span class="comment"> * @reg_slave: Register given client to I2C slave mode of this adapter</span></span><br><span class="line"><span class="comment"> * @unreg_slave: Unregister given client from I2C slave mode of this adapter</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * The following structs are for those who like to implement new bus drivers:</span></span><br><span class="line"><span class="comment"> * i2c_algorithm is the interface to a class of hardware solutions which can</span></span><br><span class="line"><span class="comment"> * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584</span></span><br><span class="line"><span class="comment"> * to name two of the most common.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * The return codes from the @master_xfer field should indicate the type of</span></span><br><span class="line"><span class="comment"> * error code that occurred during the transfer, as documented in the kernel</span></span><br><span class="line"><span class="comment"> * Documentation file Documentation/i2c/fault-codes.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">i2c_algorithm</span> &#123;</span></span><br><span class="line">	<span class="comment">/* If an adapter algorithm can't do I2C-level access, set master_xfer</span></span><br><span class="line"><span class="comment">	   to NULL. If an adapter algorithm can do SMBus access, set</span></span><br><span class="line"><span class="comment">	   smbus_xfer. If set to NULL, the SMBus protocol is simulated</span></span><br><span class="line"><span class="comment">	   using common I2C messages */</span></span><br><span class="line">	<span class="comment">/* master_xfer should return the number of messages successfully</span></span><br><span class="line"><span class="comment">	   processed, or a negative value on error */</span></span><br><span class="line">	<span class="keyword">int</span> (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,</span><br><span class="line">			   <span class="keyword">int</span> num); </span><br><span class="line">    <span class="comment">// 向msgs数组定义的给定i2c适配器发出一组i2c事务，其中num条消息可通过adap指定的适配器传输。</span></span><br><span class="line">	<span class="keyword">int</span> (*smbus_xfer) (struct i2c_adapter *adap, u16 addr,</span><br><span class="line">			   <span class="keyword">unsigned</span> short flags, <span class="keyword">char</span> read_write,</span><br><span class="line">			   u8 command, <span class="keyword">int</span> size, <span class="keyword">union</span> i2c_smbus_data *data);</span><br><span class="line">    <span class="comment">//  向给定的I2C适配器发出smbus事务。如果这不存在，那么总线层将尝试将SMBus调用转换为I2C传输。</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/* To determine what the adapter supports */</span></span><br><span class="line">	u32 (*functionality) (struct i2c_adapter *);</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> IS_ENABLED(CONFIG_I2C_SLAVE)</span></span><br><span class="line">	<span class="keyword">int</span> (*reg_slave)(struct i2c_client *client);</span><br><span class="line">	<span class="keyword">int</span> (*unreg_slave)(struct i2c_client *client);</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="对象之间的关系"><a href="#对象之间的关系" class="headerlink" title="对象之间的关系"></a>对象之间的关系</h2><h3 id="i2c-adapter和i2c-algorithm"><a href="#i2c-adapter和i2c-algorithm" class="headerlink" title="i2c_adapter和i2c_algorithm"></a>i2c_adapter和i2c_algorithm</h3><p>由于i2c_adapter对应与物理上的一个适配器，而i2c_algorithm对应一套通信方法。</p>
+<p>一个i2c适配器需要i2c_algorithm中提供的通信函数来控制适配器上产生特定的访问周期。</p>
+<blockquote>
+<p>缺少i2c_algorithm的i2c_adapter什么也做不了，因此i2c_adapter中包含其使用i2c_algorithm的指针。</p>
+</blockquote>
+<h3 id="i2c-driver和i2c-client"><a href="#i2c-driver和i2c-client" class="headerlink" title="i2c_driver和i2c_client"></a>i2c_driver和i2c_client</h3><p>i2c_driver对应于一套驱动方法， 其主要成员函数是<code>probe()</code>、<code>remove()</code>、<code>suspend()</code> 、<code>resume()</code>等；</p>
+<p>另外， <code>struct i2c_device_id</code>形式的<code>id_table</code>是该驱动所支持的I2C设备的ID表。 i2c_client对应于真实的物理设备， 每个I2C设备都需要一个<code>i2c_client</code>来描述。 <code>i2c_driver</code>与<code>i2c_client</code>的关系是一对多， 一个i2c_driver可以支持多个同类型的<code>i2c_client</code>。</p>
+<p>每个探测到的设备通过在client数据结构中得到自己的数据</p>
+<p>在I2C总线驱动i2c_bus_type的<code>match()</code>函数<code>i2c_device_match()</code> 中， 会调用<code>i2c_match_id()</code> 函数匹配在板文件中定义的ID和i2c_driver所支持的ID表。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">i2c_device_match</span><span class="params">(struct device *dev, struct device_driver *drv)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">i2c_client</span>	*<span class="title">client</span> = <span class="title">i2c_verify_client</span>(<span class="title">dev</span>);</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">i2c_driver</span>	*<span class="title">driver</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!client)</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    driver = to_i2c_driver(drv);</span><br><span class="line">    <span class="comment">/* match on an id table if there is one */</span></span><br><span class="line">    <span class="keyword">if</span> (driver-&gt;id_table)</span><br><span class="line">        <span class="keyword">return</span> i2c_match_id(driver-&gt;id_table, client) != <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">const</span> struct i2c_device_id *<span class="title">i2c_match_id</span><span class="params">(<span class="keyword">const</span> struct i2c_device_id *id,</span></span></span><br><span class="line"><span class="function"><span class="params">                                                <span class="keyword">const</span> struct i2c_client *client)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">while</span> (id-&gt;name[<span class="number">0</span>]) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">strcmp</span>(client-&gt;name, id-&gt;name) == <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">return</span> id;</span><br><span class="line">        id++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="i2c-adpater与i2c-client"><a href="#i2c-adpater与i2c-client" class="headerlink" title="i2c_adpater与i2c_client"></a>i2c_adpater与i2c_client</h3><p>i2c_adpater与i2c_client的关系与I2C硬件体系中适配器和设备的关系一致， 即i2c_client依附于i2c_adpater。 由于一个适配器可以连接多个I2C设备， 所以一个i2c_adpater也可以被多个i2c_client依附，i2c_adpater中包括依附于它的i2c_client的链表。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="https://i2c.wiki.kernel.org/index.php/Driver_Architecture" target="_blank" rel="noopener">https://i2c.wiki.kernel.org/index.php/Driver_Architecture</a><br><a href="https://blog.csdn.net/xie0812/article/details/22942375" target="_blank" rel="noopener">https://blog.csdn.net/xie0812/article/details/22942375</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/i2c/" rel="tag"># i2c</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%20i2c%E9%A9%B1%E5%8A%A8%E6%9E%B6%E6%9E%84/" rel="prev" title="【转载】 i2c驱动架构">
+      <i class="fa fa-chevron-left"></i> 【转载】 i2c驱动架构
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/15/Linux/Driver/i2c/%E8%BD%AC%E8%BD%BD/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91linux%E4%B8%8BI2C%E9%A9%B1%E5%8A%A8%E6%9E%B6%E6%9E%84%E5%85%A8%E9%9D%A2%E5%88%86%E6%9E%90/" rel="next" title="【转载】linux下I2C驱动架构全面分析">
+      【转载】linux下I2C驱动架构全面分析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#构成"><span class="nav-number">1.</span> <span class="nav-text">构成</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原型"><span class="nav-number">2.</span> <span class="nav-text">原型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c-设备驱动"><span class="nav-number">2.1.</span> <span class="nav-text">i2c 设备驱动</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c-客户端"><span class="nav-number">2.2.</span> <span class="nav-text">i2c 客户端</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c适配器"><span class="nav-number">2.3.</span> <span class="nav-text">i2c适配器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c通信方法"><span class="nav-number">2.4.</span> <span class="nav-text">i2c通信方法</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对象之间的关系"><span class="nav-number">3.</span> <span class="nav-text">对象之间的关系</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c-adapter和i2c-algorithm"><span class="nav-number">3.1.</span> <span class="nav-text">i2c_adapter和i2c_algorithm</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c-driver和i2c-client"><span class="nav-number">3.2.</span> <span class="nav-text">i2c_driver和i2c_client</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#i2c-adpater与i2c-client"><span class="nav-number">3.3.</span> <span class="nav-text">i2c_adpater与i2c_client</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考"><span class="nav-number">4.</span> <span class="nav-text">参考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文转自：【https:&#x2F;&#x2F;blog.csdn.net&#x2F;luopingfeng&#x2F;article&#x2F;details&#x2F;42844611】 块设备是Linux最复杂的设备之一，但是作为执着于知其然的Geek，我们总会把代码翻个遍，把道理弄个透。当然了，快速地学习一种新的东西，方法是最重要的，个人觉得： 内核当中 MMC&#x2F;SD 卡驱动程序构架是学习EMMC 驱动程序的重点，只有理解了它才能真正理解该块设备驱">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【转载】EMMC 驱动">
+<meta property="og:url" content="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91EMMC%20%E9%A9%B1%E5%8A%A8/index.html">
+<meta property="og:site_name" content="Tech Blog">
+<meta property="og:description" content="本文转自：【https:&#x2F;&#x2F;blog.csdn.net&#x2F;luopingfeng&#x2F;article&#x2F;details&#x2F;42844611】 块设备是Linux最复杂的设备之一，但是作为执着于知其然的Geek，我们总会把代码翻个遍，把道理弄个透。当然了，快速地学习一种新的东西，方法是最重要的，个人觉得： 内核当中 MMC&#x2F;SD 卡驱动程序构架是学习EMMC 驱动程序的重点，只有理解了它才能真正理解该块设备驱">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-12-28T03:26:37.000Z">
+<meta property="article:modified_time" content="2020-12-28T03:57:08.193Z">
+<meta property="article:author" content="David Meng">
+<meta property="article:tag" content="emmc">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91EMMC%20%E9%A9%B1%E5%8A%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>【转载】EMMC 驱动 | Tech Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+    <a href="https://github.com/jialimeng" target="_blank" rel="noopener" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tech Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91EMMC%20%E9%A9%B1%E5%8A%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【转载】EMMC 驱动
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-12-28 11:26:37 / Modified: 11:57:08" itemprop="dateCreated datePublished" datetime="2020-12-28T11:26:37+08:00">2020-12-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/" itemprop="url" rel="index"><span itemprop="name">storage</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/" itemprop="url" rel="index"><span itemprop="name">Flash Memory</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/storage/Flash-Memory/mmc/" itemprop="url" rel="index"><span itemprop="name">mmc</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文转自：【<a href="https://blog.csdn.net/luopingfeng/article/details/42844611】" target="_blank" rel="noopener">https://blog.csdn.net/luopingfeng/article/details/42844611】</a></p>
+<p>块设备是Linux最复杂的设备之一，但是作为执着于知其然的Geek，我们总会把代码翻个遍，把道理弄个透。当然了，快速地学习一种新的东西，方法是最重要的，个人觉得： 内核当中 MMC/SD 卡驱动程序构架是学习EMMC 驱动程序的重点，只有理解了它才能真正理解该块设备驱动程序，同时才能真正理解 LINUX 块设备驱动程序。</p>
+<p> ben</p>
+<p>一．需要的基础知识：</p>
+<p>\1.    LINUX 设备驱动的基本结构。</p>
+<p>\2.    块设备驱动程序的基本构架（相信研究过 LDD3 当中的 sbull 的人应该都不成问题，如果只是走马观花的话，那可得好好再补补了）</p>
+<p>\3.    LINUX 设备驱动模型。</p>
+<p>\4.    EMMC的原理，是Nand Flash的基础上加上一个负责：ECC、负载均衡和坏块管理功能的controler。</p>
+<p>二．驱动程序分析</p>
+<p>​    首先，说明一下EMMC驱动涉及到的文件。另外，我们重点是分析驱动程序的基本构架，所以不同内核版本的差异并不是很大。 MMC/SD 卡驱动程序位于 drivers/mmc 目录下</p>
+<p>Card/</p>
+<p>​    block.c</p>
+<p>​    queue.c/queue.h</p>
+<p>core/</p>
+<p>​    bus.c/bus.h</p>
+<p>​    core.c/core.h</p>
+<p>​    host.c/host.h</p>
+<p>​    mmc.c</p>
+<p>​    mmc_ops.c/mmc_ops.h 拿 MMC 卡来分析， SD 卡驱动程序流程类似。</p>
+<p>host/</p>
+<p>​    s3cmci.c/s3cmci.h 以 S3C24XX 的 MMC/SD 卡控制器为例，其它类型的控制器类似。</p>
+<p>LINUX 当中对目录的划分是很有讲究的，这些文件被分布在 3 个目录下，正好对应 MMC/SD 驱动程序的 3 个层次（关于层的划分这里浏览一下，有个概念即可，当我们分析完了后再回头来看，你会觉得很形象）：</p>
+<p>（1）    区块层</p>
+<p>主要是按照 LINUX 块设备驱动程序的框架实现一个卡的块设备驱动，这 block.c 当中我们可以看到写一个块设备驱动程序时需要的 block_device_operations 结构体变量的定义，其中有 open/release/request 函数的实现，而 queue.c 则是对内核提供的请求队列的封装，我们暂时不用深入理解它，只需要知道一个块设备需要一个请求队列就可以了。</p>
+<p>（2）    核心层</p>
+<p>核心层封装了 MMC/SD 卡的命令，例如存储卡的识别，设置，读写。例如不管什么卡都应该有一些识别，设置，和读写的命令，这些流程都是必须要有的，只是具体对于不同的卡会有一些各自特有的操作。 Core.c 文件是由 sd.c 、 mmc.c 两个文件支撑的， core.c 把 MMC 卡、 SD 卡的共性抽象出来，它们的差别由 sd.c 和 sd_ops.c 、 mmc.c 和 mmc_ops.c 来完成。</p>
+<p>（3）    主机控制器层</p>
+<p>主机控制器则是依赖于不同的平台的，例如 s3c2410 的卡控制器和 atmel 的卡控制器必定是不一样的，所以要针对不同的控制器来实现。以 s3cmci.c 为例，它首先要进行一些设置，例如中断函数注册，全能控制器等等。然后它会向 core 层注册一个主机（ host ），用结构 mmc_host_ops 描述，这样核心层就可以拿着这个 host 来操作 s3c24xx 的卡控制器了，而具体是 s3c24xx 的卡控制器还是 atmel 的卡控制器， core 层是不用知道的。 </p>
+<p>   对这几个目录有一个大概认识以后，我们来看几个重要的数据结构：</p>
+<p>struct mmc_host 用来描述卡控制器</p>
+<p>struct mmc_card 用来描述卡</p>
+<p>struct mmc_driver 用来描述 mmc 卡驱动</p>
+<p>struct mmc_host_ops 用来描述卡控制器操作集，用于从主机控制器层向 core 层注册操作函数，从而将 core 层与具体的主机控制器隔离。也就是说 core 要操作主机控制器，就用这个 ops 当中给的函数指针操作，不能直接调用具体主控制器的函数。</p>
+<p>第一阶段：</p>
+<p>​    从 s3cmci_init 开始往下看</p>
+<p>static int __init s3cmci_init(void)</p>
+<p>{</p>
+<p>platform_driver_register(&amp;s3cmci_driver_2410);</p>
+<p>}</p>
+<p>有 platform_driver_register 函数，根据设备模型的知识，我们知道那一定会有对应的 platform_device_register 函数的，可是在哪里呢？没有看到，那是不是这个 s3cmci_driver_2410 当中给的 probe 函数就不执行了？？？当然不是， mci 接口一般都是硬件做好的（我认为是这样），所以在系统启动时一定会有调用 platform_device­_register 对板上的资源进行注册，如果没有这个硬件资源，那我们这个驱动也就没有用了。好，我们就假定是有 mci 接口的，而且也有与 s3cmci_driver_2410 对应的硬件资源注册了，那自己就会去跑 probe 函数。来看一下 s3cmci_driver_2410:</p>
+<p>static struct platform_driver s3cmci_driver_2410 = {</p>
+<p>​    .driver.name  = “s3c2410-sdi”,</p>
+<p>​    .probe      = s3cmci_probe_2410,</p>
+<p>​    .remove     = s3cmci_remove,</p>
+<p>​    .suspend = s3cmci_suspend,</p>
+<p>​    .resume     = s3cmci_resume,</p>
+<p>};</p>
+<p>我们到 s3cmci_probe_2410 函数中看，还是干脆直接看 s3cmci_probe 算了：</p>
+<p>static int s3cmci_probe(struct platform_device *pdev, int is2440) // 来自 /host/s3cmci.c</p>
+<p>{</p>
+<p>​    struct mmc_host  *mmc;</p>
+<p>​    struct s3cmci_host    *host;</p>
+<p>​    int ret;</p>
+<p>……</p>
+<p>​    mmc = mmc_alloc_host (sizeof(struct s3cmci_host), &amp;pdev-&gt;dev);</p>
+<p>​    if (!mmc) {</p>
+<p>​       ret = -ENOMEM;</p>
+<p>​       goto probe_out;</p>
+<p>​    }</p>
+<p>……</p>
+<p>​    mmc-&gt;ops   = &s3cmci_ops;</p>
+<p>……</p>
+<p>​    ret = mmc_add_host (mmc);</p>
+<p>​    if (ret) {</p>
+<p>​       dev_err(&amp;pdev-&gt;dev, “failed to add mmc host./n”);</p>
+<p>​       goto free_dmabuf;</p>
+<p>​    }</p>
+<p>……</p>
+<p>​    platform_set_drvdata(pdev, mmc);</p>
+<p>​    return 0;</p>
+<p>……</p>
+<p>}</p>
+<p>这个函数很长，做的事件也很多，但我们关心的整个驱动的构架 / 流程，所以过滤掉一些细节的东西，只看 2 个最重要的函数： mmc_alloc_host 、 mmc_add_host 。函数命名已经很形象了，前者是申请一个 mmc_host ，而后者是添加一个 mmc_host 。中间还有一个操作，就是给 mmc 的 ops 成员赋上了 s3cmci_ops 这个值。申请 mmc_host 当然很简单，就是申请一个结构体（我们暂且这样认为，因为他里面还做的其它事情，后面会看到），而添加又是添加到哪里去呢？看 mmc_add_host 函数：</p>
+<p>int mmc_add_host(struct mmc_host *host) // 来自 core/host.c</p>
+<p>{</p>
+<p>​    int err;</p>
+<p>……</p>
+<p>​    err = device_add(&amp;host-&gt;class_dev);</p>
+<p>​    if (err)</p>
+<p>​       return err;</p>
+<p>​    mmc_start_host(host);</p>
+<p>​    return 0;</p>
+<p>}</p>
+<p>很简单，就是增加了一个 device ，然后就调用 mmc_start_host 了，那就先跳过 device_add 这个动作，来看 mmc_start_host:</p>
+<p>void mmc_start_host(struct mmc_host *host) // 来自 /host/core.c</p>
+<p>{</p>
+<p>​    mmc_power_off(host);        // 掉电一下</p>
+<p>​    mmc_detect_change(host, 0);       // ？？？</p>
+<p>}</p>
+<p>看上去只有两行代码，不过浓缩才是精华， mmc_power_off(host) 光看名子都知道是在干什么，先跳过，来看 mmc_detect_change ，那么它到底干了些什么呢？看一下就知道了：</p>
+<p>void mmc_detect_change(struct mmc_host *host, unsigned long delay)  // core/core.c</p>
+<p>{</p>
+<p>​    mmc_schedule_delayed_work(&amp;host-&gt;detect, delay);</p>
+<p>}</p>
+<p>static int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay)</p>
+<p>{</p>
+<p>​    return queue_delayed_work(workqueue, work, delay);</p>
+<p>}</p>
+<p>mmc_detect_change 又跳了一下，最后调用了 queue_delayed_work ，不知道这个函数功能的去查一下〈〈 LDD3 〉〉和〈〈深入理解 LINUX 内核〉〉，这几个代码告诉我们在 workqueue 这个工作队列当中添加一个延迟的工作任务，而这个工作任务就是由 host-&gt;detect 来描述的，在随后的 delay 个 jiffies 后会有一个记录在 host-&gt;detect 里面的函数被执行，那么到这里 s3cmci_probe 这个函数算是结束了，但事情还没有完， workqueue 这个工作队列还在忙，不一会儿它就会调用 host-&gt;detect 里面那个函数，这个函数到底是哪个函数，到底是用来干什么的呢？好像没有看到， detect 包含在 host 里面，那估计是在刚才那个申请的地方设置的那个函数，回过头来看一下 mmc_alloc_host:</p>
+<p>struct mmc_host *mmc_alloc_host(int extra, struct device *dev) // 来自 core/host.c</p>
+<p>{</p>
+<p>​    struct mmc_host *host;</p>
+<p>​    host = kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);</p>
+<p>​    if (!host)</p>
+<p>​       return NULL;</p>
+<p>​    INIT_DELAYED_WORK(&amp;host-&gt;detect, mmc_rescan);</p>
+<p>​    return host;</p>
+<p>}</p>
+<p>如果你看了 queue_delayed_work 这个函数功能介绍，相信对 INIT_DELAYED_WORK 也不会陌生了吧。不废话了，来看 mmc_rescan ：</p>
+<p>// 来自 core/host.c</p>
+<p>void mmc_rescan(struct work_struct *work)  // // 来自 core/host.c</p>
+<p>{</p>
+<p>​    struct mmc_host *host =   container_of(work, struct mmc_host, detect.work);</p>
+<p>​    u32 ocr;</p>
+<p>​    int err;</p>
+<p>……</p>
+<p>​    /* detect a newly inserted card */</p>
+<p>……</p>
+<p>​    /*</p>
+<p>​     * First we search for SDIO…</p>
+<p>​     */</p>
+<p>​    err = mmc_send_io_op_cond(host, 0, &amp;ocr);</p>
+<p>​    if (!err) {</p>
+<p>​       if (mmc_attach_sdio(host, ocr))</p>
+<p>​           mmc_power_off(host);</p>
+<p>​       goto out;</p>
+<p>​    }</p>
+<p>​    /*</p>
+<p>​     * …then normal SD…</p>
+<p>​     */</p>
+<p>​    err = mmc_send_app_op_cond(host, 0, &amp;ocr);</p>
+<p>​    if (!err) {</p>
+<p>​       if (mmc_attach_sd(host, ocr))</p>
+<p>​           mmc_power_off(host);</p>
+<p>​       goto out;</p>
+<p>​    }</p>
+<p>​    /*</p>
+<p>​     * …and finally MMC.</p>
+<p>​     */</p>
+<p>​    err = mmc_send_op_cond(host, 0, &amp;ocr);</p>
+<p>​    if (!err) {</p>
+<p>​       if (mmc_attach_mmc(host, ocr))</p>
+<p>​           mmc_power_off(host);</p>
+<p>​       goto out;</p>
+<p>​    }</p>
+<p>​    mmc_release_host(host);</p>
+<p>​    mmc_power_off(host);</p>
+<p>out:</p>
+<p>​    if (host-&gt;caps &amp; MMC_CAP_NEEDS_POLL)</p>
+<p>​       mmc_schedule_delayed_work(&amp;host-&gt;detect, HZ);</p>
+<p>}</p>
+<p>浏览一个这个函数，看看函数名，再看看注释，知道什么了吗？它是在检测是不是有卡插入了卡控制器，如果有卡挺入就要采取相应的行动了。这里要明白一点，我们平时用的 SD/MMC 卡就是一个卡，如果要操作它得用 SD/MMC 卡控制器才行，所以可以看到有 struct mmc_card,struct mmc_host 的区分。</p>
+<p>​    到这里了，来回忆一下 s3cmci_probe 这个函数做的事情，大概就是准备一个 mmc_host 结构，然后添加一个主控制器设备到内核，最后又调用了一下 mmc_rescan 来检测是不是有卡插入了。</p>
+<p>​    如果有卡插入了还好，可以去操作卡了，那如果没有卡插入呢？ mmc_rescan 不是白调用了一次吗？是啊，的确是白调用了一次。可是卡插入时为什么 PC 还是能检测到呢？看来卡检测的动作不光是在 probe 的最后一步做了一次，其它地方也有做。卡插入一般都是人为地随时去插入的，像这种情况一般都是会用中断机制去提供系统有外来侵入，然后再去采取行动。 SD/MMC 卡也的确是这样做的，找来找去，发现在 s3cmci_probe 里面注册了一个中断函数 s3cmci_irq_cd( 函数名的意思应该是 irq card detect) ，就是这个了，看看这个函数先：</p>
+<p>static irqreturn_t s3cmci_irq_cd(int irq, void *dev_id)  // host/s3cmci.c</p>
+<p>{</p>
+<p>​    struct s3cmci_host *host = (struct s3cmci_host *)dev_id;</p>
+<p>​    mmc_detect_change(host-&gt;mmc, msecs_to_jiffies(500));</p>
+<p>​    return IRQ_HANDLED;</p>
+<p>}</p>
+<p>看到这个函数想都不用想，直接跳到 mmc_rescan 里面去看就行了。前面已经知道了 mmc_rescan 里面就是在检测卡是不是插入了，既然卡随时插入我们都能检测到了，那就来看卡插入后都做了些什么动作吧。</p>
+<p>第二阶段：</p>
+<p>​    mmc_rescan 里面既要检测 sd 卡，又要检测 mmc 卡的，我们就照着一个往下走，假定有个人插入了 MMC 卡，那就应该走下面这几行：</p>
+<p>​    err = mmc_send_op_cond(host, 0, &amp;ocr);</p>
+<p>​    if (!err) {</p>
+<p>​       if (mmc_attach_mmc(host, ocr))</p>
+<p>​           mmc_power_off(host);</p>
+<p>​       goto out;</p>
+<p>​    }</p>
+<p>mmc_send_op_cond 这个函数据说是读了一下卡的什么值，这个值是什么意义我也不清楚，这就像检测 FLASH 时读 FLASH 的 ID 一样，网卡也是这样的，不用管这个值的意义了，只要知道它能标识是一个 MMC 卡插入就行了。如果取这个值没有错误的话就得进 mmc_attach_mmc 了：</p>
+<p>/*</p>
+<p> * Starting point for MMC card init.</p>
+<p> */</p>
+<p>int mmc_attach_mmc(struct mmc_host *host, u32 ocr) // core/mmc.c</p>
+<p>{</p>
+<p>​    int err;</p>
+<p>……</p>
+<p>​    mmc_attach_bus_ops(host);     // 这个与总线的电源管理有关，暂时跳过</p>
+<p>……</p>
+<p>​    /*</p>
+<p>​     * Detect and init the card.</p>
+<p>​     */</p>
+<p>​    err = mmc_init_card(host, host-&gt;ocr, NULL);</p>
+<p>​    if (err)</p>
+<p>​       goto err;</p>
+<p>……</p>
+<p>​    mmc_release_host(host);</p>
+<p>​    err = mmc_add_card(host-&gt;card);</p>
+<p>​    if (err)</p>
+<p>​       goto remove_card;</p>
+<p>​    return 0;</p>
+<p>remove_card:</p>
+<p>……</p>
+<p>err:</p>
+<p>……</p>
+<p>​    return err;</p>
+<p>}</p>
+<p>还是找几个关键函数来看 mmc_init_card 从函数名来看就是初始化一个 card ，这个 card 就用 struct mmc_card 结构来描述，然后又调用 mmc_add_card 将卡设备添加到了内核，先来看 mmc_init_card 都做了些什么事情：</p>
+<p>static int mmc_init_card(struct mmc_host *host, u32 ocr,</p>
+<p>​    struct mmc_card *oldcard)</p>
+<p>{</p>
+<p>​    struct mmc_card *card;</p>
+<p>​    int err;</p>
+<p>​    u32 cid[4];</p>
+<p>​    unsigned int max_dtr;</p>
+<p>……</p>
+<p>​       /*</p>
+<p>​        * Allocate card structure.</p>
+<p>​        */</p>
+<p>​       card = mmc_alloc_card(host, &amp;mmc_type);</p>
+<p>​       if (IS_ERR(card)) {</p>
+<p>​           err = PTR_ERR(card);</p>
+<p>​           goto err;</p>
+<p>​       }</p>
+<p>​       card-&gt;type = MMC_TYPE_MMC;</p>
+<p>​       card-&gt;rca = 1;</p>
+<p>​       memcpy(card-&gt;raw_cid, cid, sizeof(card-&gt;raw_cid));</p>
+<p>……</p>
+<p>​       host-&gt;card = card;</p>
+<p>​    return 0;</p>
+<p>free_card:</p>
+<p>……</p>
+<p>err:</p>
+<p>……</p>
+<p>​    return err;</p>
+<p>}</p>
+<p>将与硬件操作相关的全部删掉，最后对我们有用的也就这几行了 mmc_alloc_card 申请了一个 struct mmc_card 结构，然后给 card-&gt;type 赋上 MMC_TYPE_MMC ，最后将 card 又赋给了 host-&gt;card ，这和具体硬件还是挺像的，因为一个主控制器一般就插一个卡，有卡时 host-&gt;card 有值，没有卡时 host-&gt;card 自己就是 NULL 了。</p>
+<p>​    钻进 mmc_alloc_card 里面来看看：</p>
+<p>/*</p>
+<p> * Allocate and initialise a new MMC card structure.</p>
+<p> */</p>
+<p>struct mmc_card *mmc_alloc_card(struct mmc_host *host, struct device_type *type)</p>
+<p>{</p>
+<p>​    struct mmc_card *card;</p>
+<p>​    card = kzalloc(sizeof(struct mmc_card), GFP_KERNEL);</p>
+<p>​    if (!card)</p>
+<p>​       return ERR_PTR(-ENOMEM);</p>
+<p>​    card-&gt;host = host;</p>
+<p>​    device_initialize(&amp;card-&gt;dev);</p>
+<p>​    card-&gt;dev.parent = mmc_classdev(host);</p>
+<p>​    card-&gt;dev.bus = &mmc_bus_type;</p>
+<p>​    card-&gt;dev.release = mmc_release_card;</p>
+<p>​    card-&gt;dev.type = type;</p>
+<p>​    return card;</p>
+<p>}</p>
+<p>Struct mmc_card 结构里面包含了一个 struct device 结构， mmc_alloc_card 不但申请了内存，而且还填充了 struct device 中的几个成员，尤其 card-&gt;dev.bus = &mmc_bus_type; 这一句要重点对待。</p>
+<p>​    申请一个 mmc_card 结构，并简单初始化后， mmc_init_card 的使命就完成了，然后再调用 mmc_add_card 将这个 card 设备添加到内核。 mmc_add_card 其实很简单，就是调用 device_add 将 card-&gt;dev 添加到内核当中去。</p>
+<p>​    知道总线模型这个东西的人都明白，理到 device_add 里面总线就应该有动作了，具体是哪个总线呢？那就得看你调用 device_add 时送的那个 dev 里面指定的是哪个总线了，我们送的 card-&gt;dev ，那么 card-&gt;dev.bus 具体指向什么呢？很明现是那个 mmc_bus_type ：</p>
+<p>static struct bus_type mmc_bus_type = {</p>
+<p>​    .name       = “mmc”,</p>
+<p>​    .dev_attrs    = mmc_dev_attrs,</p>
+<p>​    .match      = mmc_bus_match,</p>
+<p>​    .uevent      = mmc_bus_uevent,</p>
+<p>​    .probe      = mmc_bus_probe,</p>
+<p>​    .remove     = mmc_bus_remove,</p>
+<p>​    .suspend = mmc_bus_suspend,</p>
+<p>​    .resume     = mmc_bus_resume,</p>
+<p>};</p>
+<p>在 device_add 里面，设备对应的总线会拿着你这个设备和挂在这个总线上的所有驱动程序去匹配（ match ），此时会调用 match 函数，如果匹配到了就会调用总线的 probe 函数或驱动的 probe 函数，那我们看一下这里的 mmc_bus_match 是如何进行匹配的：</p>
+<p>static int mmc_bus_match(struct device *dev, struct device_driver *drv)</p>
+<p>{</p>
+<p>​    return 1;</p>
+<p>}</p>
+<p>看来 match 永远都能成功，那就去执行 probe 吧：</p>
+<p>static int mmc_bus_probe(struct device *dev)</p>
+<p>{</p>
+<p>​    struct mmc_driver *drv = to_mmc_driver(dev-&gt;driver);</p>
+<p>​    struct mmc_card *card = dev_to_mmc_card(dev);</p>
+<p>​    return drv-&gt;probe(card);</p>
+<p>}</p>
+<p>这里就有点麻烦了，在这个函数里面又调用了一下 drv-&gt;probe() ，那这个 drv 是什么呢？上面有： struct mmc_driver *drv = to_mmc_driver(dev-&gt;driver);</p>
+<p>match 函数总是返回 1 ，那看来只要是挂在这条总线上的 driver 都有可能跑到这里来了，事实的确也是这样的，不过好在挂在这条总线上的 driver 只有一个，它是这样定义的：</p>
+<p>static struct mmc_driver mmc_driver = {</p>
+<p>​    .drv    = {</p>
+<p>​       .name   = “mmcblk”,</p>
+<p>​    },</p>
+<p>​    .probe      = mmc_blk_probe,</p>
+<p>​    .remove     = mmc_blk_remove,</p>
+<p>​    .suspend   = mmc_blk_suspend,</p>
+<p>​    .resume     = mmc_blk_resume,</p>
+<p>};</p>
+<p>看到这里时， card/core/host 几个已经全部被扯进来了，边看 mmc_driver 中的几个函数，他们几个如何联系起来也就慢慢明白了。那我们继续吧。</p>
+<p>第三阶段：</p>
+<p>前面已经看到了，在总线的 probe 里面调用了 drv-&gt;probe, 而这个函数就对应的是 mmc_blk_probe ，具体这个 mmc_driver 是怎么挂到 mmc_bus 上的，自己去看 mmc_blk_init() ，就几行代码，应该不难。</p>
+<p>static int mmc_blk_probe(struct mmc_card *card) // 来自 card/block.c</p>
+<p>{</p>
+<p>​    struct mmc_blk_data *md;</p>
+<p>​    int err;</p>
+<p>……</p>
+<p>​    md = mmc_blk_alloc(card);</p>
+<p>​    if (IS_ERR(md))</p>
+<p>​       return PTR_ERR(md);</p>
+<p>……</p>
+<p>​    add_disk(md-&gt;disk);</p>
+<p>​    return 0;</p>
+<p> out:</p>
+<p>​    mmc_blk_put(md);</p>
+<p>​    return err;</p>
+<p>}</p>
+<p>还是捡重要的函数看，一看到这个函数最后调用了 add_disk ，你应该可以想到些什么吧？如果你不知道我在说些什么，那我估计你没有看过 LDD3 ，或者看了也是走马观花了。我来告诉你：如果看到 add_disk ，那说明前面一定会有 alloc_disk 和初始化队列的动作，在 mmc_blk_probe 时面没有体现出来，那就看 mmc_blk_alloc(card) 那一行：</p>
+<p>static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)</p>
+<p>{</p>
+<p>​    struct mmc_blk_data *md;</p>
+<p>​    int devidx, ret;</p>
+<p>​    devidx = find_first_zero_bit(dev_use, MMC_NUM_MINORS);</p>
+<p>​    if (devidx &gt;= MMC_NUM_MINORS)</p>
+<p>​       return ERR_PTR(-ENOSPC);</p>
+<p>​    __set_bit(devidx, dev_use);</p>
+<p>​    md = kzalloc(sizeof(struct mmc_blk_data), GFP_KERNEL);</p>
+<p>​    if (!md) {</p>
+<p>​       ret = -ENOMEM;</p>
+<p>​       goto out;</p>
+<p>​    }</p>
+<p>​    /*</p>
+<p>​     * Set the read-only status based on the supported commands</p>
+<p>​     * and the write protect switch.</p>
+<p>​     */</p>
+<p>​    md-&gt;read_only = mmc_blk_readonly(card);</p>
+<p>​    md-&gt;disk = alloc_disk(1 &lt;&lt; MMC_SHIFT);</p>
+<p>​    if (md-&gt;disk == NULL) {</p>
+<p>​       ret = -ENOMEM;</p>
+<p>​       goto err_kfree;</p>
+<p>​    }</p>
+<p>​    spin_lock_init(&amp;md-&gt;lock);</p>
+<p>​    md-&gt;usage = 1;</p>
+<p>​    ret = mmc_init_queue(&amp;md-&gt;queue, card, &amp;md-&gt;lock);</p>
+<p>​    if (ret)</p>
+<p>​       goto err_putdisk;</p>
+<p>​    md-&gt;queue.issue_fn = mmc_blk_issue_rq;</p>
+<p>​    md-&gt;queue.data = md;</p>
+<p>​    md-&gt;disk-&gt;major  = MMC_BLOCK_MAJOR;</p>
+<p>​    md-&gt;disk-&gt;first_minor = devidx &lt;&lt; MMC_SHIFT;</p>
+<p>​    md-&gt;disk-&gt;fops = &mmc_bdops;</p>
+<p>​    md-&gt;disk-&gt;private_data = md;</p>
+<p>​    md-&gt;disk-&gt;queue = md-&gt;queue.queue;</p>
+<p>​    md-&gt;disk-&gt;driverfs_dev = &amp;card-&gt;dev;</p>
+<p>​    /*</p>
+<p>​     * As discussed on lkml, GENHD_FL_REMOVABLE should:</p>
+<p>​     *</p>
+<p>​     * - be set for removable media with permanent block devices</p>
+<p>​     * - be unset for removable block devices with permanent media</p>
+<p>​     *</p>
+<p>​     * Since MMC block devices clearly fall under the second</p>
+<p>​     * case, we do not set GENHD_FL_REMOVABLE. Userspace</p>
+<p>​     * should use the block device creation/destruction hotplug</p>
+<p>​     * messages to tell when the card is present.</p>
+<p>​     */</p>
+<p>​    sprintf(md-&gt;disk-&gt;disk_name, “mmcblk%d”, devidx);</p>
+<p>​    blk_queue_logical_block_size(md-&gt;queue.queue, 512);</p>
+<p>​    if (!mmc_card_sd(card) &amp;&amp; mmc_card_blockaddr(card)) {</p>
+<p>​       /*</p>
+<p>​        * The EXT_CSD sector count is in number or 512 byte</p>
+<p>​        * sectors.</p>
+<p>​        */</p>
+<p>​       set_capacity(md-&gt;disk, card-&gt;ext_csd.sectors);</p>
+<p>​    } else {</p>
+<p>​       /*</p>
+<p>​        * The CSD capacity field is in units of read_blkbits.</p>
+<p>​        * set_capacity takes units of 512 bytes.</p>
+<p>​        */</p>
+<p>​       set_capacity(md-&gt;disk,</p>
+<p>​           card-&gt;csd.capacity &lt;&lt; (card-&gt;csd.read_blkbits - 9));</p>
+<p>​    }</p>
+<p>​    return md;</p>
+<p> err_putdisk:</p>
+<p>​    put_disk(md-&gt;disk);</p>
+<p> err_kfree:</p>
+<p>​    kfree(md);</p>
+<p> out:</p>
+<p>​    return ERR_PTR(ret);</p>
+<p>}</p>
+<p>看到这个函数的代码，我们自然就回忆起了块设备驱动的整个套路了：</p>
+<p>\1.    分配、初始化请求队列，并绑定请求队列和请求函数。</p>
+<p>\2.    分配，初始化 gendisk ，给 gendisk 的 major ， fops ， queue 等成员赋值，最后添加 gendisk 。</p>
+<p>\3.    注册块设备驱动。</p>
+<p>我们看看 MMC 卡驱动程序有没有按这个套路走，</p>
+<p>1 、 mmc_init_queue 初始了队列，并将 mmc_blk_issue_rq; 函数绑定成请求函数；</p>
+<p>2 、 alloc_disk 分配了 gendisk 结构，并初始化了 major ， fops ，和 queue ；</p>
+<p>3 、最后调用 add_disk 将块设备加到 KERNEL 中去。</p>
+<p>到这里虽然 mmc_blk_probe 已经结束了，但我们别停下来。记得 LDD3 上在讲 sbull 实例时说过， add_disk 的调用标志着一个块设备驱动将被激活，所以在这之前必须把其它所有准备工作全部做好，作者为什么会这样说是有理由的，因为在 add_disk 里面 kernel 会去调用你绑定到队列中的请求函数，目的是去你的块设备上读分区表。而且是在 add_disk 内部就要做的，而不是 add_disk 返回后再做，具体为什么会这样，去看 add_disk 的代码实现就知道了。</p>
+<p>既然要调用请求函数去读，那我们就来看看请求函数： mmc_blk_issue_rq</p>
+<p>static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)</p>
+<p>{</p>
+<p>​    struct mmc_blk_data *md = mq-&gt;data;</p>
+<p>​    struct mmc_card *card = md-&gt;queue.card;</p>
+<p>​    struct mmc_blk_request brq;</p>
+<p>​    int ret = 1, disable_multi = 0;</p>
+<p>​    do {</p>
+<p>​       mmc_wait_for_req(card-&gt;host, &amp;brq.mrq);</p>
+<p>​       /*</p>
+<p>​        * A block was successfully transferred.</p>
+<p>​        */</p>
+<p>​       spin_lock_irq(&amp;md-&gt;lock);</p>
+<p>​       ret = __blk_end_request(req, 0, brq.data.bytes_xfered);</p>
+<p>​       spin_unlock_irq(&amp;md-&gt;lock);</p>
+<p>​    } while (ret);</p>
+<p>​    return 1;</p>
+<p>}</p>
+<p>这个函数实在太长了，好在我们不用全部看，大部分读数据的准备代码和出错处理的代码已经被我删掉了，只要知道读数据都是在这里完成的就够了。看不懂这个函数的，拿上 LDD3 找个人少的地方，将 sbull 研究透了也就明白这个函数了。不过这个函数里涉及的东西还挺不少，“散列表”，“回弹”都在这里出现了，有时间慢慢去研究吧。</p>
+<p>​    在块设备驱动当中你只需要抓住请求队列和请求函数就可以了，具体那些 block_device_operations 里面赋值的函数可不像字符设备驱动里面那么受关注了。</p>
+<p>​    分析到这里， MMC/SD 卡的驱动整个构架基本也就很明析了，说简单了就是做了两件事：</p>
+<p>\1.    卡的检测；</p>
+<p>\2.    卡数据的读取。</p>
+<p>最后再将这两个过程大概串一下：</p>
+<p>\1.    卡的检测：</p>
+<p>S3cmci_probe(host/s3cmci.c)</p>
+<p>​    Mmc_alloc_host(core/core.c)</p>
+<p>​       Mmc_rescan(core/core.c)</p>
+<p>​           Mmc_attach_mmc(core/mmc.c)</p>
+<p>​              Mmc_init_card(core/mmc.c)</p>
+<p>​              mmc_add_card(core/bus.c)</p>
+<p>​                  device_add</p>
+<p>​                     mmc_bus_match(core/bus.c)</p>
+<p>​                     mmc_bus_probe(core/bus.c)</p>
+<p>​                         mmc_blk_probe(card/block.c)</p>
+<p>​                            alloc_disk/add_disk</p>
+<p>\2.    读写数据：</p>
+<p>mmc_blk_issue_rq （ card/block.c ）</p>
+<p>​    mmc_wait_for_req(core/core.c)</p>
+<p>​       mmc_start_request(core/core.c)</p>
+<p>​           host-&gt;ops-&gt;request(host, mrq)  // s3cmci 中 s3cmci_request</p>
+<p>MMC/SD 卡的驱动分析完了，是不是有些复杂，不过这样设计的目的是为了分层，让具体平台的驱动编写更加省事。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/emmc/" rel="tag"># emmc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E5%9F%BA%E4%BA%8EOMAP335x%20eMMC%E9%A9%B1%E5%8A%A8/" rel="prev" title="基于OMAP335x eMMC驱动">
+      <i class="fa fa-chevron-left"></i> 基于OMAP335x eMMC驱动
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/12/28/Linux/Driver/storage/Flash%20Memory/mmc/%E9%A9%B1%E5%8A%A8/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E9%A9%B1%E5%8A%A8%E6%A1%86%E6%9E%B6%E5%88%86%E6%9E%90/" rel="next" title="【转载】eMMC驱动框架分析">
+      【转载】eMMC驱动框架分析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="David Meng"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">David Meng</p>
+  <div class="site-description" itemprop="description">冒险，创新，永不放弃</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">70</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/jialimeng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jialimeng" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:jiali201209@163.com" title="E-Mail → mailto:jiali201209@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://ilinuxkernel.com/" title="http:&#x2F;&#x2F;ilinuxkernel.com" rel="noopener" target="_blank">Linux Kernel Exploration</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://www.wowotech.net/" title="http:&#x2F;&#x2F;www.wowotech.net" rel="noopener" target="_blank">蜗窝科技</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="http://tinylab.org/" title="http:&#x2F;&#x2F;tinylab.org" rel="noopener" target="_blank">泰晓科技</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">David Meng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
