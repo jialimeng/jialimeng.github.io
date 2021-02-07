@@ -203,6 +203,8 @@ links_settings:
 links:
   #Title: http://yoursite.com
   Linux Kernel Exploration: http://ilinuxkernel.com
+  蜗窝科技: http://www.wowotech.net
+  泰晓科技: http://tinylab.org
 # Table of Contents in the Sidebar
 # Front-matter variable (unsupport wrap expand_all).
 toc:
