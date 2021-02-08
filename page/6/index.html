@@ -190,6 +190,127 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/10/09/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/Events%20-%20SoftDevice%20to%20application/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/10/09/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/Events%20-%20SoftDevice%20to%20application/" class="post-title-link" itemprop="url">Events - SoftDevice to application</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-10-09 16:47:53" itemprop="dateCreated datePublished" datetime="2020-10-09T16:47:53+08:00">2020-10-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-02-07 16:14:24" itemprop="dateModified" datetime="2021-02-07T16:14:24+08:00">2021-02-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/" itemprop="url" rel="index"><span itemprop="name">IoT</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/%E8%93%9D%E7%89%99/" itemprop="url" rel="index"><span itemprop="name">蓝牙</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/IoT/%E8%93%9D%E7%89%99/Nordic-Soc%E5%BC%80%E5%8F%91/" itemprop="url" rel="index"><span itemprop="name">Nordic Soc开发</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>使用过SDK52832就会发现，应用程序注册ble回调函数来处理ble事件。那么，回调函数的机制是什么？nordic 芯片SoftDevice如何与应用程序交互事件？本节针对ble事件处理流程做简单的介绍。</p>
+<h2 id="内存划分"><a href="#内存划分" class="headerlink" title="内存划分"></a>内存划分</h2><p>nordic厂家把ble协议栈编译为二进制文件，也就是.hex文件。因此，编写应用程序时候，不需要重新编译ble协议栈，做到应用程序和协议栈完全隔离。它们在内存和flash中分布如下图。</p>
+<p><img src="http://jiali.clouddn.com/20201009_001.png" alt=""></p>
+<p>​                                                                                          内存映射图</p>
+<h2 id="应用程序与SoftDevice交互"><a href="#应用程序与SoftDevice交互" class="headerlink" title="应用程序与SoftDevice交互"></a>应用程序与SoftDevice交互</h2><p>从内存区域划分中可以看出，应用程序和SoftDevice是分开的。那么应用程序如何调用协议栈接口以及协议栈产生的事件如何通知应用程序呢？</p>
+<p><strong>1、应用程序如何调用SoftDevice的接口</strong></p>
+<p>看一下协议栈提供的添加服务接口函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sd_ble_gatts_service_add(uint8_t type, ble_uuid_t const *p_uuid, uint16_t *p_handle)</span><br></pre></td></tr></table></figure>
+
+<p>这个函数在ble_gatts.h中声明</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**@brief Add a service declaration to the Attribute Table.</span><br><span class="line"> *</span><br><span class="line"> * @note Secondary Services are only relevant in the context of the entity that references them, it is therefore forbidden to</span><br><span class="line"> *       add a secondary service declaration that is not referenced by another service later in the Attribute Table.</span><br><span class="line"> *</span><br><span class="line"> * @mscs</span><br><span class="line"> * @mmsc&#123;@ref BLE_GATTS_ATT_TABLE_POP_MSC&#125;</span><br><span class="line"> * @endmscs</span><br><span class="line"> *</span><br><span class="line"> * @param[in] type      Toggles between primary and secondary services, see @ref BLE_GATTS_SRVC_TYPES.</span><br><span class="line"> * @param[in] p_uuid    Pointer to service UUID.</span><br><span class="line"> * @param[out] p_handle Pointer to a 16-bit word where the assigned handle will be stored.</span><br><span class="line"> *</span><br><span class="line"> * @retval ::NRF_SUCCESS Successfully added a service declaration.</span><br><span class="line"> * @retval ::NRF_ERROR_INVALID_ADDR Invalid pointer supplied.</span><br><span class="line"> * @retval ::NRF_ERROR_INVALID_PARAM Invalid parameter(s) supplied, Vendor Specific UUIDs need to be present in the table.</span><br><span class="line"> * @retval ::NRF_ERROR_FORBIDDEN Forbidden value supplied, certain UUIDs are reserved for the stack.</span><br><span class="line"> * @retval ::NRF_ERROR_NO_MEM Not enough memory to complete operation.</span><br><span class="line"> *&#x2F;</span><br><span class="line">SVCALL(SD_BLE_GATTS_SERVICE_ADD, uint32_t, sd_ble_gatts_service_add(uint8_t type, ble_uuid_t const *p_uuid, uint16_t *p_handle));</span><br></pre></td></tr></table></figure>
+
+<p>SVCALL宏声明一个接口函数，供应用程序调用。该宏作用就是引发一个svc异常，产生中断，然后在SVC中断中调用Ble协议栈提供的接口函数。因此通过SVCALL宏，就可以调用SoftDevice提供的接口函数。</p>
+<p><strong>2、SoftDevice产生的事件如何通知应用层</strong></p>
+<p>应用程序注册的回调函数被执行，其机制就是SoftDevice触发软中断（s132_nrf52_7.0.1_softdevice 使用Software interrupt 2），在软中断处理函数中遍历SoftDevice事件，如果存在事件就执行事件的回调函数。</p>
+<p><strong>软中断寄存器列表</strong></p>
+<p><img src="http://jiali.clouddn.com/20201009_002.png" alt=""></p>
+<p><strong>代码分析</strong></p>
+<p>在nrf_soc.h中重命名软中断处理函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define SD_EVT_IRQHandler                 (SWI2_IRQHandler)</span><br></pre></td></tr></table></figure>
+
+<p>在nfr_sdh.c中定义SoftDevice事件处理函数和软中断处理函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">void nrf_sdh_evts_poll(void)</span><br><span class="line">&#123;</span><br><span class="line">    nrf_section_iter_t iter;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; Notify observers about pending SoftDevice event.</span><br><span class="line">    for (nrf_section_iter_init(&amp;iter, &amp;sdh_stack_observers);</span><br><span class="line">         nrf_section_iter_get(&amp;iter) !&#x3D; NULL;</span><br><span class="line">         nrf_section_iter_next(&amp;iter))</span><br><span class="line">    &#123;</span><br><span class="line">        nrf_sdh_stack_observer_t    * p_observer;</span><br><span class="line">        nrf_sdh_stack_evt_handler_t   handler;</span><br><span class="line"></span><br><span class="line">        p_observer &#x3D; (nrf_sdh_stack_observer_t *) nrf_section_iter_get(&amp;iter);</span><br><span class="line">        handler    &#x3D; p_observer-&gt;handler;</span><br><span class="line"></span><br><span class="line">        handler(p_observer-&gt;p_context);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#if (NRF_SDH_DISPATCH_MODEL &#x3D;&#x3D; NRF_SDH_DISPATCH_MODEL_INTERRUPT)</span><br><span class="line"></span><br><span class="line">void SD_EVT_IRQHandler(void)</span><br><span class="line">&#123;</span><br><span class="line">    nrf_sdh_evts_poll();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">#elif (NRF_SDH_DISPATCH_MODEL &#x3D;&#x3D; NRF_SDH_DISPATCH_MODEL_APPSH)</span><br><span class="line"></span><br><span class="line">&#x2F;**@brief   Function for polling SoftDevice events.</span><br><span class="line"> *</span><br><span class="line"> * @note    This function is compatible with @ref app_sched_event_handler_t.</span><br><span class="line"> *</span><br><span class="line"> * @param[in]   p_event_data Pointer to the event data.</span><br><span class="line"> * @param[in]   event_size   Size of the event data.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void appsh_events_poll(void * p_event_data, uint16_t event_size)</span><br><span class="line">&#123;</span><br><span class="line">    UNUSED_PARAMETER(p_event_data);</span><br><span class="line">    UNUSED_PARAMETER(event_size);</span><br><span class="line"></span><br><span class="line">    nrf_sdh_evts_poll();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">void SD_EVT_IRQHandler(void)</span><br><span class="line">&#123;</span><br><span class="line">    ret_code_t ret_code &#x3D; app_sched_event_put(NULL, 0, appsh_events_poll);</span><br><span class="line">    APP_ERROR_CHECK(ret_code);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">#elif (NRF_SDH_DISPATCH_MODEL &#x3D;&#x3D; NRF_SDH_DISPATCH_MODEL_POLLING)</span><br><span class="line"></span><br><span class="line">#else</span><br><span class="line"></span><br><span class="line">#error &quot;Unknown SoftDevice handler dispatch model.&quot;</span><br><span class="line"></span><br><span class="line">#endif &#x2F;&#x2F; NRF_SDH_DISPATCH_MODEL</span><br></pre></td></tr></table></figure>
+
+<p>nrf_sdh_evts_poll函数作用就是遍历NRF_SDH_STACK_OBSERVER宏注册的回调函数，并执行。</p>
+<p>NRF_SDH_STACK_OBSERVER宏分别在nrf_sdh_ble.c和nrf_sdh_soc.c中使用。</p>
+<p>nrf_sdh_ble.c中调用NRF_SDH_STACK_OBSERVER宏来注册Ble相关的回调函数，代码如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**@brief       Function for polling BLE events.</span><br><span class="line"> *</span><br><span class="line"> * @param[in]   p_context   Context of the observer.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void nrf_sdh_ble_evts_poll(void * p_context)</span><br><span class="line">&#123;</span><br><span class="line">    UNUSED_VARIABLE(p_context);</span><br><span class="line"></span><br><span class="line">    ret_code_t ret_code;</span><br><span class="line"></span><br><span class="line">    if (!m_stack_is_enabled)</span><br><span class="line">    &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;*lint -save -e(587) *&#x2F;</span><br><span class="line">        __ALIGN(4) uint8_t evt_buffer[NRF_SDH_BLE_EVT_BUF_SIZE];</span><br><span class="line">        &#x2F;*lint -restore *&#x2F;</span><br><span class="line"></span><br><span class="line">        ble_evt_t * p_ble_evt;</span><br><span class="line">        uint16_t    evt_len &#x3D; (uint16_t)sizeof(evt_buffer);</span><br><span class="line"></span><br><span class="line">        ret_code &#x3D; sd_ble_evt_get(evt_buffer, &amp;evt_len);</span><br><span class="line">        if (ret_code !&#x3D; NRF_SUCCESS)</span><br><span class="line">        &#123;</span><br><span class="line">            break;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        p_ble_evt &#x3D; (ble_evt_t *)evt_buffer;</span><br><span class="line"></span><br><span class="line">        NRF_LOG_DEBUG(&quot;BLE event: 0x%x.&quot;, p_ble_evt-&gt;header.evt_id);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Forward the event to BLE observers.</span><br><span class="line">        nrf_section_iter_t  iter;</span><br><span class="line">        for (nrf_section_iter_init(&amp;iter, &amp;sdh_ble_observers);</span><br><span class="line">             nrf_section_iter_get(&amp;iter) !&#x3D; NULL;</span><br><span class="line">             nrf_section_iter_next(&amp;iter))</span><br><span class="line">        &#123;</span><br><span class="line">            nrf_sdh_ble_evt_observer_t * p_observer;</span><br><span class="line">            nrf_sdh_ble_evt_handler_t    handler;</span><br><span class="line"></span><br><span class="line">            p_observer &#x3D; (nrf_sdh_ble_evt_observer_t *)nrf_section_iter_get(&amp;iter);</span><br><span class="line">            handler    &#x3D; p_observer-&gt;handler;</span><br><span class="line"></span><br><span class="line">            handler(p_ble_evt, p_observer-&gt;p_context); &#x2F;&#x2F;执行应用程序注册的Ble事件回调函数</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (ret_code !&#x3D; NRF_ERROR_NOT_FOUND)</span><br><span class="line">    &#123;</span><br><span class="line">        APP_ERROR_HANDLER(ret_code);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">NRF_SDH_STACK_OBSERVER(m_nrf_sdh_ble_evts_poll, NRF_SDH_BLE_STACK_OBSERVER_PRIO) &#x3D;</span><br><span class="line">&#123;</span><br><span class="line">    .handler   &#x3D; nrf_sdh_ble_evts_poll,</span><br><span class="line">    .p_context &#x3D; NULL,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>nrf_sdh_soc.c中调用NRF_SDH_STACK_OBSERVER宏来注册soc相关的回调函数，代码如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**@brief   Function for polling SoC events.</span><br><span class="line"> *</span><br><span class="line"> * @param[in]   p_context   Context of the observer.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static void nrf_sdh_soc_evts_poll(void * p_context)</span><br><span class="line">&#123;</span><br><span class="line">    ret_code_t ret_code;</span><br><span class="line"></span><br><span class="line">    UNUSED_VARIABLE(p_context);</span><br><span class="line"></span><br><span class="line">    while (true)</span><br><span class="line">    &#123;</span><br><span class="line">        uint32_t evt_id;</span><br><span class="line"></span><br><span class="line">        ret_code &#x3D; sd_evt_get(&amp;evt_id);</span><br><span class="line">        if (ret_code !&#x3D; NRF_SUCCESS)</span><br><span class="line">        &#123;</span><br><span class="line">            break;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        NRF_LOG_DEBUG(&quot;SoC event: 0x%x.&quot;, evt_id);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Forward the event to SoC observers.</span><br><span class="line">        nrf_section_iter_t  iter;</span><br><span class="line">        for (nrf_section_iter_init(&amp;iter, &amp;sdh_soc_observers);</span><br><span class="line">             nrf_section_iter_get(&amp;iter) !&#x3D; NULL;</span><br><span class="line">             nrf_section_iter_next(&amp;iter))</span><br><span class="line">        &#123;</span><br><span class="line">            nrf_sdh_soc_evt_observer_t * p_observer;</span><br><span class="line">            nrf_sdh_soc_evt_handler_t    handler;</span><br><span class="line"></span><br><span class="line">            p_observer &#x3D; (nrf_sdh_soc_evt_observer_t *) nrf_section_iter_get(&amp;iter);</span><br><span class="line">            handler    &#x3D; p_observer-&gt;handler;</span><br><span class="line"></span><br><span class="line">            handler(evt_id, p_observer-&gt;p_context);&#x2F;&#x2F;执行注册的soc事件回调函数</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (ret_code !&#x3D; NRF_ERROR_NOT_FOUND)</span><br><span class="line">    &#123;</span><br><span class="line">        APP_ERROR_HANDLER(ret_code);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">NRF_SDH_STACK_OBSERVER(m_nrf_sdh_soc_evts_poll, NRF_SDH_SOC_STACK_OBSERVER_PRIO) &#x3D;</span><br><span class="line">&#123;</span><br><span class="line">    .handler   &#x3D; nrf_sdh_soc_evts_poll,</span><br><span class="line">    .p_context &#x3D; NULL,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="应用程序注册Ble事件回调函数"><a href="#应用程序注册Ble事件回调函数" class="headerlink" title="应用程序注册Ble事件回调函数"></a>应用程序注册Ble事件回调函数</h2><p>略。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>通过上面的分析，看出应用层注册的回调函数是在软中断中执行。因此，回调函数中如果处理比较耗时的任务，需要注意。</p>
+<p>参考：</p>
+<p>《SoftDevice Specification v7.1》中第四章Application programming interface</p>
+<p>《nRF5 SDK v17.0.2》中 <a href="https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.0.2/modules.html" target="_blank" rel="noopener">API Reference</a> &gt; [SDK common libraries]&gt;oftDevice Handler</p>
+<p><a href="https://blog.csdn.net/weixin_44485518/article/details/86671311" target="_blank" rel="noopener">nordic nFR52832 结构框架</a></p>
+<p><a href="https://blog.csdn.net/wulazula/article/details/88738921" target="_blank" rel="noopener">Nordic系列芯片讲解九 （BLE事件回调机制解析）</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/09/30/IoT/%E8%93%9D%E7%89%99/nordic%20Soc%E5%BC%80%E5%8F%91/application%20timer%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1251,209 +1372,6 @@
 
 <p>参考：</p>
 <p><a href="http://ilinuxkernel.com/?p=166" target="_blank" rel="noopener">Linux PCI/PCI-E设备配置空间读取与修改</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="David Meng">
-      <meta itemprop="description" content="冒险，创新，永不放弃">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Tech Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/07/22/Linux/Driver/PCIe/PCIe%E6%80%BB%E7%BA%BF%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" class="post-title-link" itemprop="url">PCIe总线基础知识</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2020-07-22 14:42:00" itemprop="dateCreated datePublished" datetime="2020-07-22T14:42:00+08:00">2020-07-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-07-25 14:21:21" itemprop="dateModified" datetime="2020-07-25T14:21:21+08:00">2020-07-25</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/PCIe/" itemprop="url" rel="index"><span itemprop="name">PCIe</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>[TOC]</p>
-<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>PCIe,全称是PCI-Express（peripheral component interconnect express），这是一种高速串行计算机扩展总线标准。PCI总线使用并行总线结构，在同一条总线上的所有外部设备共享总线带宽，而PCIe总线使用高速串行差分总线，并采用端到端的连接方式，因此，在每一条PCIe链路中只能连接两个设备。两个设备之间的PCIe链路如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_001.png" alt=""></p>
-<p>如果一条链路不够快，可以扩展多几个链路，犹如高速公路一样，车道越多，越少出现拥挤现象，开得越快。</p>
-<p><img src="http://jiali.clouddn.com/20200722_002.png" alt=""></p>
-<p>常见的PCIe插槽如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_007.png" alt=""></p>
-<p>还有一些常见的PCIe设备如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_008.png" alt=""></p>
-<h2 id="基础知识"><a href="#基础知识" class="headerlink" title="基础知识"></a>基础知识</h2><h3 id="硬件接口"><a href="#硬件接口" class="headerlink" title="硬件接口"></a>硬件接口</h3><p>PCIe链路使用端到端的数据传送，每一个端口都包含了发送端（TX）和接收端（RX），硬件接口如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_003.png" alt=""></p>
-<p>从图可以看出，在PCIe总线物理链路的一条PCIe数据通路（Lane）中，发送端和接收端各自有一组差分信号D-和D+，共4根线。一条PCIe总线链路中可以由多个Lane组成。使用差分信号，抗干扰性更强，因此PCIe总线可以在很高频率下正常工作。</p>
-<p>PCIe链路可以支持x1、x2、x4、x8、x12、x16和x32宽度的PCIe链路。频率和编码关系如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_004.png" alt=""></p>
-<p>8/10b编码就是10bit中含有8bit有效数据，128/130b编码就是130bit含有128位有效数据。在PCIe总线中，使用GT(Gigatransfer)计算PCIe链路的峰值带宽。计算公式如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">总线频率*数据位宽*2</span><br></pre></td></tr></table></figure>
-
-<h3 id="电气信号"><a href="#电气信号" class="headerlink" title="电气信号"></a>电气信号</h3><p>略。</p>
-<h3 id="拓扑结构"><a href="#拓扑结构" class="headerlink" title="拓扑结构"></a>拓扑结构</h3><p>一个通用处理器的PCIe总线拓扑结构如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200723_002.png" alt=""></p>
-<p>整个PCIe拓扑结构是一个树形结构，Root Complex（RC）是树的根。RC为CPU代言，与整个计算机系统其它部分通讯，比如CPU通过它访问内存，通过它访问PCIe系统中的设备。大多数PCIe总线结构中，都包含了RC 、Switch 、PCIe-to-PCI桥和Endpoint（PCIe设备）组件。</p>
-<p>实际上，Root Complex,简称RC。RC设计比较复杂，一个虚拟的处理器系统的RC设计如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200723_003.png" alt=""></p>
-<p><strong>RC组件</strong></p>
-<p>在一个处理器系统PCIe总线中，都有一个RC控制器，主要完成地址转换，和物理信号转换。类似HOST主桥的角色。具体的RC设计，看具体的处理器系统。</p>
-<p><strong>Switch</strong></p>
-<p>因为一条PCIe链路使用端到端的连接方式，所以，只能连接一个设备。为了一条PCIe链路能挂载多个EP，因此，需要Switch器件进行扩展。一个标准的Switch具有一个上游端口和多个下游端口。Switch内部结构如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200723_004.png" alt=""></p>
-<h2 id="PCIe总线分层结构"><a href="#PCIe总线分层结构" class="headerlink" title="PCIe总线分层结构"></a>PCIe总线分层结构</h2><p>PCIe总线采用串行硬件接口，并以数据包(Packet)格式进行数据传输。数据包需要通过事务层和数据链路层，最后达到物理层，发送出去。PCIe总线的分层如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_005.png" alt=""></p>
-<p><strong>事务层</strong>的主要职责是创建（发送）或者解析（接收）TLP (Transaction Layer packet)，流量控制，QoS，事务排序等。</p>
-<p><strong>数据链路层</strong>的主要职责是创建（发送）或者解析（接收）DLLP(Data Link Layer packet)，Ack/Nak协议（链路层检错和纠错），流控，电源管理等。</p>
-<p><strong>物理层</strong>的主要职责是处理所有的Packet数据物理传输，发送端数据分发到各个Lane传输（stripe），接收端把各个Lane上的数据汇总起来（De-stripe），每个Lane上加扰（Scramble，目的是让0和1分布均匀，去除信道的电磁干扰EMI）去扰（De-scramble)，以及8/10或者128/130编码解码，等等。</p>
-<p>每一层都会定义包头包尾的数据格式。如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_007.png" alt=""></p>
-<p>CPU与设备端数据交互的过程如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_008.png" alt=""></p>
-<h2 id="事务层的TLP协议"><a href="#事务层的TLP协议" class="headerlink" title="事务层的TLP协议"></a>事务层的TLP协议</h2><p>事务层将接收PCIe设备产生的数据请求，并封装成TLP协议。FPGA PCIe的开发工作，就是在PCIe核下封装TLP协议，其他层次基本看不到。因此，重点讲一下TLP协议。TLP的基本格式如下：</p>
-<p><img src="http://jiali.clouddn.com/20200722_009.png" alt=""></p>
-<p>TLP头是最重要的标志，TLP Head包含了当前TLP的总线事务类型、路由信息等一系列信息。Data Payload 表示有效数据，Data Payload 长度与Max_Payload_Size、Max_Read_Request_Size和RCB参数相关。</p>
-<p><strong>TLP Head格式</strong></p>
-<p>一个Header大小可以是3DW，也可以是4DW。以4DW的Header为例，TLP的Header长下面样子：</p>
-<p><img src="http://jiali.clouddn.com/20200722_011.png" alt=""></p>
-<p>红色区域为所有TLP Header公共部分，所有Header都有这些；其它则是跟具体的TLP相关。</p>
-<p>注释：</p>
-<p><strong>Fmt</strong>：Format, 表明该TLP是否带有数据，Header是3DW还是4DW；</p>
-<p><strong>Type</strong>：TLP类型，上一节提到的，Memory Read, Memory Write, Configuration Read, Configuration Write, Message和Completion，等等；</p>
-<p><strong>R：</strong> Reserved，为0；</p>
-<p><strong>TC</strong>: Traffic Class，TLP也分三六九等，优先级高的先得到服务。这里是3比特，说明可以分为8个等级，0-7，TC默认是0，数字越大，优先级越高；</p>
-<p><strong>Attr:</strong> Attrbiute, 属性，前后共三个bit，先不说；</p>
-<p><strong>TH</strong>: TLP Processing Hints，先不说；</p>
-<p><strong>TD</strong>: TLP Digest，之前说ECRC可选，如果这个这个bit置起来，说明该TLP包含ECRC，接收端应该做CRC校验；</p>
-<p><strong>EP</strong>: Poisoned data, 有毒的数据，远离，哈哈；</p>
-<p><strong>AT</strong>: Address Type，地址种类，先不说；</p>
-<p><strong>Length</strong>： Payload数据长度，1~1024，单位DW（4byte），所以TLP最大数据长度是4KB; 该长度总是DW的整数倍，如果TLP的数据不是DW的整数倍（不是4Byte的整数倍），则需要用到两个域：Last DW BE 和 1st DW BE。</p>
-<p><strong>存储器读写请求的TLP</strong></p>
-<p>64位的处理器系统的存储器读写请求的TLP格式如下图</p>
-<p><img src="http://jiali.clouddn.com/20200722_012.png" alt=""></p>
-<p>32位的处理器系统的存储器读写请求的TLP格式如下图</p>
-<p><img src="http://jiali.clouddn.com/20200722_013.png" alt=""></p>
-<p>Requester ID字段包含了生成这个TLP报文的PCIe设备的总线号（Bus Number）、设备号（Device Number）和功能号（Function Number）。因此，Requester ID就是源地址，其格式如下：</p>
-<p><img src="http://jiali.clouddn.com/20200722_014.png" alt=""></p>
-<p>Address:目的地址。PCIe设备，进行DMA操作，往处理器的DDR读写数据时候，需要获取DDR的内存地址，来填充Address。</p>
-<p><strong>注意：</strong></p>
-<p>基于厂家FPGA 的PCIe开发，主要是做事务层开发工作，封装TLP，对TLP接收和发送进行处理。因此，熟悉事务层的存储器、I/O和配置读写请求TLP过程很重要。曾经，CPU写FPGA PCIe设备的BAR地址空间的某个寄存器，因为FPGA 不返回TLP，导致CPU卡住。</p>
-<p><strong>Data Payload参数</strong> </p>
-<p>Max_Payload_Size参数存放PCIe设备<strong>实际使用</strong>的TLP有效负载的最大值。<strong>该参数由PCIe链路两端的设备协商决定，是PCIe设备进行数据传送时，实际使用的参数</strong>。当PCIe设备发送数据报文时，设置Max_Payload_Size参数决定TLP的Data Payload 长度的最大值。</p>
-<p>Max_Payload_Size_Supported参数表示一个PCIe设备中TLP有效负载的最大值，这是由PCIe设备的硬件逻辑决定，软件不能更改。</p>
-<p>Max_Payload_Size和Max_Payload_Size_Supported分别在PCI Express Capability结构中的Device Capability和Device Control寄存器中定义。</p>
-<p>Max_Payload_Size可以设置为128byte、256byte、512byte和1024byte.在FPGA实际应用中，需要配置Max_Payload_Size和<strong>TLP</strong>的Length字段。FPGA的Max_Payload_Size配置如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200722_010.png" alt=""></p>
-<p><strong>注意：</strong></p>
-<p>当PCIe设备接收TLP时，该TLP的最大有效负载不能超过Max_Payload_Size（就是Length字段不能超过Max_Payload_Size），如果Length字段超过Length字段，则接收TLP的PCIe设备认为TLP非法。因此一次TLP传输数据失败。曾经，FPGA进行DMA操作，往CPU系统的DDR写数据，因为一次性把很大的数据量填充到TLP中，所以导致，CPU收不到数据。</p>
-<h2 id="PCIe设备的配置空间"><a href="#PCIe设备的配置空间" class="headerlink" title="PCIe设备的配置空间"></a>PCIe设备的配置空间</h2><p>0x00<del>0xff,这段地址空间共256byte，PCI\PCI-X\PCIe都包含了这256byte配置空间。大多数PCI设备仅支持0x00</del>0x3f，这64byte的配置空间。此外，0x40~0xff，这段配置空间，主要存放一些与MSI或者MSI-X中断管理和电源管理相关的Capability结构。大多数PCI设备不支持MSI\MSI-X中断，而PCIe设备必须支持MSI\MSI-X中断机制(<strong>大多是PCIe设备使用MSI中断</strong>)。</p>
-<p>64byte的配置空间如下图：</p>
-<p><img src="http://jiali.clouddn.com/20200721_004.png" alt=""></p>
-<p>另外，PCIe设备支持0x100<del>0xfff这段扩展配置空间。因此PCIe设备的配置空间最大位4k。0x100</del>0xfff这段空间，存放PCIe设备所独有的一些Capability结构，PCI设备是不能使用这段空间（事实上，PCI设备仅支持0x00~0x3f这段配置空间）。</p>
-<p>PCIe设备的配置空间如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200723_005.png" alt=""></p>
-<p><strong>注意：</strong></p>
-<p>在实际工程中，在FPGA PCIe核设置好BAR配置空间的大小，系统软件根据大小分配PCIe总线地址空间。FPGA配置如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_001.png" alt=""></p>
-<h2 id="MSI中断机制"><a href="#MSI中断机制" class="headerlink" title="MSI中断机制"></a>MSI中断机制</h2><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><p>在PCI总线中，所有需要提交的中断请求，必须通过INTx引脚向处理器提交中断请求；而在PCIe总线中，PCIe设备向处理器提交中断，是通过MSI机制实现，不需要通过INTx引脚。</p>
-<p>MSI机制就是使用存储器写请求TLP向处理器提交中断请求。这种MSI消息，也简称为MSI报文。此外MSI中断最多支持32个中断。32位和64位的MSI 报文协议结构如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_002.png" alt=""></p>
-<p><strong>Message Control:</strong> 该字段存放当前PCIe设备使用的MSI机制进行中断请求的状态与控制信息。</p>
-<p><strong>Message Address:</strong> 该字段存放MSI存储器写事务的目的地址低32位。</p>
-<p><strong>Message Upper Address:</strong> 该字段存放MSI存储器写事务的目的地址高32位。</p>
-<p>重点关注Message Control字段含义，如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_003.png" alt=""></p>
-<h3 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h3><p>FPGA PCIe MSI控制器配置寄存器地址，如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_004.png" alt=""></p>
-<p>MSI Control Register，如下图所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_005.png" alt=""></p>
-<p>通过MSI控制寄存器可将MSI中断配置成多消息中断模式，中断个数可通过Multiple Message Enable 配置，只读字段Multiple Message Capable表示系统分配给PCIe设备的中断向量数量。</p>
-<p><strong>注意：</strong></p>
-<p>曾经FPGA没有配置字段Multiple Message Capable，因为该字段默认为0,所以，无论怎么配置Multiple Message Enable，MSI只产生1个中断（0号MSI中断）。</p>
-<p>FPGA PCIe设备中，cfg_interrupt_msi_int MSI各中断寄存器如下表所示。</p>
-<p><img src="http://jiali.clouddn.com/20200724_006.png" alt=""></p>
-<p>只要置位中断寄存器对应的Bit,就可以触发中断。例如，本次使用0，1，2号中断，在相应位置位就可以触发中断。</p>
-<p>Linux MSI中断配置如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;1、申请四个中断</span><br><span class="line">pci_alloc_irq_vectors(pdev,1,4,PCI_IRQ_MSI);</span><br><span class="line">&#x2F;&#x2F;2、设置Multiple Message Enable字段为4</span><br><span class="line">control |&#x3D; 0x0020;</span><br><span class="line">pci_write_config_word(pdev,pdev-&gt;msi_cap+2,control);</span><br><span class="line">&#x2F;&#x2F;注册中断</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,0);</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device&quot;, ptr_dma_desc_temp);</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,1);	</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix_1, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device_1&quot;, ptr_dma_desc_temp);</span><br><span class="line">irq &#x3D; pci_irq_vector(pdev,2);</span><br><span class="line">err &#x3D; request_irq(irq, ps_pcie_intr_handler_no_msix_2, IRQF_SHARED, &quot;PCIE PS PCIe DMA Device2&quot;, ptr_dma_desc_temp);</span><br><span class="line">&#x2F;&#x2F;编写中断函数</span><br><span class="line">略。。。</span><br></pre></td></tr></table></figure>
-
-
-
-
-
-
-
-
-
-<p>参考：</p>
-<p><a href="https://www.cnblogs.com/YINBin/p/10946247.html" target="_blank" rel="noopener">PCIe总线（协议简述）</a></p>
-<p><a href="https://zhuanlan.zhihu.com/p/26172972" target="_blank" rel="noopener">深入PCI与PCIe之一：硬件篇</a></p>
-<p><a href="http://xilinx.eetrend.com/d6-xilinx/blog/2018-08/13327.html" target="_blank" rel="noopener">PCIe学习（一）：PCIe基础及生成PIO例程分析</a></p>
-<p><a href="http://www.ssdfans.com/?p=8211" target="_blank" rel="noopener">老男孩读PCIe之一：从PCIe速度说起</a></p>
-<p><a href="http://www.ssdfans.com/?p=8213" target="_blank" rel="noopener">老男孩读PCIe之二：PCIe拓扑结构</a></p>
-<p><a href="http://www.ssdfans.com/?p=8214" target="_blank" rel="noopener">老男孩读PCIe之三：PCIe分层结构</a></p>
-<p><a href="http://www.ssdfans.com/?p=8215" target="_blank" rel="noopener">老男孩读PCIe之四：TLP类型</a></p>
-<p><a href="http://www.ssdfans.com/?p=8212" target="_blank" rel="noopener">老男孩读PCIe之五：TLP结构</a></p>
-<p><a href="http://www.ssdfans.com/?p=8210" target="_blank" rel="noopener">老男孩读PCIe之六：配置和地址空间</a></p>
-<p><a href="http://www.ssdfans.com/?p=8216" target="_blank" rel="noopener">老男孩读PCIe之七：TLP的路由</a></p>
 
       
     </div>

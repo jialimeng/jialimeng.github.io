@@ -190,6 +190,180 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2021/01/04/Linux/Driver/Input/linux%20input%E5%AD%90%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="David Meng">
+      <meta itemprop="description" content="冒险，创新，永不放弃">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tech Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/01/04/Linux/Driver/Input/linux%20input%E5%AD%90%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1/" class="post-title-link" itemprop="url">linux input子系统设计</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-01-04 15:35:27" itemprop="dateCreated datePublished" datetime="2021-01-04T15:35:27+08:00">2021-01-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-01-07 14:01:17" itemprop="dateModified" datetime="2021-01-07T14:01:17+08:00">2021-01-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/Driver/Input%E5%AD%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">Input子系统</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>[TOC]</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>输入子系统，用于管理各种输入设备，采用软件分层的思想，把一些通用的操作和经常需要更改的操作分开。通用的部分就是纯软件逻辑，不涉及硬件操作，而经常需要更改的部分就是配置硬件。因此通过输入子系统，让各种输入设备开发比较简单，不需重复编写通用的代码，只需要专注硬件的配置就可以了。那么，什么是输入设备？从IO角度看，与cpu的输入IO引脚连接的设备就是输入设备，比如按键；从广义角度，人机交互的设备就是输入设备，比如鼠标，键盘，触摸屏。关于Input Subsystem定义：</p>
+<p>The input subsystem is the part of the Linux kernel that manages the various input devices (such as keyboards, mice, joysticks, tablets and a wide range of other devices) that a user uses to interact with the kernel, command line and graphical user interface. This subsystem is included in the kernel because these devices usually are accessed through special hardware interfaces (such as serial ports, PS/2 ports, Apple Desktop Bus and the Universal Serial Bus), which are protected and managed by the kernel. The kernel then exposes the user input in a consistent, device-independent way to user space through a range of defined APIs</p>
+<p>Linux 输入子系统全景图如下：</p>
+<p><img src="http://jiali.clouddn.com/20210104_002.png" alt=""></p>
+<p>​                                                                                                                       Linux 输入子系统全景图</p>
+<p>input core 为event handlers和drivers层提供实现的接口；event handlers 为用户空间与内核空间交互提供接口；drivers,实现各种输入设备的操作。</p>
+<h2 id="Input-Subsystem软件层次分析"><a href="#Input-Subsystem软件层次分析" class="headerlink" title="Input Subsystem软件层次分析"></a>Input Subsystem软件层次分析</h2><p> input subsystem 软件层次分为 input core层、drivers层 和 event handlers层。它们之间的关系如下图。</p>
+<p><img src="http://jiali.clouddn.com/20210104_001.png" alt=""></p>
+<p>​                                                                                                   input subsystem 软件层次图</p>
+<ul>
+<li>input core：提供input subsystem所有的核心操作，由drivers/input/input.c文件定义。</li>
+<li>drivers:操作各种输入设备，与设备交互，把设备数据传给event handlers。</li>
+<li>event handlers:定义应用层与内核交互的接口，并把收到的设备数据传给应用层。</li>
+</ul>
+<h2 id="Input-Subsystem设计"><a href="#Input-Subsystem设计" class="headerlink" title="Input Subsystem设计"></a>Input Subsystem设计</h2><p>1、主要数据结构</p>
+<p><img src="http://jiali.clouddn.com/20210104_003.png" alt=""></p>
+<p>​                                                                                                             表 输入子系统主要数据结构</p>
+<p>数据链表如下：</p>
+<p><img src="http://jiali.clouddn.com/20210107_001.png" alt=""></p>
+<p>​                                                                                                      图 数据链表关系</p>
+<p>2、软件设计</p>
+<p>软件方案设计如下图</p>
+<p><img src="http://jiali.clouddn.com/20210104_004.png" alt=""></p>
+<p>​                                                                                                         图 软件方案设计</p>
+<p>3、intput 子系统实现</p>
+<p>input子系统实现如下图</p>
+<p><img src="http://jiali.clouddn.com/20210105_001.png" alt=""></p>
+<p>​                                                                                                              图 input 子系统实现</p>
+<h2 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h2><p>主要分析input.c 、evdev.c、触摸屏驱动atmel_mxt_ts.c这三个代表文件，理解input子系统如何工作。</p>
+<h3 id="1、Linux-input-子系统目录层次"><a href="#1、Linux-input-子系统目录层次" class="headerlink" title="1、Linux input 子系统目录层次"></a>1、Linux input 子系统目录层次</h3><p>Linux input 子系统目录如下：</p>
+<p><img src="http://jiali.clouddn.com/20210106_001.png" alt=""></p>
+<p>input顶层目录包含各种event handlers(比如mousedev.c \evdev.c\joydev.c)和input core（input.c）,子目录就是输入设备驱动文件。</p>
+<h3 id="2、主要数据结构关系"><a href="#2、主要数据结构关系" class="headerlink" title="2、主要数据结构关系"></a>2、主要数据结构关系</h3><p>（1）表示输入设备的数据结构</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">struct input_dev &#123;</span><br><span class="line">	const char *name;</span><br><span class="line">	const char *phys;</span><br><span class="line">	const char *uniq;</span><br><span class="line">	struct input_id id;</span><br><span class="line"></span><br><span class="line">	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];</span><br><span class="line"></span><br><span class="line">	unsigned long evbit[BITS_TO_LONGS(EV_CNT)];</span><br><span class="line">	unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];</span><br><span class="line">	unsigned long relbit[BITS_TO_LONGS(REL_CNT)];</span><br><span class="line">	unsigned long absbit[BITS_TO_LONGS(ABS_CNT)];</span><br><span class="line">	unsigned long mscbit[BITS_TO_LONGS(MSC_CNT)];</span><br><span class="line">	unsigned long ledbit[BITS_TO_LONGS(LED_CNT)];</span><br><span class="line">	unsigned long sndbit[BITS_TO_LONGS(SND_CNT)];</span><br><span class="line">	unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];</span><br><span class="line">	unsigned long swbit[BITS_TO_LONGS(SW_CNT)];</span><br><span class="line"></span><br><span class="line">	unsigned int hint_events_per_packet;</span><br><span class="line"></span><br><span class="line">	unsigned int keycodemax;</span><br><span class="line">	unsigned int keycodesize;</span><br><span class="line">	void *keycode;</span><br><span class="line"></span><br><span class="line">	int (*setkeycode)(struct input_dev *dev,</span><br><span class="line">			  const struct input_keymap_entry *ke,</span><br><span class="line">			  unsigned int *old_keycode);</span><br><span class="line">	int (*getkeycode)(struct input_dev *dev,</span><br><span class="line">			  struct input_keymap_entry *ke);</span><br><span class="line"></span><br><span class="line">	struct ff_device *ff;</span><br><span class="line"></span><br><span class="line">	unsigned int repeat_key;</span><br><span class="line">	struct timer_list timer;</span><br><span class="line"></span><br><span class="line">	int rep[REP_CNT];</span><br><span class="line"></span><br><span class="line">	struct input_mt_slot *mt;</span><br><span class="line">	int mtsize;</span><br><span class="line">	int slot;</span><br><span class="line">	int trkid;</span><br><span class="line"></span><br><span class="line">	struct input_absinfo *absinfo;</span><br><span class="line"></span><br><span class="line">	unsigned long key[BITS_TO_LONGS(KEY_CNT)];</span><br><span class="line">	unsigned long led[BITS_TO_LONGS(LED_CNT)];</span><br><span class="line">	unsigned long snd[BITS_TO_LONGS(SND_CNT)];</span><br><span class="line">	unsigned long sw[BITS_TO_LONGS(SW_CNT)];</span><br><span class="line"></span><br><span class="line">	int (*open)(struct input_dev *dev);</span><br><span class="line">	void (*close)(struct input_dev *dev);</span><br><span class="line">	int (*flush)(struct input_dev *dev, struct file *file);</span><br><span class="line">	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);</span><br><span class="line"></span><br><span class="line">	struct input_handle __rcu *grab;</span><br><span class="line"></span><br><span class="line">	spinlock_t event_lock;</span><br><span class="line">	struct mutex mutex;</span><br><span class="line"></span><br><span class="line">	unsigned int users;</span><br><span class="line">	bool going_away;</span><br><span class="line"></span><br><span class="line">	bool sync;</span><br><span class="line"></span><br><span class="line">	struct device dev;</span><br><span class="line"></span><br><span class="line">	struct list_head	h_list;</span><br><span class="line">	struct list_head	node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>（2）、表示evdev事件处理的数据结构</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * struct input_handler - implements one of interfaces for input devices</span><br><span class="line"> * @private: driver-specific data</span><br><span class="line"> * @event: event handler. This method is being called by input core with</span><br><span class="line"> *	interrupts disabled and dev-&gt;event_lock spinlock held and so</span><br><span class="line"> *	it may not sleep</span><br><span class="line"> * @filter: similar to @event; separates normal event handlers from</span><br><span class="line"> *	&quot;filters&quot;.</span><br><span class="line"> * @match: called after comparing device&#39;s id with handler&#39;s id_table</span><br><span class="line"> *	to perform fine-grained matching between device and handler</span><br><span class="line"> * @connect: called when attaching a handler to an input device</span><br><span class="line"> * @disconnect: disconnects a handler from input device</span><br><span class="line"> * @start: starts handler for given handle. This function is called by</span><br><span class="line"> *	input core right after connect() method and also when a process</span><br><span class="line"> *	that &quot;grabbed&quot; a device releases it</span><br><span class="line"> * @fops: file operations this driver implements</span><br><span class="line"> * @minor: beginning of range of 32 minors for devices this driver</span><br><span class="line"> *	can provide</span><br><span class="line"> * @name: name of the handler, to be shown in &#x2F;proc&#x2F;bus&#x2F;input&#x2F;handlers</span><br><span class="line"> * @id_table: pointer to a table of input_device_ids this driver can</span><br><span class="line"> *	handle</span><br><span class="line"> * @h_list: list of input handles associated with the handler</span><br><span class="line"> * @node: for placing the driver onto input_handler_list</span><br><span class="line"> *</span><br><span class="line"> * Input handlers attach to input devices and create input handles. There</span><br><span class="line"> * are likely several handlers attached to any given input device at the</span><br><span class="line"> * same time. All of them will get their copy of input event generated by</span><br><span class="line"> * the device.</span><br><span class="line"> *</span><br><span class="line"> * The very same structure is used to implement input filters. Input core</span><br><span class="line"> * allows filters to run first and will not pass event to regular handlers</span><br><span class="line"> * if any of the filters indicate that the event should be filtered (by</span><br><span class="line"> * returning %true from their filter() method).</span><br><span class="line"> *</span><br><span class="line"> * Note that input core serializes calls to connect() and disconnect()</span><br><span class="line"> * methods.</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct input_handler &#123;</span><br><span class="line"></span><br><span class="line">	void *private;</span><br><span class="line"></span><br><span class="line">	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);</span><br><span class="line">	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);</span><br><span class="line">	bool (*match)(struct input_handler *handler, struct input_dev *dev);</span><br><span class="line">	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);</span><br><span class="line">	void (*disconnect)(struct input_handle *handle);</span><br><span class="line">	void (*start)(struct input_handle *handle);</span><br><span class="line"></span><br><span class="line">	const struct file_operations *fops;</span><br><span class="line">	int minor;</span><br><span class="line">	const char *name;</span><br><span class="line"></span><br><span class="line">	const struct input_device_id *id_table;</span><br><span class="line"></span><br><span class="line">	struct list_head	h_list;</span><br><span class="line">	struct list_head	node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>（3）连接输入设备和event handler对象的数据结构</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * struct input_handle - links input device with an input handler</span><br><span class="line"> * @private: handler-specific data</span><br><span class="line"> * @open: counter showing whether the handle is &#39;open&#39;, i.e. should deliver</span><br><span class="line"> *	events from its device</span><br><span class="line"> * @name: name given to the handle by handler that created it</span><br><span class="line"> * @dev: input device the handle is attached to</span><br><span class="line"> * @handler: handler that works with the device through this handle</span><br><span class="line"> * @d_node: used to put the handle on device&#39;s list of attached handles</span><br><span class="line"> * @h_node: used to put the handle on handler&#39;s list of handles from which</span><br><span class="line"> *	it gets events</span><br><span class="line"> *&#x2F;</span><br><span class="line">struct input_handle &#123;</span><br><span class="line"></span><br><span class="line">	void *private;</span><br><span class="line"></span><br><span class="line">	int open;</span><br><span class="line">	const char *name;</span><br><span class="line"></span><br><span class="line">	struct input_dev *dev;</span><br><span class="line">	struct input_handler *handler;</span><br><span class="line"></span><br><span class="line">	struct list_head	d_node;</span><br><span class="line">	struct list_head	h_node;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3、input子系统的类"><a href="#3、input子系统的类" class="headerlink" title="3、input子系统的类"></a>3、input子系统的类</h3><p>根据数据结构的关系，总结出input子系统的类，如下</p>
+<p><img src="http://jiali.clouddn.com/20210107_002.png" alt=""></p>
+<p>​                                                                                                                   图 input子系统的类</p>
+<h3 id="4、主要函数分析"><a href="#4、主要函数分析" class="headerlink" title="4、主要函数分析"></a>4、主要函数分析</h3><p>结合触摸屏、evdev  handler和input core 分析input 代码流程</p>
+<p>首先初始化input 子系统,文件为drivers/input/input.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">static int __init input_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	int err;</span><br><span class="line"></span><br><span class="line">	err &#x3D; class_register(&amp;input_class);</span><br><span class="line">	if (err) &#123;</span><br><span class="line">		pr_err(&quot;unable to register input_dev class\n&quot;);</span><br><span class="line">		return err;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	err &#x3D; input_proc_init();</span><br><span class="line">	if (err)</span><br><span class="line">		goto fail1;</span><br><span class="line"></span><br><span class="line">	err &#x3D; register_chrdev(INPUT_MAJOR, &quot;input&quot;, &amp;input_fops);</span><br><span class="line">	if (err) &#123;</span><br><span class="line">		pr_err(&quot;unable to register char major %d&quot;, INPUT_MAJOR);</span><br><span class="line">		goto fail2;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line"> fail2:	input_proc_exit();</span><br><span class="line"> fail1:	class_unregister(&amp;input_class);</span><br><span class="line">	return err;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit input_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	input_proc_exit();</span><br><span class="line">	unregister_chrdev(INPUT_MAJOR, &quot;input&quot;);</span><br><span class="line">	class_unregister(&amp;input_class);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">subsys_initcall(input_init);</span><br><span class="line">module_exit(input_exit);</span><br></pre></td></tr></table></figure>
+
+<p>其次，注册evdev handler</p>
+<p>文件在drivers/input/evdev.c</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">static struct input_handler evdev_handler &#x3D; &#123;</span><br><span class="line">	.event		&#x3D; evdev_event,</span><br><span class="line">#ifdef CONFIG_MACH_ADVANTECH</span><br><span class="line">	.match &#x3D; evdev_match,  &#x2F;* Added by EETI*&#x2F;</span><br><span class="line">#endif</span><br><span class="line">	.connect	&#x3D; evdev_connect,</span><br><span class="line">	.disconnect	&#x3D; evdev_disconnect,</span><br><span class="line">	.fops		&#x3D; &amp;evdev_fops,</span><br><span class="line">	.minor		&#x3D; EVDEV_MINOR_BASE,</span><br><span class="line">	.name		&#x3D; &quot;evdev&quot;,</span><br><span class="line">	.id_table	&#x3D; evdev_ids,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">static int __init evdev_init(void)</span><br><span class="line">&#123;</span><br><span class="line">	return input_register_handler(&amp;evdev_handler);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">static void __exit evdev_exit(void)</span><br><span class="line">&#123;</span><br><span class="line">	input_unregister_handler(&amp;evdev_handler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后，注册dev 驱动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * input_register_device - register device with input core</span><br><span class="line"> * @dev: device to be registered</span><br><span class="line"> *</span><br><span class="line"> * This function registers device with input core. The device must be</span><br><span class="line"> * allocated with input_allocate_device() and all it&#39;s capabilities</span><br><span class="line"> * set up before registering.</span><br><span class="line"> * If function fails the device must be freed with input_free_device().</span><br><span class="line"> * Once device has been successfully registered it can be unregistered</span><br><span class="line"> * with input_unregister_device(); input_free_device() should not be</span><br><span class="line"> * called in this case.</span><br><span class="line"> *&#x2F;</span><br><span class="line">int input_register_device(struct input_dev *dev)</span><br><span class="line">&#123;</span><br><span class="line">	static atomic_t input_no &#x3D; ATOMIC_INIT(0);</span><br><span class="line">	struct input_handler *handler;</span><br><span class="line">	const char *path;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	&#x2F;* Every input device generates EV_SYN&#x2F;SYN_REPORT events. *&#x2F;</span><br><span class="line">	__set_bit(EV_SYN, dev-&gt;evbit);</span><br><span class="line"></span><br><span class="line">	&#x2F;* KEY_RESERVED is not supposed to be transmitted to userspace. *&#x2F;</span><br><span class="line">	__clear_bit(KEY_RESERVED, dev-&gt;keybit);</span><br><span class="line"></span><br><span class="line">	&#x2F;* Make sure that bitmasks not mentioned in dev-&gt;evbit are clean. *&#x2F;</span><br><span class="line">	input_cleanse_bitmasks(dev);</span><br><span class="line"></span><br><span class="line">	if (!dev-&gt;hint_events_per_packet)</span><br><span class="line">		dev-&gt;hint_events_per_packet &#x3D;</span><br><span class="line">				input_estimate_events_per_packet(dev);</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * If delay and period are pre-set by the driver, then autorepeating</span><br><span class="line">	 * is handled by the driver itself and we don&#39;t do it in input.c.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	init_timer(&amp;dev-&gt;timer);</span><br><span class="line">	if (!dev-&gt;rep[REP_DELAY] &amp;&amp; !dev-&gt;rep[REP_PERIOD]) &#123;</span><br><span class="line">		dev-&gt;timer.data &#x3D; (long) dev;</span><br><span class="line">		dev-&gt;timer.function &#x3D; input_repeat_key;</span><br><span class="line">		dev-&gt;rep[REP_DELAY] &#x3D; 250;</span><br><span class="line">		dev-&gt;rep[REP_PERIOD] &#x3D; 33;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if (!dev-&gt;getkeycode)</span><br><span class="line">		dev-&gt;getkeycode &#x3D; input_default_getkeycode;</span><br><span class="line"></span><br><span class="line">	if (!dev-&gt;setkeycode)</span><br><span class="line">		dev-&gt;setkeycode &#x3D; input_default_setkeycode;</span><br><span class="line"></span><br><span class="line">	dev_set_name(&amp;dev-&gt;dev, &quot;input%ld&quot;,</span><br><span class="line">		     (unsigned long) atomic_inc_return(&amp;input_no) - 1);</span><br><span class="line"></span><br><span class="line">	error &#x3D; device_add(&amp;dev-&gt;dev);</span><br><span class="line">	if (error)</span><br><span class="line">		return error;</span><br><span class="line"></span><br><span class="line">	path &#x3D; kobject_get_path(&amp;dev-&gt;dev.kobj, GFP_KERNEL);</span><br><span class="line">	pr_info(&quot;%s as %s\n&quot;,</span><br><span class="line">		dev-&gt;name ? dev-&gt;name : &quot;Unspecified device&quot;,</span><br><span class="line">		path ? path : &quot;N&#x2F;A&quot;);</span><br><span class="line">	kfree(path);</span><br><span class="line"></span><br><span class="line">	error &#x3D; mutex_lock_interruptible(&amp;input_mutex);</span><br><span class="line">	if (error) &#123;</span><br><span class="line">		device_del(&amp;dev-&gt;dev);</span><br><span class="line">		return error;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	list_add_tail(&amp;dev-&gt;node, &amp;input_dev_list);</span><br><span class="line"></span><br><span class="line">	list_for_each_entry(handler, &amp;input_handler_list, node)</span><br><span class="line">		input_attach_handler(dev, handler);</span><br><span class="line"></span><br><span class="line">	input_wakeup_procfs_readers();</span><br><span class="line"></span><br><span class="line">	mutex_unlock(&amp;input_mutex);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>evdev handler 和dev注册都会判断evdev handler和dev 匹配</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">static int input_attach_handler(struct input_dev *dev, struct input_handler *handler)</span><br><span class="line">&#123;</span><br><span class="line">	const struct input_device_id *id;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	id &#x3D; input_match_device(handler, dev);</span><br><span class="line">	if (!id)</span><br><span class="line">		return -ENODEV;</span><br><span class="line"></span><br><span class="line">	error &#x3D; handler-&gt;connect(handler, dev, id);</span><br><span class="line">	if (error &amp;&amp; error !&#x3D; -ENODEV)</span><br><span class="line">		pr_err(&quot;failed to attach handler %s to device %s, error: %d\n&quot;,</span><br><span class="line">		       handler-&gt;name, kobject_name(&amp;dev-&gt;dev.kobj), error);</span><br><span class="line"></span><br><span class="line">	return error;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>匹配成功后，调用 evdev handler 的connect函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;*</span><br><span class="line"> * Create new evdev device. Note that input core serializes calls</span><br><span class="line"> * to connect and disconnect so we don&#39;t need to lock evdev_table here.</span><br><span class="line"> *&#x2F;</span><br><span class="line">static int evdev_connect(struct input_handler *handler, struct input_dev *dev,</span><br><span class="line">			 const struct input_device_id *id)</span><br><span class="line">&#123;</span><br><span class="line">	struct evdev *evdev;</span><br><span class="line">	int minor;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	for (minor &#x3D; 0; minor &lt; EVDEV_MINORS; minor++)</span><br><span class="line">		if (!evdev_table[minor])</span><br><span class="line">			break;</span><br><span class="line"></span><br><span class="line">	if (minor &#x3D;&#x3D; EVDEV_MINORS) &#123;</span><br><span class="line">		pr_err(&quot;no more free evdev devices\n&quot;);</span><br><span class="line">		return -ENFILE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	evdev &#x3D; kzalloc(sizeof(struct evdev), GFP_KERNEL);</span><br><span class="line">	if (!evdev)</span><br><span class="line">		return -ENOMEM;</span><br><span class="line"></span><br><span class="line">	INIT_LIST_HEAD(&amp;evdev-&gt;client_list);</span><br><span class="line">	spin_lock_init(&amp;evdev-&gt;client_lock);</span><br><span class="line">	mutex_init(&amp;evdev-&gt;mutex);</span><br><span class="line">	init_waitqueue_head(&amp;evdev-&gt;wait);</span><br><span class="line"></span><br><span class="line">	dev_set_name(&amp;evdev-&gt;dev, &quot;event%d&quot;, minor);</span><br><span class="line">	evdev-&gt;exist &#x3D; true;</span><br><span class="line">	evdev-&gt;minor &#x3D; minor;</span><br><span class="line"></span><br><span class="line">	evdev-&gt;handle.dev &#x3D; input_get_device(dev);</span><br><span class="line">	evdev-&gt;handle.name &#x3D; dev_name(&amp;evdev-&gt;dev);</span><br><span class="line">	evdev-&gt;handle.handler &#x3D; handler;</span><br><span class="line">	evdev-&gt;handle.private &#x3D; evdev;</span><br><span class="line"></span><br><span class="line">	evdev-&gt;dev.devt &#x3D; MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor);</span><br><span class="line">	evdev-&gt;dev.class &#x3D; &amp;input_class;</span><br><span class="line">	evdev-&gt;dev.parent &#x3D; &amp;dev-&gt;dev;</span><br><span class="line">	evdev-&gt;dev.release &#x3D; evdev_free;</span><br><span class="line">	device_initialize(&amp;evdev-&gt;dev);</span><br><span class="line"></span><br><span class="line">	error &#x3D; input_register_handle(&amp;evdev-&gt;handle);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_free_evdev;</span><br><span class="line"></span><br><span class="line">	error &#x3D; evdev_install_chrdev(evdev);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_unregister_handle;</span><br><span class="line"></span><br><span class="line">	error &#x3D; device_add(&amp;evdev-&gt;dev);</span><br><span class="line">	if (error)</span><br><span class="line">		goto err_cleanup_evdev;</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line"></span><br><span class="line"> err_cleanup_evdev:</span><br><span class="line">	evdev_cleanup(evdev);</span><br><span class="line"> err_unregister_handle:</span><br><span class="line">	input_unregister_handle(&amp;evdev-&gt;handle);</span><br><span class="line"> err_free_evdev:</span><br><span class="line">	put_device(&amp;evdev-&gt;dev);</span><br><span class="line">	return error;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后，在connect函数调用input_register_handle函数注册handle。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * input_register_handle - register a new input handle</span><br><span class="line"> * @handle: handle to register</span><br><span class="line"> *</span><br><span class="line"> * This function puts a new input handle onto device&#39;s</span><br><span class="line"> * and handler&#39;s lists so that events can flow through</span><br><span class="line"> * it once it is opened using input_open_device().</span><br><span class="line"> *</span><br><span class="line"> * This function is supposed to be called from handler&#39;s</span><br><span class="line"> * connect() method.</span><br><span class="line"> *&#x2F;</span><br><span class="line">int input_register_handle(struct input_handle *handle)</span><br><span class="line">&#123;</span><br><span class="line">	struct input_handler *handler &#x3D; handle-&gt;handler;</span><br><span class="line">	struct input_dev *dev &#x3D; handle-&gt;dev;</span><br><span class="line">	int error;</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * We take dev-&gt;mutex here to prevent race with</span><br><span class="line">	 * input_release_device().</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	error &#x3D; mutex_lock_interruptible(&amp;dev-&gt;mutex);</span><br><span class="line">	if (error)</span><br><span class="line">		return error;</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * Filters go to the head of the list, normal handlers</span><br><span class="line">	 * to the tail.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	if (handler-&gt;filter)</span><br><span class="line">		list_add_rcu(&amp;handle-&gt;d_node, &amp;dev-&gt;h_list);</span><br><span class="line">	else</span><br><span class="line">		list_add_tail_rcu(&amp;handle-&gt;d_node, &amp;dev-&gt;h_list);</span><br><span class="line"></span><br><span class="line">	mutex_unlock(&amp;dev-&gt;mutex);</span><br><span class="line"></span><br><span class="line">	&#x2F;*</span><br><span class="line">	 * Since we are supposed to be called from -&gt;connect()</span><br><span class="line">	 * which is mutually exclusive with -&gt;disconnect()</span><br><span class="line">	 * we can&#39;t be racing with input_unregister_handle()</span><br><span class="line">	 * and so separate lock is not needed here.</span><br><span class="line">	 *&#x2F;</span><br><span class="line">	list_add_tail_rcu(&amp;handle-&gt;h_node, &amp;handler-&gt;h_list);</span><br><span class="line"></span><br><span class="line">	if (handler-&gt;start)</span><br><span class="line">		handler-&gt;start(handle);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>核心代码分析完毕，后面看看应用层如何与input 子系统交互。</p>
+<h2 id="应用层与内核input子系统交互"><a href="#应用层与内核input子系统交互" class="headerlink" title="应用层与内核input子系统交互"></a>应用层与内核input子系统交互</h2><p>应用层与设备交互，通过 Linux一套接口实现，就是open 、read 、write函数。这些函数最终会调用input 子系统的evdev handler 的fops的open、read和write。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">static struct input_handler evdev_handler &#x3D; &#123;</span><br><span class="line">	.event		&#x3D; evdev_event,</span><br><span class="line">#ifdef CONFIG_MACH_ADVANTECH</span><br><span class="line">	.match &#x3D; evdev_match,  &#x2F;* Added by EETI*&#x2F;</span><br><span class="line">#endif</span><br><span class="line">	.connect	&#x3D; evdev_connect,</span><br><span class="line">	.disconnect	&#x3D; evdev_disconnect,</span><br><span class="line">	.fops		&#x3D; &amp;evdev_fops,</span><br><span class="line">	.minor		&#x3D; EVDEV_MINOR_BASE,</span><br><span class="line">	.name		&#x3D; &quot;evdev&quot;,</span><br><span class="line">	.id_table	&#x3D; evdev_ids,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>evdev_fops定义</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">static const struct file_operations evdev_fops &#x3D; &#123;</span><br><span class="line">	.owner		&#x3D; THIS_MODULE,</span><br><span class="line">	.read		&#x3D; evdev_read,</span><br><span class="line">	.write		&#x3D; evdev_write,</span><br><span class="line">	.poll		&#x3D; evdev_poll,</span><br><span class="line">	.open		&#x3D; evdev_open,</span><br><span class="line">	.release	&#x3D; evdev_release,</span><br><span class="line">	.unlocked_ioctl	&#x3D; evdev_ioctl,</span><br><span class="line">#ifdef CONFIG_COMPAT</span><br><span class="line">	.compat_ioctl	&#x3D; evdev_ioctl_compat,</span><br><span class="line">#endif</span><br><span class="line">	.fasync		&#x3D; evdev_fasync,</span><br><span class="line">	.flush		&#x3D; evdev_flush,</span><br><span class="line">	.llseek		&#x3D; no_llseek,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>看一下evdev_read</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">static ssize_t evdev_read(struct file *file, char __user *buffer,</span><br><span class="line">			  size_t count, loff_t *ppos)</span><br><span class="line">&#123;</span><br><span class="line">	struct evdev_client *client &#x3D; file-&gt;private_data;</span><br><span class="line">	struct evdev *evdev &#x3D; client-&gt;evdev;</span><br><span class="line">	struct input_event event;</span><br><span class="line">	int retval;</span><br><span class="line"></span><br><span class="line">	if (count &lt; input_event_size())</span><br><span class="line">		return -EINVAL;</span><br><span class="line"></span><br><span class="line">	if (client-&gt;packet_head &#x3D;&#x3D; client-&gt;tail &amp;&amp; evdev-&gt;exist &amp;&amp;</span><br><span class="line">	    (file-&gt;f_flags &amp; O_NONBLOCK))</span><br><span class="line">		return -EAGAIN;</span><br><span class="line"></span><br><span class="line">	retval &#x3D; wait_event_interruptible(evdev-&gt;wait,</span><br><span class="line">		client-&gt;packet_head !&#x3D; client-&gt;tail || !evdev-&gt;exist);</span><br><span class="line">	if (retval)</span><br><span class="line">		return retval;</span><br><span class="line"></span><br><span class="line">	if (!evdev-&gt;exist)</span><br><span class="line">		return -ENODEV;</span><br><span class="line"></span><br><span class="line">	while (retval + input_event_size() &lt;&#x3D; count &amp;&amp;</span><br><span class="line">	       evdev_fetch_next_event(client, &amp;event)) &#123;</span><br><span class="line"></span><br><span class="line">		if (input_event_to_user(buffer + retval, &amp;event))</span><br><span class="line">			return -EFAULT;</span><br><span class="line"></span><br><span class="line">		retval +&#x3D; input_event_size();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	return retval;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>综上所述，可以看出input 子系统简化了输入设备的驱动程序开发。这边设备驱动专注设备的配置和交互，不用重新编写与应用层交互的代码。设备驱动遵循下面的流程：</p>
+<blockquote>
+<p>1、input_allocate_device() 给input_dev分配空间</p>
+<p>2、设置input_dev对象，设置事件类型、code</p>
+<p>3、硬件初始化，中断初始化，定义中断处理程序</p>
+<p>4、通过 input_register_device() 注册 </p>
+<p>5、定义中断处理程序，上报事件并同步</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">1、上报事件</span><br><span class="line">void input_report_key(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">void input_report_rel(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">void input_report_abs(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">void input_report_switch(struct input_dev *dev, unsigned int code, int value)</span><br><span class="line">2、同步</span><br><span class="line">void input_sync(struct input_dev *dev)</span><br></pre></td></tr></table></figure>
+
+
+</blockquote>
+<p>参考：</p>
+<p><a href="https://www.cnblogs.com/lcw/p/3293302.html" target="_blank" rel="noopener">input子系统全面分析</a></p>
+<p><a href="https://www.linuxjournal.com/article/6396" target="_blank" rel="noopener">The Linux USB Input Subsystem, Part I</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/29/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91Android-emmc%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2131,296 +2305,6 @@ mmc_ops.c/mmc_ops.h</code></pre><p>host/</p>
 <p>分区配置参数存储在扩展CSD寄存器的一次性可编程字段中。 即使尚未设置PARTITION_SETTING_COMPLETED，主机也可以通过CMD8读取它们，但是只有在随后的加电之后，分区的执行才会发生。由于它们是一次性可编程字段，因此建议在读取后避免更改这些参数。</p>
 <p>主机应遵循上图16中的流程图来配置通用区域分区和增强型用户数据区域的参数。 否则可能导致未定义的行为。</p>
 <p>注：本文转自【<a href="https://blog.csdn.net/weixin_44773006/article/details/105125490】" target="_blank" rel="noopener">https://blog.csdn.net/weixin_44773006/article/details/105125490】</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E6%80%BB%E7%BA%BF%E5%8D%8F%E8%AE%AE/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="David Meng">
-      <meta itemprop="description" content="冒险，创新，永不放弃">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Tech Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/12/25/Linux/Driver/storage/Flash%20Memory/mmc/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91eMMC%E6%80%BB%E7%BA%BF%E5%8D%8F%E8%AE%AE/" class="post-title-link" itemprop="url">【转载】eMMC总线协议</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2020-12-25 10:55:32 / Modified: 10:58:51" itemprop="dateCreated datePublished" datetime="2020-12-25T10:55:32+08:00">2020-12-25</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/" itemprop="url" rel="index"><span itemprop="name">Driver</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/storage/" itemprop="url" rel="index"><span itemprop="name">storage</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/storage/Flash-Memory/" itemprop="url" rel="index"><span itemprop="name">Flash Memory</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/Driver/storage/Flash-Memory/mmc/" itemprop="url" rel="index"><span itemprop="name">mmc</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>[TOC]</p>
-<h2 id="1-eMMC-总线接口"><a href="#1-eMMC-总线接口" class="headerlink" title="1. eMMC 总线接口"></a>1. eMMC 总线接口</h2><p>eMMC 总线接口定义如下图所示：</p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/emmc_host_interfaces.png" alt="img"></p>
-<p>各个信号的描述如下：</p>
-<p><strong>CLK</strong></p>
-<p>CLK 信号用于从 Host 端输出时钟信号，进行数据传输的同步和设备运作的驱动。<br>在一个时钟周期内，CMD 和 DAT0-7 信号上都可以支持传输 1 个比特，即 SDR (Single Data Rate) 模式。此外，DAT0-7 信号还支持配置为 DDR (Double Data Rate) 模式，在一个时钟周期内，可以传输 2 个比特。<br>Host 可以在通讯过程中动态调整时钟信号的频率（注，频率范围需要满足 Spec 的定义）。通过调整时钟频率，可以实现省电或者数据流控（避免 Over-run 或者 Under-run）功能。 在一些场景中，Host 端还可以关闭时钟，例如 eMMC 处于 Busy 状态时，或者接收完数据，进入 Programming State 时。</p>
-<p><strong>CMD</strong></p>
-<p>CMD 信号主要用于 Host 向 eMMC 发送 Command 和 eMMC 向 Host 发送对于的 Response。Command 和 Response 的细节会在后续章节中介绍。</p>
-<p><strong>DAT0-7</strong></p>
-<p>DAT0-7 信号主要用于 Host 和 eMMC 之间的数据传输。在 eMMC 上电或者软复位后，只有 DAT0 可以进行数据传输，完成初始化后，可配置 DAT0-3 或者 DAT0-7 进行数据传输，即数据总线可以配置为 4 bits 或者 8 bits 模式。</p>
-<p><strong>Data Strobe</strong></p>
-<p>Data Strobe 时钟信号由 eMMC 发送给 Host，频率与 CLK 信号相同，用于 Host 端进行数据接收的同步。Data Strobe 信号只能在 HS400 模式下配置启用，启用后可以提高数据传输的稳定性，省去总线 tuning 过程。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>Extended CSD byte[183] BUS_WIDTH 寄存器用于配置总线宽度和 Data Strobe</p>
-</blockquote>
-<h2 id="2-eMMC-总线模型"><a href="#2-eMMC-总线模型" class="headerlink" title="2. eMMC 总线模型"></a>2. eMMC 总线模型</h2><p>eMMC 总线中，可以有一个 Host，多个 eMMC Devices。总线上的所有通讯都由 Host 端以一个 Command 开发发起，Host 一次只能与一个 eMMC Device 通讯。</p>
-<p>系统在上电启动后，Host 会为所有 eMMC Device 逐个分配地址（RCA，Relative device Address）。当 Host 需要和某一个 eMMC Device 通讯时，会先根据 RCA 选中该 eMMC Device，只有被选中的 eMMC Device 才会响应 Host 的 Command。</p>
-<blockquote>
-<p>NOTE:<br>更详细的工作原理请参考 <a href="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/emmc_modes.html" target="_blank" rel="noopener">eMMC 工作模式</a> 章节。</p>
-</blockquote>
-<h3 id="2-1-速率模式"><a href="#2-1-速率模式" class="headerlink" title="2.1 速率模式"></a>2.1 速率模式</h3><p>随着 eMMC 协议的版本迭代，eMMC 总线的速率越来越高。为了兼容旧版本的 eMMC Device，所有 Devices 在上电启动或者 Reset 后，都会先进入兼容速率模式（Backward Compatible Mode）。在完成 eMMC Devices 的初始化后，Host 可以通过特定的流程，让 Device 进入其他高速率模式，目前支持以下的几种速率模式。</p>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>Data Rate</th>
-<th>Bus Width</th>
-<th>Frequency</th>
-<th>Max Data Transfer (x8)</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Backward Compatible</td>
-<td>Single</td>
-<td>x1, x4, x8</td>
-<td>0-26 MHz</td>
-<td>26 MB/s</td>
-</tr>
-<tr>
-<td>High Speed SDR</td>
-<td>Single</td>
-<td>x1, x4, x8</td>
-<td>0-52 MHz</td>
-<td>52 MB/s</td>
-</tr>
-<tr>
-<td>High Speed DDR</td>
-<td>Dual</td>
-<td>x4, x8</td>
-<td>0-52 MHz</td>
-<td>104 MB/s</td>
-</tr>
-<tr>
-<td>HS200</td>
-<td>Single</td>
-<td>x4, x8</td>
-<td>0-200 MHz</td>
-<td>200 MB/s</td>
-</tr>
-<tr>
-<td>HS400</td>
-<td>Dual</td>
-<td>x8</td>
-<td>0-200 MHz</td>
-<td>400 MB/s</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>NOTE:</strong><br>Extended CSD byte[185] HS_TIMING 寄存器可以配置总线速率模式<br>Extended CSD byte[183] BUS_WIDTH 寄存器用于配置总线宽度和 Data Strobe</p>
-</blockquote>
-<h3 id="2-2-通信模型"><a href="#2-2-通信模型" class="headerlink" title="2.2 通信模型"></a>2.2 通信模型</h3><p>Host 与 eMMC Device 之间的通信都是由 Host 以一个 Command 开始发起的，eMMC Device 在完成 Command 所指定的任务后，则返回一个 Response。</p>
-<h4 id="2-2-1-Read-Data"><a href="#2-2-1-Read-Data" class="headerlink" title="2.2.1 Read Data"></a>2.2.1 Read Data</h4><p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/multi_block_read.png" alt="img"></p>
-<p>Host 从 eMMC Device 读取数据的流程如上图所示。</p>
-<p>如果 Host 发送的是 Single Block Read 的 Command，那么 eMMC Device 只会发送一个 Block 的数据（一个 Block 的数据的字节数由 Host 设定或者为 eMMC Device 的默认值，更多细节请参考 <a href="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/emmc_modes.html" target="_blank" rel="noopener">eMMC 工作模式</a> 章节）。<br>如果 Host 发送的是 Multiple Block Read 的 Command，那么 eMMC Device 会持续发送数据，直到 Host 主动发送 Stop Command。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>从 eMMC Device 读数据都是按 Block 读取的。</p>
-</blockquote>
-<h4 id="2-2-2-Write-Data"><a href="#2-2-2-Write-Data" class="headerlink" title="2.2.2 Write Data"></a>2.2.2 Write Data</h4><p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/multi_block_write.png" alt="img"></p>
-<p>Host 向 eMMC Device 写入数据的流程如上图所示。</p>
-<p>如果 Host 发送的是 Single Block Write Command，那么 eMMC Device 只会将后续第一个 Block 的数据写入的存储器中。<br>如果 Host 发送的是 Multiple Block Write Command，那么 eMMC Device 会持续地将接收到的数据写入到存储器中，直到 Host 主动发送 Stop Command。</p>
-<p>eMMC Device 在接收到一个 Block 的数据后，会进行 CRC 校验，然后将校验结果通过 CRC Token 发送给 Host。<br>发送完 CRC Token 后，如果 CRC 校验成功，eMMC Device 会将数据写入到内部存储器时，此时 DAT0 信号会拉低，作为 Busy 信号。Host 会持续检测 DAT0 信号，直到为高电平时，才会接着发送下一个 Block 的数据。如果 CRC 校验失败，那么 eMMC Device 不会进行数据写入，此次传输后续的数据都会被忽略。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>向 eMMC Device 写数据都是按 Block 写入的。</p>
-</blockquote>
-<h4 id="2-2-3-No-Data"><a href="#2-2-3-No-Data" class="headerlink" title="2.2.3 No Data"></a>2.2.3 No Data</h4><p>在 Host 与 eMMC Device 的通信中，有部分交互是不需要进行数据传输的，还有部分交互甚至不需要 eMMC Device 的回复 Response。</p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/no_resp_or_data.png" alt="img"></p>
-<h4 id="2-2-4-Command"><a href="#2-2-4-Command" class="headerlink" title="2.2.4 Command"></a>2.2.4 Command</h4><p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/command_token_format.png" alt="img"></p>
-<p>如上图所示，eMMC Command 由 48 Bits 组成，各个 Bits 的解析如下所示：</p>
-<table>
-<thead>
-<tr>
-<th>Description</th>
-<th>Start Bit</th>
-<th>Transmission Bit</th>
-<th>Command Index</th>
-<th>Argument</th>
-<th>CRC7</th>
-<th>End Bit</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Bit position</td>
-<td>47</td>
-<td>46</td>
-<td>[45:40]</td>
-<td>[39:8]</td>
-<td>[7:1]</td>
-<td>0</td>
-</tr>
-<tr>
-<td>Width (bits)</td>
-<td>1</td>
-<td>1</td>
-<td>6</td>
-<td>32</td>
-<td>7</td>
-<td>1</td>
-</tr>
-<tr>
-<td>Value</td>
-<td>“0”</td>
-<td>“1”</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
-<td>“1”</td>
-</tr>
-</tbody></table>
-<p>Start Bit 固定为 “0”，在没有数据传输的情况下，CMD 信号保持高电平，当 Host 将 Start Bit 发送到总线上时，eMMC Device 可以很方便检测到该信号，并开始接收 Command。</p>
-<p>Transmission Bit 固定为 “1”，指示了该数据包的传输方向为 Host 发送到 eMMC Device。</p>
-<p>Command Index 和 Argument 为 Command 的具体内容，不同的 Command 有不同的 Index，不同的 Command 也有各自的 Argument。 更多的细节，请参考 <a href="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/emmc_commands.html" target="_blank" rel="noopener">eMMC Commands</a> 章节。</p>
-<p>CRC7 是包含 Start Bit、Transmission Bit、 Command Index 和 Argument 内容的 CRC 校验值。</p>
-<p>End Bit 为结束标志位，固定为”1”。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>CRC 校验简单来说，是发送方将需要传输的数据“除于”（模2除）一个约定的数，并将得到的余数附在数据上一并发送出去。接收方收到数据后，再做同样的“除法”，然后校验得到余数是否与接收的余数相同。如果不相同，那么意味着数据在传输过程中发生了改变。更多的细节不在本文展开描述，感兴趣的读者可以参考 <a href="https://en.wikipedia.org/wiki/Cyclic_redundancy_check" target="_blank" rel="noopener">CRC wiki</a> 中的介绍。</p>
-</blockquote>
-<h4 id="2-2-5-Response"><a href="#2-2-5-Response" class="headerlink" title="2.2.5 Response"></a>2.2.5 Response</h4><p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/respone_token_format.png" alt="img"></p>
-<p>eMMC Response 有两种长度的数据包，分别为 48 Bits 和 136 Bits。</p>
-<p>Start Bit 与 Command 一样，固定为 “0”，在没有数据传输的情况下，CMD 信号保持高电平，当 eMMC Device 将 Start Bit 发送到总线上时，Host 可以很方便检测到该信号，并开始接收 Response。</p>
-<p>Transmission Bit 固定为 “0”，指示了该数据包的传输方向为 eMMC Device 发送到 Host。</p>
-<p>Content 为 Response 的具体内容，不同的 Command 会有不同的 Content。 更多的细节，请参考 <a href="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/emmc_responses.html" target="_blank" rel="noopener">eMMC Responses</a> 章节。</p>
-<p>CRC7 是包含 Start Bit、Transmission Bit 和 Content 内容的 CRC 校验值。</p>
-<p>End Bit 为结束标志位，固定为”1”。</p>
-<h4 id="2-2-6-Data-Block"><a href="#2-2-6-Data-Block" class="headerlink" title="2.2.6 Data Block"></a>2.2.6 Data Block</h4><p>Data Block 由 Start Bit、Data、CRC16 和 End Bit 组成。以下是不同总线宽度和 Data Rate 下，Data Block 详细格式。</p>
-<p><strong>1 Bit Bus SDR</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/1_bit_bus_sdr.png" alt="img"></p>
-<p>CRC 为 Data 的 16 bit CRC 校验值，不包含 Start Bit。</p>
-<p><strong>4 Bits Bus SDR</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/4_bits_bus_sdr.png" alt="img"></p>
-<p>各个 Data Line 上的 CRC 为对应 Data Line 的 Data 的 16 bit CRC 校验值。</p>
-<p><strong>8 Bits Bus SDR</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/8_bits_bus_sdr.png" alt="img"></p>
-<p>各个 Data Line 上的 CRC 为对应 Data Line 的 Data 的16 bit CRC 校验值。</p>
-<p><strong>4 Bits Bus DDR</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/4_bits_bus_ddr.png" alt="img"></p>
-<p><strong>8 Bits Bus DDR</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/8_bits_bus_ddr.png" alt="img"></p>
-<p>在 DDR 模式下，Data Line 在时钟的上升沿和下降沿都会传输数据，其中上升沿传输数据的奇数字节 （Byte 1,3,5 …），下降沿则传输数据的偶数字节（Byte 2,4,6 …）。<br>此外，在 DDR 模式下，1 个 Data Line 上有两个相互交织的 CRC16，上升沿的 CRC 比特组成 odd CRC16，下降沿的 CRC 比特组成 even CRC16。odd CRC16 用于校验该 Data Line 上所有上升沿比特组成的数据，even CRC16 则用于校验该 Data Line 上所有下降沿比特组成的数据。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>DDR 模式下使用两个 CRC16 作为校验，可能是为了更可靠的校验，选用 CRC16 而非 CRC32 则可能是出于兼容性设计的考虑。</p>
-</blockquote>
-<h4 id="2-2-7-CRC-Status-Token"><a href="#2-2-7-CRC-Status-Token" class="headerlink" title="2.2.7 CRC Status Token"></a>2.2.7 CRC Status Token</h4><p>在写数据传输中，eMMC Device 接收到 Host 发送的一个 Data Block 后，会进行 CRC 校验，如果校验成功，eMMC 会在对应的 Data Line 上向 Host 发回一个 Positive CRC status token (010)，如果校验失败，则会在对应的 Data Line 上发送一个 Negative CRC status token (101)。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>读数据时，Host 接收到 eMMC Device 发送的 Data Block 后，也会进行 CRC 校验，但是不管校验成功或者失败，都不会向 eMMC Device 发送 CRC Status Token。</p>
-</blockquote>
-<p>详细格式如下图所示：</p>
-<p><strong>Positive CRC status token</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/positive_crc_status_token.png" alt="img"></p>
-<p><strong>Negative CRC status token</strong></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/negative_crc_status_token.png" alt="img"></p>
-<h2 id="3-eMMC-总线测试过程"><a href="#3-eMMC-总线测试过程" class="headerlink" title="3. eMMC 总线测试过程"></a>3. eMMC 总线测试过程</h2><p>当 eMMC Device 处于 SDR 模式时，Host 可以发送 CMD19 命令，触发总线测试过程（Bus testing procedure），测试总线硬件上的连通性。如果 eMMC Device 支持总线测试，那么 eMMC Device 在接收到 CMD19 后，会发回对应的 Response，接着 eMMC Device 会发送一组固定的测试数据给 Host。Host 接收到数据后，检查数据正确与否，即可得知总线是否正确连通。</p>
-<blockquote>
-<p><strong>NOTE:</strong> 如果 eMMC Device 不支持总线测试，那么接收到 CMD19 时，不会发回 Response。<br>总线测试不支持在 DDR 模式下进行。</p>
-</blockquote>
-<p>测试数据如下所示：</p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/bus_testing_data.png" alt="img"></p>
-<blockquote>
-<p><strong>NOTE:</strong> 总线宽度为 1 时，只发送 DAT0 上的数据，总线宽度为 4 时，则只发送 DAT0-3 上的数据</p>
-</blockquote>
-<h2 id="4-eMMC-总线-Sampling-Tuning"><a href="#4-eMMC-总线-Sampling-Tuning" class="headerlink" title="4. eMMC 总线 Sampling Tuning"></a>4. eMMC 总线 Sampling Tuning</h2><p>由于芯片制造工艺、PCB 走线、电压、温度等因素的影响，数据信号从 eMMC Device 到达 Host 端的时间是存在差异的，Host 接收数据时采样的时间点也需要相应的进行调整。而 Host 端最佳采样时间点，则是通过 Sampling Tuning 流程得到。</p>
-<blockquote>
-<p><strong>NOTE:</strong><br>不同 eMMC Device 最佳的采样点可能不同，同一 eMMC Device 在不同的环境下运作时的最佳采样点也可能不同。<br>在 eMMC 标准中，定义了在 HS200 模式下可以进行 Sampling Tuning。</p>
-</blockquote>
-<h3 id="4-1-Sampling-Tuning-流程"><a href="#4-1-Sampling-Tuning-流程" class="headerlink" title="4.1 Sampling Tuning 流程"></a>4.1 Sampling Tuning 流程</h3><p>Sampling Tuning 是用于计算 Host 最佳采样时间点的流程，大致的流程如下：</p>
-<ol>
-<li>Host 将采样时间点重置为默认值</li>
-<li>Host 向 eMMC Device 发送 Send Tuning Block 命令</li>
-<li>eMMC Device 向 Host 发送固定的 Tuning Block 数据</li>
-<li>Host 接收到 Tuning Block 并进行校验</li>
-<li>Host 修改采样时点，重新从第 2 步开始执行，直到 Host 获取到一个有效采样时间点区间</li>
-<li>Host 取有效采样时间点区间的中间值作为采样时间点，并推出 Tuning 流程</li>
-</ol>
-<blockquote>
-<p><strong>NOTE:</strong><br>上述流程仅仅是一个示例。Tuning 流程执行的时机、频率和具体的步骤是由 Host 端的 eMMC Controller 具体实现而定的。</p>
-</blockquote>
-<h3 id="4-2-Tuning-Block-数据"><a href="#4-2-Tuning-Block-数据" class="headerlink" title="4.2 Tuning Block 数据"></a>4.2 Tuning Block 数据</h3><p>Tuning Block 是专门为了 Tuning 而设计的一组特殊数据。相对于普通的数据，这组特殊数据在传输过程中，会更高概率的出现 high SSO noise、deterministic jitter、ISI、timing errors 等问题。这组数据的具体内容如下所示：</p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/tuning_block_pattern.png" alt="img"></p>
-<p><img src="https://linux.codingbelief.com/zh/storage/flash_memory/emmc/tuning_block_on_data_lines.png" alt="img"></p>
-<blockquote>
-<p><strong>NOTE:</strong> 总线宽度为 1 时，只发送 DAT0 上的数据，总线宽度为 4 时，则只发送 DAT0-3 上的数据</p>
-</blockquote>
-<h2 id="5-参考资料"><a href="#5-参考资料" class="headerlink" title="5. 参考资料"></a>5. 参考资料</h2><ol>
-<li><a href="http://www.jedec.org/sites/default/files/docs/JESD84-B51.pdf" target="_blank" rel="noopener">Embedded Multi-Media Card (e•MMC) Electrical Standard (5.1)</a> [PDF]</li>
-<li><a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.296.5338&rep=rep1&type=pdf" target="_blank" rel="noopener">SD/MMC Controller, Hard Processor System (HPS) Technical Reference Manual (TRM)</a> [PDF]</li>
-<li><a href="https://en.wikipedia.org/wiki/Cyclic_redundancy_check" target="_blank" rel="noopener">CRC wiki</a> [WEB]</li>
-</ol>
-<p><strong>注</strong>：本文转自蜗窝科技<a href="http://www.wowotech.net，来自【http://www.wowotech.net/basic_tech/emmc_bus_protocol.html】" target="_blank" rel="noopener">www.wowotech.net，来自【http://www.wowotech.net/basic_tech/emmc_bus_protocol.html】</a></p>
 
       
     </div>
